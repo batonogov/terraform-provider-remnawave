@@ -388,3 +388,40 @@ func (d *systemHealthDataSource) Read(ctx context.Context, _ datasource.ReadRequ
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
+
+// ─── Keygen Data Source ───
+
+type keygenDataSource struct{ client *Client }
+type keygenDataSourceModel struct {
+	PubKey types.String `tfsdk:"pub_key"`
+}
+
+func NewKeygenDataSource() datasource.DataSource { return &keygenDataSource{} }
+
+func (d *keygenDataSource) Metadata(_ context.Context, _ datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = "remnawave_keygen"
+}
+
+func (d *keygenDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Returns the panel's public key for node setup.",
+		Attributes: map[string]schema.Attribute{
+			"pub_key": schema.StringAttribute{Computed: true, Sensitive: true, Description: "Panel public key."},
+		},
+	}
+}
+
+func (d *keygenDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData == nil { return }
+	client, ok := req.ProviderData.(*Client)
+	if !ok { resp.Diagnostics.AddError("Unexpected type", "Expected *Client"); return }
+	d.client = client
+}
+
+func (d *keygenDataSource) Read(ctx context.Context, _ datasource.ReadRequest, resp *datasource.ReadResponse) {
+	data, err := d.client.GetKeygenPubKey(ctx)
+	if err != nil { resp.Diagnostics.AddError("Failed to get keygen pubkey", err.Error()); return }
+	state := keygenDataSourceModel{}
+	if pk, ok := data["pubKey"].(string); ok { state.PubKey = types.StringValue(pk) }
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}

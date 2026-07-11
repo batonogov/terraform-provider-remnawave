@@ -179,3 +179,33 @@ type BrandingSettings struct {
 type PasswordAuthSettings struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
+
+// Snippet maps to the Remnawave Snippet model (keyed by name, not UUID).
+type Snippet struct {
+	Name    string `json:"name"`
+	Snippet any    `json:"snippet,omitempty"`
+}
+
+// NodePlugin maps to the Remnawave NodePlugin model.
+type NodePlugin struct {
+	UUID         string `json:"uuid,omitempty"`
+	Name         string `json:"name"`
+	PluginConfig any    `json:"pluginConfig,omitempty"`
+}
+
+// ApiToken maps to the Remnawave ApiToken model.
+type ApiToken struct {
+	UUID     string   `json:"uuid,omitempty"`
+	Name     string   `json:"name"`
+	ExpireAt string   `json:"expireAt,omitempty"`
+	Scopes   []string `json:"scopes,omitempty"`
+	Token    string   `json:"token,omitempty"`
+}
+
+// InfraProvider maps to the Remnawave InfraProvider model.
+type InfraProvider struct {
+	UUID         string  `json:"uuid,omitempty"`
+	Name         string  `json:"name"`
+	FaviconLink  *string `json:"faviconLink,omitempty"`
+	LoginURL     *string `json:"loginUrl,omitempty"`
+}

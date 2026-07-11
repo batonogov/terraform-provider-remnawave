@@ -609,3 +609,134 @@ func (c *Client) UpdatePanelSettings(ctx context.Context, settings *PanelSetting
 	}
 	return &out, nil
 }
+
+// ─── Snippet API ───
+
+type snippetsListResponse struct {
+	Total    int        `json:"total"`
+	Snippets []Snippet  `json:"snippets"`
+}
+
+func (c *Client) CreateSnippet(ctx context.Context, s *Snippet) (*snippetsListResponse, error) {
+	var out snippetsListResponse
+	if err := c.doRequest(ctx, http.MethodPost, "/api/snippets", s, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) GetSnippets(ctx context.Context) (*snippetsListResponse, error) {
+	var out snippetsListResponse
+	if err := c.doRequest(ctx, http.MethodGet, "/api/snippets", nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) UpdateSnippet(ctx context.Context, s *Snippet) (*snippetsListResponse, error) {
+	var out snippetsListResponse
+	if err := c.doRequest(ctx, http.MethodPatch, "/api/snippets", s, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) DeleteSnippet(ctx context.Context, name string) error {
+	return c.doRequest(ctx, http.MethodDelete, "/api/snippets", map[string]string{"name": name}, nil)
+}
+
+// ─── Node Plugin API ───
+
+func (c *Client) CreateNodePlugin(ctx context.Context, p *NodePlugin) (*NodePlugin, error) {
+	var out NodePlugin
+	if err := c.doRequest(ctx, http.MethodPost, "/api/node-plugins", p, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) GetNodePluginByUUID(ctx context.Context, uuid string) (*NodePlugin, error) {
+	var out NodePlugin
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/node-plugins/%s", uuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) UpdateNodePlugin(ctx context.Context, p *NodePlugin) (*NodePlugin, error) {
+	var out NodePlugin
+	if err := c.doRequest(ctx, http.MethodPatch, "/api/node-plugins", p, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) DeleteNodePlugin(ctx context.Context, uuid string) error {
+	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/node-plugins/%s", uuid), nil, nil)
+}
+
+// ─── API Token API ───
+
+func (c *Client) CreateApiToken(ctx context.Context, t *ApiToken) (*ApiToken, error) {
+	var out ApiToken
+	if err := c.doRequest(ctx, http.MethodPost, "/api/tokens", t, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) DeleteApiToken(ctx context.Context, uuid string) error {
+	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/tokens/%s", uuid), nil, nil)
+}
+
+type apiTokensListResponse struct {
+	Tokens []ApiToken `json:"tokens"`
+}
+
+func (c *Client) GetAllApiTokens(ctx context.Context) ([]ApiToken, error) {
+	var out apiTokensListResponse
+	if err := c.doRequest(ctx, http.MethodGet, "/api/tokens", nil, &out); err != nil {
+		return nil, err
+	}
+	return out.Tokens, nil
+}
+
+// ─── Keygen API ───
+
+func (c *Client) GetKeygenPubKey(ctx context.Context) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, "/api/keygen", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ─── Infra Billing API ───
+
+func (c *Client) CreateInfraProvider(ctx context.Context, p *InfraProvider) (*InfraProvider, error) {
+	var out InfraProvider
+	if err := c.doRequest(ctx, http.MethodPost, "/api/infra-billing/providers", p, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) GetInfraProviderByUUID(ctx context.Context, uuid string) (*InfraProvider, error) {
+	var out InfraProvider
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/infra-billing/providers/%s", uuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) UpdateInfraProvider(ctx context.Context, p *InfraProvider) (*InfraProvider, error) {
+	var out InfraProvider
+	if err := c.doRequest(ctx, http.MethodPatch, "/api/infra-billing/providers", p, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) DeleteInfraProvider(ctx context.Context, uuid string) error {
+	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/infra-billing/providers/%s", uuid), nil, nil)
+}
