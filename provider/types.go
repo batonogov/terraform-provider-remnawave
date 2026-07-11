@@ -142,3 +142,40 @@ type SubscriptionSettings struct {
 	HappRouting              *string           `json:"happRouting,omitempty"`
 	RandomizeHosts           *bool             `json:"randomizeHosts,omitempty"`
 }
+
+// InternalSquad maps to the Remnawave InternalSquad model.
+type InternalSquad struct {
+	UUID     string   `json:"uuid,omitempty"`
+	Name     string   `json:"name"`
+	Inbounds []string `json:"inbounds"`
+}
+
+// ExternalSquad maps to the Remnawave ExternalSquad model.
+type ExternalSquad struct {
+	UUID string `json:"uuid,omitempty"`
+	Name string `json:"name"`
+}
+
+// SubscriptionTemplate maps to the Remnawave SubscriptionTemplate model.
+type SubscriptionTemplate struct {
+	UUID                string `json:"uuid,omitempty"`
+	Name                string `json:"name"`
+	TemplateType        string `json:"templateType,omitempty"`
+	TemplateJSON        any    `json:"templateJson,omitempty"`
+	EncodedTemplateYaml string `json:"encodedTemplateYaml,omitempty"`
+}
+
+// PanelSettings maps to the Remnawave RemnawaveSettings model (singleton).
+type PanelSettings struct {
+	BrandingSettings  *BrandingSettings  `json:"brandingSettings,omitempty"`
+	PasswordSettings  *PasswordAuthSettings `json:"passwordSettings,omitempty"`
+}
+
+type BrandingSettings struct {
+	Title   *string `json:"title,omitempty"`
+	LogoURL *string `json:"logoUrl,omitempty"`
+}
+
+type PasswordAuthSettings struct {
+	Enabled *bool `json:"enabled,omitempty"`
+}
