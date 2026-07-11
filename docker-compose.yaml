@@ -21,6 +21,7 @@ services:
       SCALAR_PATH: "/scalar"
       METRICS_USER: "admin"
       METRICS_PASS: "testmetricspass123"
+      NODE_ENV: "development"
     depends_on:
       remnawave-db:
         condition: service_healthy
