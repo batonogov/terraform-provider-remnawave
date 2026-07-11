@@ -173,6 +173,10 @@ func (p *RemnawaveProvider) Resources(_ context.Context) []func() resource.Resou
 		NewInternalSquadResource,
 		NewSubscriptionTemplateResource,
 		NewPanelSettingsResource,
+		NewSnippetResource,
+		NewNodePluginResource,
+		NewApiTokenResource,
+		NewInfraProviderResource,
 	}
 }
 
@@ -183,6 +187,7 @@ func (p *RemnawaveProvider) DataSources(_ context.Context) []func() datasource.D
 		NewHostsDataSource,
 		NewConfigProfilesDataSource,
 		NewSystemHealthDataSource,
+		NewKeygenDataSource,
 	}
 }
 
