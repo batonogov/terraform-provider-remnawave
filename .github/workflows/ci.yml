@@ -99,13 +99,32 @@ jobs:
             echo "Registration failed with HTTP $http_code"
             exit 1
           fi
-          echo "$body" | jq -e '.response.accessToken' > /dev/null
+          ADMIN_JWT=$(echo "$body" | jq -r '.response.accessToken')
+          echo "Admin JWT obtained"
+
+          # Create API token for acceptance tests
+          token_response=$(curl -s -w "\n%{http_code}" \
+            -H "Content-Type: application/json" \
+            -H "X-Forwarded-For: 127.0.0.1" \
+            -H "X-Forwarded-Proto: https" \
+            -H "Authorization: Bearer $ADMIN_JWT" \
+            -X POST http://localhost:3000/api/tokens \
+            -d '{"name":"acceptance-tests","expiresInDays":1,"scopes":["*"]}')
+          token_http_code=$(echo "$token_response" | tail -1)
+          token_body=$(echo "$token_response" | sed '$d')
+          echo "Token creation: HTTP $token_http_code"
+          API_TOKEN=$(echo "$token_body" | jq -r '.response.token')
+          if [ "$API_TOKEN" = "null" ] || [ -z "$API_TOKEN" ]; then
+            echo "Failed to create API token: $token_body"
+            exit 1
+          fi
+          echo "API token created"
+          echo "REMNAWAVE_API_TOKEN=$API_TOKEN" >> $GITHUB_ENV
       - name: Run acceptance tests
         env:
           TF_ACC: "1"
           REMNAWAVE_ENDPOINT: "http://localhost:3000"
-          REMNAWAVE_USERNAME: ${{ env.REMNAWAVE_ADMIN_USERNAME }}
-          REMNAWAVE_PASSWORD: ${{ env.REMNAWAVE_ADMIN_PASSWORD }}
+          REMNAWAVE_API_TOKEN: ${{ env.REMNAWAVE_API_TOKEN }}
           REMNAWAVE_PROXY_HEADERS: "true"
         run: go test ./provider -run TestAcc -count=1 -timeout 600s -v
       - name: Tear down
