@@ -62,11 +62,27 @@ jobs:
           go-version-file: go.mod
       - name: Start Remnawave panel
         run: docker compose up --detach --wait --quiet-pull
+      - name: Wait for panel API readiness
+        run: |
+          echo "Waiting for panel API on port 3000..."
+          for i in $(seq 1 60); do
+            response=$(curl -s -w "\n%{http_code}" http://localhost:3000/api/auth/status 2>/dev/null) || true
+            http_code=$(echo "$response" | tail -1)
+            if [ "$http_code" = "200" ]; then
+              echo "Panel API ready after ${i}s"
+              echo "$response" | sed '$d' | jq .
+              break
+            fi
+            echo "  attempt $i: HTTP $http_code"
+            sleep 2
+          done
+          if [ "$http_code" != "200" ]; then
+            echo "Panel API did not become ready"
+            docker logs remnawave-test 2>&1 | tail -30
+            exit 1
+          fi
       - name: Register admin account
         run: |
-          echo "Checking panel status..."
-          curl -s http://localhost:3000/api/auth/status | jq .
-          echo "Registering admin..."
           response=$(curl -s -w "\n%{http_code}" -X POST http://localhost:3000/api/auth/register \
             -H "Content-Type: application/json" \
             -d "{\"username\":\"$REMNAWAVE_ADMIN_USERNAME\",\"password\":\"$REMNAWAVE_ADMIN_PASSWORD\"}")
