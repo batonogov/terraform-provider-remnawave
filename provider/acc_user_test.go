@@ -36,7 +36,13 @@ resource "remnawave_user" "test" {
 					resource.TestCheckResourceAttrSet("remnawave_user.test", "subscription_url"),
 				),
 			},
-			// Import test disabled — needs explicit ID mapping, will add in follow-up
+			{
+				ResourceName:      "remnawave_user.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+				// trojan_password, vless_uuid, ss_password are auto-generated, skip them
+				ImportStateVerifyIgnore: []string{"trojan_password", "vless_uuid", "ss_password"},
+			},
 		},
 	})
 }
