@@ -179,7 +179,6 @@ func (p *RemnawaveProvider) DataSources(_ context.Context) []func() datasource.D
 		NewHostsDataSource,
 		NewConfigProfilesDataSource,
 		NewSystemHealthDataSource,
-		NewConfigProfilesDataSource,
 	}
 }
 
