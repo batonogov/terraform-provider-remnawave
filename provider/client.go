@@ -342,6 +342,19 @@ func (c *Client) DeleteUser(ctx context.Context, uuid string) error {
 	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/users/%s", uuid), nil, nil)
 }
 
+type usersListResponse struct {
+	Total int    `json:"total"`
+	Users []User `json:"users"`
+}
+
+func (c *Client) GetAllUsers(ctx context.Context) ([]User, error) {
+	var out usersListResponse
+	if err := c.doRequest(ctx, http.MethodGet, "/api/users", nil, &out); err != nil {
+		return nil, err
+	}
+	return out.Users, nil
+}
+
 // ─── Node API ───
 
 func (c *Client) CreateNode(ctx context.Context, node *Node) (*Node, error) {
@@ -426,4 +439,47 @@ func (c *Client) GetSystemHealth(ctx context.Context) (map[string]any, error) {
 		return nil, err
 	}
 	return out, nil
+}
+
+// ─── Config Profile API ───
+
+func (c *Client) CreateConfigProfile(ctx context.Context, profile *ConfigProfile) (*ConfigProfile, error) {
+	var out ConfigProfile
+	if err := c.doRequest(ctx, http.MethodPost, "/api/config-profiles", profile, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) GetConfigProfileByUUID(ctx context.Context, uuid string) (*ConfigProfile, error) {
+	var out ConfigProfile
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/config-profiles/%s", uuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) UpdateConfigProfile(ctx context.Context, profile *ConfigProfile) (*ConfigProfile, error) {
+	var out ConfigProfile
+	if err := c.doRequest(ctx, http.MethodPatch, "/api/config-profiles", profile, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) DeleteConfigProfile(ctx context.Context, uuid string) error {
+	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/config-profiles/%s", uuid), nil, nil)
+}
+
+type configProfilesListResponse struct {
+	Total          int             `json:"total"`
+	ConfigProfiles []ConfigProfile `json:"configProfiles"`
+}
+
+func (c *Client) GetAllConfigProfiles(ctx context.Context) ([]ConfigProfile, error) {
+	var out configProfilesListResponse
+	if err := c.doRequest(ctx, http.MethodGet, "/api/config-profiles", nil, &out); err != nil {
+		return nil, err
+	}
+	return out.ConfigProfiles, nil
 }

@@ -173,6 +173,9 @@ func (p *RemnawaveProvider) Resources(_ context.Context) []func() resource.Resou
 func (p *RemnawaveProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewNodesDataSource,
+		NewUsersDataSource,
+		NewHostsDataSource,
+		NewConfigProfilesDataSource,
 		NewSystemHealthDataSource,
 	}
 }

@@ -101,3 +101,28 @@ type HostInbound struct {
 	ConfigProfileUUID        string `json:"configProfileUuid"`
 	ConfigProfileInboundUUID string `json:"configProfileInboundUuid"`
 }
+
+// ConfigProfile maps to the Remnawave ConfigProfile model.
+type ConfigProfile struct {
+	UUID     string                 `json:"uuid,omitempty"`
+	Name     string                 `json:"name"`
+	Config   any                    `json:"config,omitempty"`
+	Inbounds []ConfigProfileInbound `json:"inbounds,omitempty"`
+	Nodes    []ConfigProfileNode    `json:"nodes,omitempty"`
+}
+
+type ConfigProfileInbound struct {
+	UUID        string  `json:"uuid,omitempty"`
+	ProfileUUID string  `json:"profileUuid,omitempty"`
+	Tag         string  `json:"tag,omitempty"`
+	Type        string  `json:"type,omitempty"`
+	Network     *string `json:"network,omitempty"`
+	Security    *string `json:"security,omitempty"`
+	Port        *int    `json:"port,omitempty"`
+}
+
+type ConfigProfileNode struct {
+	UUID        string `json:"uuid,omitempty"`
+	Name        string `json:"name,omitempty"`
+	CountryCode string `json:"countryCode,omitempty"`
+}
