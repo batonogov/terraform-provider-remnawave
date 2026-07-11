@@ -1,0 +1,165 @@
+package provider
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+)
+
+type nodesDataSource struct {
+	client *Client
+}
+
+type nodesDataSourceModel struct {
+	Nodes []nodeItem `tfsdk:"nodes"`
+}
+
+type nodeItem struct {
+	UUID        types.String `tfsdk:"uuid"`
+	Name        types.String `tfsdk:"name"`
+	Address     types.String `tfsdk:"address"`
+	Port        types.Int64  `tfsdk:"port"`
+	CountryCode types.String `tfsdk:"country_code"`
+	IsConnected types.Bool   `tfsdk:"is_connected"`
+	IsDisabled  types.Bool   `tfsdk:"is_disabled"`
+	UsersOnline types.Int64  `tfsdk:"users_online"`
+}
+
+func NewNodesDataSource() datasource.DataSource {
+	return &nodesDataSource{}
+}
+
+func (d *nodesDataSource) Metadata(_ context.Context, _ datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = "remnawave_nodes"
+}
+
+func (d *nodesDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Lists all Remnawave nodes.",
+		Attributes: map[string]schema.Attribute{
+			"nodes": schema.ListNestedAttribute{
+				Computed: true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"uuid":         schema.StringAttribute{Computed: true},
+						"name":         schema.StringAttribute{Computed: true},
+						"address":      schema.StringAttribute{Computed: true},
+						"port":         schema.Int64Attribute{Computed: true},
+						"country_code": schema.StringAttribute{Computed: true},
+						"is_connected": schema.BoolAttribute{Computed: true},
+						"is_disabled":  schema.BoolAttribute{Computed: true},
+						"users_online": schema.Int64Attribute{Computed: true},
+					},
+				},
+			},
+		},
+	}
+}
+
+func (d *nodesDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+	client, ok := req.ProviderData.(*Client)
+	if !ok {
+		resp.Diagnostics.AddError("Unexpected type", "Expected *Client")
+		return
+	}
+	d.client = client
+}
+
+func (d *nodesDataSource) Read(ctx context.Context, _ datasource.ReadRequest, resp *datasource.ReadResponse) {
+	nodes, err := d.client.GetAllNodes(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to list nodes", err.Error())
+		return
+	}
+
+	var state nodesDataSourceModel
+	for _, n := range nodes {
+		item := nodeItem{
+			UUID:        types.StringValue(n.UUID),
+			Name:        types.StringValue(n.Name),
+			Address:     types.StringValue(n.Address),
+			CountryCode: types.StringValue(n.CountryCode),
+			IsConnected: types.BoolValue(n.IsConnected),
+			IsDisabled:  types.BoolValue(n.IsDisabled),
+			UsersOnline: types.Int64Value(int64(n.UsersOnline)),
+		}
+		if n.Port != nil {
+			item.Port = types.Int64Value(int64(*n.Port))
+		}
+		state.Nodes = append(state.Nodes, item)
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+// ─── System Health Data Source ───
+
+type systemHealthDataSource struct {
+	client *Client
+}
+
+type systemHealthDataSourceModel struct {
+	Response types.String `tfsdk:"response"`
+}
+
+func NewSystemHealthDataSource() datasource.DataSource {
+	return &systemHealthDataSource{}
+}
+
+func (d *systemHealthDataSource) Metadata(_ context.Context, _ datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = "remnawave_system_health"
+}
+
+func (d *systemHealthDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Returns system health and statistics from the Remnawave panel.",
+		Attributes: map[string]schema.Attribute{
+			"response": schema.StringAttribute{
+				Computed:    true,
+				Description: "Raw JSON response from the panel's health endpoint.",
+			},
+		},
+	}
+}
+
+func (d *systemHealthDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+	client, ok := req.ProviderData.(*Client)
+	if !ok {
+		resp.Diagnostics.AddError("Unexpected type", "Expected *Client")
+		return
+	}
+	d.client = client
+}
+
+func (d *systemHealthDataSource) Read(ctx context.Context, _ datasource.ReadRequest, resp *datasource.ReadResponse) {
+	health, err := d.client.GetSystemHealth(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to get system health", err.Error())
+		return
+	}
+
+	// Marshal to JSON string for the schema
+	jsonBytes, err := json.Marshal(health)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to marshal health response", fmt.Sprintf("error: %s", err))
+		return
+	}
+
+	state := systemHealthDataSourceModel{
+		Response: types.StringValue(string(jsonBytes)),
+	}
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}

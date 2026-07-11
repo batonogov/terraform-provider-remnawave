@@ -1,0 +1,48 @@
+version: "3"
+
+tasks:
+  build:
+    desc: Build the provider binary
+    cmds:
+      - go build -o terraform-provider-remnawave
+
+  fmt:
+    desc: Format Go files
+    cmds:
+      - gofmt -w provider/*.go
+
+  vet:
+    desc: Run go vet
+    cmds:
+      - go vet ./...
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run
+
+  test:unit:
+    desc: Run unit tests (no Docker / Terraform needed)
+    cmds:
+      - go test ./provider -skip '^TestAcc' -count=1 -v
+
+  test:acc:
+    desc: Run acceptance tests (needs Docker)
+    cmds:
+      - docker compose down -v 2>/dev/null || true
+      - docker compose up --detach --wait --quiet-pull
+      - defer: docker compose down -v
+      - >-
+        TF_ACC=1
+        REMNAWAVE_ENDPOINT=http://localhost:3000
+        REMNAWAVE_USERNAME=admin
+        REMNAWAVE_PASSWORD=admin
+        go test ./provider -run TestAcc -count=1 -timeout 600s -v
+
+  pre-commit:
+    desc: Run all pre-commit checks
+    cmds:
+      - task: fmt
+      - task: vet
+      - task: lint
+      - task: build
