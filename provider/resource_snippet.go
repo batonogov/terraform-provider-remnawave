@@ -61,13 +61,17 @@ func (r *snippetResource) Read(ctx context.Context, req resource.ReadRequest, re
 	if err != nil { resp.Diagnostics.AddError("Failed to read snippets", err.Error()); return }
 	found := false
 	for _, s := range list.Snippets {
-		if s.Name == state.Name.ValueString() {
-			found = true
-			b, err := json.Marshal(s.Snippet)
-			if err != nil { resp.Diagnostics.AddError("Failed to marshal snippet", err.Error()); return }
-			state.Snippet = types.StringValue(string(b))
-			break
+		if s.Name != state.Name.ValueString() {
+			continue
 		}
+		found = true
+		b, err := json.Marshal(s.Snippet)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to marshal snippet", err.Error())
+			return
+		}
+		state.Snippet = types.StringValue(string(b))
+		break
 	}
 	if !found { resp.State.RemoveResource(ctx); return }
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
