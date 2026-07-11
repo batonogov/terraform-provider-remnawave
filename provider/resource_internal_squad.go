@@ -1,0 +1,103 @@
+package provider
+
+import (
+	"context"
+
+	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
+)
+
+type internalSquadResource struct{ client *Client }
+type internalSquadModel struct {
+	UUID     types.String `tfsdk:"uuid"`
+	Name     types.String `tfsdk:"name"`
+	Inbounds types.Set    `tfsdk:"inbounds"`
+}
+
+func NewInternalSquadResource() resource.Resource { return &internalSquadResource{} }
+
+func (r *internalSquadResource) Metadata(_ context.Context, _ resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = "remnawave_internal_squad"
+}
+
+func (r *internalSquadResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Manages a Remnawave internal squad (group with inbound access control).",
+		Attributes: map[string]schema.Attribute{
+			"uuid": schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
+			"name": schema.StringAttribute{Required: true, Description: "Squad name (2-30 chars)."},
+			"inbounds": schema.SetAttribute{Optional: true, ElementType: types.StringType, Description: "Set of config profile inbound UUIDs."},
+		},
+	}
+}
+
+func (r *internalSquadResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil { return }
+	client, ok := req.ProviderData.(*Client)
+	if !ok { resp.Diagnostics.AddError("Unexpected type", "Expected *Client"); return }
+	r.client = client
+}
+
+func (r *internalSquadResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan internalSquadModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() { return }
+	squad := &InternalSquad{Name: plan.Name.ValueString(), Inbounds: []string{}}
+	if !plan.Inbounds.IsNull() {
+		for _, v := range plan.Inbounds.Elements() {
+			squad.Inbounds = append(squad.Inbounds, v.(types.String).ValueString())
+		}
+	}
+	created, err := r.client.CreateInternalSquad(ctx, squad)
+	if err != nil { resp.Diagnostics.AddError("Failed to create internal squad", err.Error()); return }
+	plan.UUID = types.StringValue(created.UUID)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+}
+
+func (r *internalSquadResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state internalSquadModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() { return }
+	squad, err := r.client.GetInternalSquadByUUID(ctx, state.UUID.ValueString())
+	if err != nil {
+		if isNotFound(err) { tflog.Warn(ctx, "internal squad not found", map[string]any{"uuid": state.UUID.ValueString()}); resp.State.RemoveResource(ctx); return }
+		resp.Diagnostics.AddError("Failed to read internal squad", err.Error()); return
+	}
+	state.UUID = types.StringValue(squad.UUID); state.Name = types.StringValue(squad.Name)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
+
+func (r *internalSquadResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan internalSquadModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() { return }
+	squad := &InternalSquad{UUID: plan.UUID.ValueString(), Name: plan.Name.ValueString(), Inbounds: []string{}}
+	if !plan.Inbounds.IsNull() {
+		for _, v := range plan.Inbounds.Elements() {
+			squad.Inbounds = append(squad.Inbounds, v.(types.String).ValueString())
+		}
+	}
+	updated, err := r.client.UpdateInternalSquad(ctx, squad)
+	if err != nil { resp.Diagnostics.AddError("Failed to update internal squad", err.Error()); return }
+	plan.UUID = types.StringValue(updated.UUID); plan.Name = types.StringValue(updated.Name)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+}
+
+func (r *internalSquadResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state internalSquadModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() { return }
+	if err := r.client.DeleteInternalSquad(ctx, state.UUID.ValueString()); err != nil { resp.Diagnostics.AddError("Failed to delete internal squad", err.Error()) }
+}
+
+func (r *internalSquadResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("uuid"), types.StringValue(req.ID))...)
+}
+
+var _ attr.Type = types.StringType

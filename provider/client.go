@@ -501,3 +501,111 @@ func (c *Client) UpdateSubscriptionSettings(ctx context.Context, settings *Subsc
 	}
 	return &out, nil
 }
+
+// ─── Internal Squad API ───
+
+func (c *Client) CreateInternalSquad(ctx context.Context, squad *InternalSquad) (*InternalSquad, error) {
+	var out InternalSquad
+	if err := c.doRequest(ctx, http.MethodPost, "/api/internal-squads", squad, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) GetInternalSquadByUUID(ctx context.Context, uuid string) (*InternalSquad, error) {
+	var out InternalSquad
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/internal-squads/%s", uuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) UpdateInternalSquad(ctx context.Context, squad *InternalSquad) (*InternalSquad, error) {
+	var out InternalSquad
+	if err := c.doRequest(ctx, http.MethodPatch, "/api/internal-squads", squad, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) DeleteInternalSquad(ctx context.Context, uuid string) error {
+	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/internal-squads/%s", uuid), nil, nil)
+}
+
+// ─── External Squad API ───
+
+func (c *Client) CreateExternalSquad(ctx context.Context, squad *ExternalSquad) (*ExternalSquad, error) {
+	var out ExternalSquad
+	if err := c.doRequest(ctx, http.MethodPost, "/api/external-squads", squad, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) GetExternalSquadByUUID(ctx context.Context, uuid string) (*ExternalSquad, error) {
+	var out ExternalSquad
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/external-squads/%s", uuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) UpdateExternalSquad(ctx context.Context, squad *ExternalSquad) (*ExternalSquad, error) {
+	var out ExternalSquad
+	if err := c.doRequest(ctx, http.MethodPatch, "/api/external-squads", squad, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) DeleteExternalSquad(ctx context.Context, uuid string) error {
+	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/external-squads/%s", uuid), nil, nil)
+}
+
+// ─── Subscription Template API ───
+
+func (c *Client) CreateSubscriptionTemplate(ctx context.Context, tmpl *SubscriptionTemplate) (*SubscriptionTemplate, error) {
+	var out SubscriptionTemplate
+	if err := c.doRequest(ctx, http.MethodPost, "/api/subscription-templates", tmpl, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) GetSubscriptionTemplateByUUID(ctx context.Context, uuid string) (*SubscriptionTemplate, error) {
+	var out SubscriptionTemplate
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/subscription-templates/%s", uuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) UpdateSubscriptionTemplate(ctx context.Context, tmpl *SubscriptionTemplate) (*SubscriptionTemplate, error) {
+	var out SubscriptionTemplate
+	if err := c.doRequest(ctx, http.MethodPatch, "/api/subscription-templates", tmpl, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) DeleteSubscriptionTemplate(ctx context.Context, uuid string) error {
+	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/subscription-templates/%s", uuid), nil, nil)
+}
+
+// ─── Panel Settings API (singleton) ───
+
+func (c *Client) GetPanelSettings(ctx context.Context) (*PanelSettings, error) {
+	var out PanelSettings
+	if err := c.doRequest(ctx, http.MethodGet, "/api/remnawave-settings", nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) UpdatePanelSettings(ctx context.Context, settings *PanelSettings) (*PanelSettings, error) {
+	var out PanelSettings
+	if err := c.doRequest(ctx, http.MethodPatch, "/api/remnawave-settings", settings, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
