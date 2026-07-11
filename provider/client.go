@@ -115,20 +115,20 @@ func (c *Client) authenticate(ctx context.Context) error {
 		"password": c.password,
 	}
 
+	// decodeResponse unwraps the { "response": <data> } envelope,
+	// so out receives <data> directly (i.e. { "accessToken": "..." }).
 	var resp struct {
-		Response struct {
-			AccessToken string `json:"accessToken"`
-		} `json:"response"`
+		AccessToken string `json:"accessToken"`
 	}
 	if err := c.doRaw(ctx, http.MethodPost, "/api/auth/login", payload, &resp); err != nil {
 		return fmt.Errorf("login failed: %w", err)
 	}
-	if resp.Response.AccessToken == "" {
+	if resp.AccessToken == "" {
 		return errors.New("login succeeded but no access token returned")
 	}
 
 	c.authMu.Lock()
-	c.accessToken = resp.Response.AccessToken
+	c.accessToken = resp.AccessToken
 	// JWT lifetime is configurable on the panel (default 12h). We use 11h
 	// as a conservative default to refresh before expiry.
 	c.tokenExpiry = time.Now().Add(11 * time.Hour)
