@@ -37,6 +37,12 @@ resource "remnawave_user" "test" {
 				),
 			},
 			// Import test disabled — needs explicit ID mapping, will add in follow-up
+			{
+				ResourceName:      "remnawave_user.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateVerifyIgnore: []string{"trojan_password", "vless_uuid", "ss_password"},
+			},
 		},
 	})
 }
