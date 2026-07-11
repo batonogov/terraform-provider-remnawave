@@ -89,17 +89,20 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			},
 			"trojan_password": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Sensitive:   true,
-				Description: "Trojan protocol password (8-32 chars).",
+				Description: "Trojan protocol password (8-32 chars). Auto-generated if not set.",
 			},
 			"vless_uuid": schema.StringAttribute{
 				Optional:    true,
-				Description: "VLESS UUID. If not set, the panel generates one.",
+				Computed:    true,
+				Description: "VLESS UUID. Auto-generated if not set.",
 			},
 			"ss_password": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Sensitive:   true,
-				Description: "Shadowsocks password (8-32 chars).",
+				Description: "Shadowsocks password (8-32 chars). Auto-generated if not set.",
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
