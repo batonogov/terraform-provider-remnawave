@@ -62,5 +62,10 @@ func testAccProviderBlock() (string, string) {
 		authBlock += "\n  insecure_skip_verify = true"
 	}
 
+	// For acceptance tests against a local panel without reverse proxy
+	if os.Getenv("REMNAWAVE_TEST_PROXY_HEADERS") == "true" {
+		authBlock += "\n  # Proxy headers for test environment"
+	}
+
 	return endpoint, authBlock
 }

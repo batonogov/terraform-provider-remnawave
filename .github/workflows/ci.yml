@@ -66,7 +66,10 @@ jobs:
         run: |
           echo "Waiting for panel API on port 3000..."
           for i in $(seq 1 60); do
-            response=$(curl -s -w "\n%{http_code}" http://localhost:3000/api/auth/status 2>/dev/null) || true
+            response=$(curl -s -w "\n%{http_code}" \
+              -H "X-Forwarded-For: 127.0.0.1" \
+              -H "X-Forwarded-Proto: https" \
+              http://localhost:3000/api/auth/status 2>/dev/null) || true
             http_code=$(echo "$response" | tail -1)
             if [ "$http_code" = "200" ]; then
               echo "Panel API ready after ${i}s"
@@ -83,8 +86,11 @@ jobs:
           fi
       - name: Register admin account
         run: |
-          response=$(curl -s -w "\n%{http_code}" -X POST http://localhost:3000/api/auth/register \
+          response=$(curl -s -w "\n%{http_code}" \
             -H "Content-Type: application/json" \
+            -H "X-Forwarded-For: 127.0.0.1" \
+            -H "X-Forwarded-Proto: https" \
+            -X POST http://localhost:3000/api/auth/register \
             -d "{\"username\":\"$REMNAWAVE_ADMIN_USERNAME\",\"password\":\"$REMNAWAVE_ADMIN_PASSWORD\"}")
           http_code=$(echo "$response" | tail -1)
           body=$(echo "$response" | sed '$d')
@@ -100,6 +106,7 @@ jobs:
           REMNAWAVE_ENDPOINT: "http://localhost:3000"
           REMNAWAVE_USERNAME: ${{ env.REMNAWAVE_ADMIN_USERNAME }}
           REMNAWAVE_PASSWORD: ${{ env.REMNAWAVE_ADMIN_PASSWORD }}
+          REMNAWAVE_PROXY_HEADERS: "true"
         run: go test ./provider -run TestAcc -count=1 -timeout 600s -v
       - name: Tear down
         if: always()

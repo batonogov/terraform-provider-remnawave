@@ -27,6 +27,7 @@ type RemnawaveProviderModel struct {
 	Password           types.String `tfsdk:"password"`
 	InsecureSkipVerify types.Bool   `tfsdk:"insecure_skip_verify"`
 	RequestTimeout     types.String `tfsdk:"request_timeout"`
+	ProxyHeaders       types.Bool   `tfsdk:"proxy_headers"`
 }
 
 const (
@@ -36,6 +37,7 @@ const (
 	envPassword           = "REMNAWAVE_PASSWORD"
 	envInsecureSkipVerify = "REMNAWAVE_INSECURE_SKIP_VERIFY"
 	envRequestTimeout     = "REMNAWAVE_REQUEST_TIMEOUT"
+	envProxyHeaders       = "REMNAWAVE_PROXY_HEADERS"
 )
 
 func New(version string) func() provider.Provider {
@@ -78,6 +80,10 @@ func (p *RemnawaveProvider) Schema(_ context.Context, _ provider.SchemaRequest, 
 				Optional:    true,
 				Description: "HTTP request timeout (e.g. 30s, 1m). Default: 30s. Can also be set via REMNAWAVE_REQUEST_TIMEOUT env var.",
 			},
+			"proxy_headers": schema.BoolAttribute{
+				Optional:    true,
+				Description: "Send X-Forwarded-For/X-Forwarded-Proto headers to bypass ProxyCheckMiddleware when connecting without a reverse proxy. Can also be set via REMNAWAVE_PROXY_HEADERS env var.",
+			},
 		},
 	}
 }
@@ -119,6 +125,18 @@ func (p *RemnawaveProvider) Configure(ctx context.Context, req provider.Configur
 		insecureSkipVerify = b
 	}
 
+	proxyHeaders := false
+	if !config.ProxyHeaders.IsNull() && !config.ProxyHeaders.IsUnknown() {
+		proxyHeaders = config.ProxyHeaders.ValueBool()
+	} else if v := os.Getenv(envProxyHeaders); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			resp.Diagnostics.AddError("Invalid REMNAWAVE_PROXY_HEADERS", fmt.Sprintf("must be true or false, got %q", v))
+			return
+		}
+		proxyHeaders = b
+	}
+
 	timeoutStr := envString(config.RequestTimeout, envRequestTimeout, "30s")
 	timeout, err := time.ParseDuration(timeoutStr)
 	if err != nil {
@@ -133,6 +151,7 @@ func (p *RemnawaveProvider) Configure(ctx context.Context, req provider.Configur
 		Password:           password,
 		InsecureSkipVerify: insecureSkipVerify,
 		Timeout:            timeout,
+		ProxyHeaders:       proxyHeaders,
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Client init failed", err.Error())

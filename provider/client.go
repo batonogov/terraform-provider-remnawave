@@ -17,15 +17,17 @@ import (
 
 // Client manages communication with the Remnawave REST API.
 type Client struct {
-	baseURL    *url.URL
-	httpClient *http.Client
-	apiToken   string
+	baseURL     *url.URL
+	httpClient  *http.Client
+	apiToken    string
 
 	authMu      sync.Mutex
 	accessToken string
 	tokenExpiry time.Time
 	username    string
 	password    string
+
+	proxyHeaders bool
 }
 
 // ClientConfig holds the parameters for creating a new Client.
@@ -36,6 +38,10 @@ type ClientConfig struct {
 	Password           string
 	InsecureSkipVerify bool
 	Timeout            time.Duration
+	// ProxyHeaders adds X-Forwarded-For and X-Forwarded-Proto headers
+	// to every request. Needed when connecting directly to the panel
+	// without a reverse proxy (e.g. acceptance tests).
+	ProxyHeaders bool
 }
 
 type apiResponse struct {
@@ -85,11 +91,12 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 	}
 
 	return &Client{
-		baseURL:    baseURL,
-		httpClient: httpClient,
-		apiToken:   cfg.APIToken,
-		username:   cfg.Username,
-		password:   cfg.Password,
+		baseURL:     baseURL,
+		httpClient:  httpClient,
+		apiToken:    cfg.APIToken,
+		username:    cfg.Username,
+		password:    cfg.Password,
+		proxyHeaders: cfg.ProxyHeaders,
 	}, nil
 }
 
@@ -172,6 +179,7 @@ func (c *Client) doRaw(ctx context.Context, method, path string, body any, out a
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	c.setProxyHeaders(req)
 
 	return c.sendRequest(req, out)
 }
@@ -200,6 +208,7 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, o
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
+	c.setProxyHeaders(req)
 
 	// On 401, try re-authenticating once (unless using static API token).
 	resp, err := c.httpClient.Do(req)
@@ -223,6 +232,7 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, o
 		}
 		req2.Header.Set("Authorization", "Bearer "+token)
 		req2.Header.Set("Content-Type", "application/json")
+		c.setProxyHeaders(req2)
 		// Reset body reader for retry
 		if body != nil {
 			b, err := json.Marshal(body)
@@ -291,6 +301,15 @@ func (c *Client) resolvePath(path string) string {
 	}
 	base.Path = strings.TrimSuffix(base.Path, "/") + path
 	return base.String()
+}
+
+// setProxyHeaders adds reverse-proxy headers required by the panel's
+// ProxyCheckMiddleware when connecting without a real reverse proxy.
+func (c *Client) setProxyHeaders(req *http.Request) {
+	if c.proxyHeaders {
+		req.Header.Set("X-Forwarded-For", "127.0.0.1")
+		req.Header.Set("X-Forwarded-Proto", "https")
+	}
 }
 
 // ─── User API ───
