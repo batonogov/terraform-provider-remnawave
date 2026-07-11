@@ -75,9 +75,10 @@ func (r *configProfileResource) Create(ctx context.Context, req resource.CreateR
 
 	profile := &ConfigProfile{
 		Name: plan.Name.ValueString(),
+		Config: map[string]any{}, // panel requires a config object, even if empty
 	}
 	if !plan.Config.IsNull() && plan.Config.ValueString() != "" {
-		var cfg any
+		var cfg map[string]any
 		if err := json.Unmarshal([]byte(plan.Config.ValueString()), &cfg); err != nil {
 			resp.Diagnostics.AddError("Invalid config JSON", err.Error())
 			return
