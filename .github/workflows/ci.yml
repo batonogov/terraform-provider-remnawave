@@ -95,7 +95,7 @@ jobs:
           http_code=$(echo "$response" | tail -1)
           body=$(echo "$response" | sed '$d')
           echo "HTTP $http_code: $body"
-          if [ "$http_code" != "200" ]; then
+          if [ "$http_code" != "200" ] && [ "$http_code" != "201" ]; then
             echo "Registration failed with HTTP $http_code"
             exit 1
           fi
