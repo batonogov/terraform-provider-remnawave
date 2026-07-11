@@ -64,10 +64,20 @@ jobs:
         run: docker compose up --detach --wait --quiet-pull
       - name: Register admin account
         run: |
-          curl -sf -X POST http://localhost:3000/api/auth/register \
+          echo "Checking panel status..."
+          curl -s http://localhost:3000/api/auth/status | jq .
+          echo "Registering admin..."
+          response=$(curl -s -w "\n%{http_code}" -X POST http://localhost:3000/api/auth/register \
             -H "Content-Type: application/json" \
-            -d "{\"username\":\"$REMNAWAVE_ADMIN_USERNAME\",\"password\":\"$REMNAWAVE_ADMIN_PASSWORD\"}" \
-            | jq -e '.response.accessToken' > /dev/null
+            -d "{\"username\":\"$REMNAWAVE_ADMIN_USERNAME\",\"password\":\"$REMNAWAVE_ADMIN_PASSWORD\"}")
+          http_code=$(echo "$response" | tail -1)
+          body=$(echo "$response" | sed '$d')
+          echo "HTTP $http_code: $body"
+          if [ "$http_code" != "200" ]; then
+            echo "Registration failed with HTTP $http_code"
+            exit 1
+          fi
+          echo "$body" | jq -e '.response.accessToken' > /dev/null
       - name: Run acceptance tests
         env:
           TF_ACC: "1"
