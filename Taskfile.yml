@@ -33,10 +33,14 @@ tasks:
       - docker compose up --detach --wait --quiet-pull
       - defer: docker compose down -v
       - >-
+        curl -sf -X POST http://localhost:3000/api/auth/register
+        -H "Content-Type: application/json"
+        -d '{"username":"admin","password":"TestAdminPassword123"}' || true
+      - >-
         TF_ACC=1
         REMNAWAVE_ENDPOINT=http://localhost:3000
         REMNAWAVE_USERNAME=admin
-        REMNAWAVE_PASSWORD=admin
+        REMNAWAVE_PASSWORD=TestAdminPassword123
         go test ./provider -run TestAcc -count=1 -timeout 600s -v
 
   pre-commit:

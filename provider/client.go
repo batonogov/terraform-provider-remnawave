@@ -38,17 +38,8 @@ type ClientConfig struct {
 	Timeout            time.Duration
 }
 
-// apiResponse is the standard Remnawave API envelope: { "response": <data> }
-// For error responses, the body is: { "statusCode": N, "message": "...", "error": "..." }
 type apiResponse struct {
 	Response json.RawMessage `json:"response"`
-}
-
-type apiErrorResponse struct {
-	StatusCode int      `json:"statusCode"`
-	Message    string   `json:"message"`
-	Error      string   `json:"error"`
-	Details    []string `json:"details,omitempty"`
 }
 
 // HTTPStatusError carries the HTTP status code and body from a failed request.
@@ -217,7 +208,8 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, o
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized && c.apiToken == "" {
-		resp.Body.Close()
+		// #nosec G104 -- discarding body before re-auth; Close error is not actionable
+		resp.Body.Close() //nolint:errcheck // best-effort close before re-auth
 		c.authMu.Lock()
 		c.accessToken = ""
 		c.authMu.Unlock()
@@ -254,7 +246,8 @@ func (c *Client) sendRequest(req *http.Request, out any) error {
 }
 
 func (c *Client) decodeResponse(resp *http.Response, out any) error {
-	defer resp.Body.Close()
+	// #nosec G104 -- discarding body close error; not actionable after read
+	defer resp.Body.Close() //nolint:errcheck
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

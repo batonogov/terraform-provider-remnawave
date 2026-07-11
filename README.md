@@ -76,7 +76,13 @@ go test ./provider -skip '^TestAcc' -count=1 -v
 
 # Acceptance tests (requires Docker)
 docker compose up -d --wait
+# Register admin (first run only)
+curl -sf -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"TestAdminPassword123"}'
+# Run tests
 TF_ACC=1 REMNAWAVE_ENDPOINT=http://localhost:3000 \
+  REMNAWAVE_USERNAME=admin REMNAWAVE_PASSWORD=TestAdminPassword123 \
   go test ./provider -run TestAcc -count=1 -timeout 600s -v
 ```
 

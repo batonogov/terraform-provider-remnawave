@@ -52,22 +52,28 @@ jobs:
     name: Acceptance Tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      REMNAWAVE_ADMIN_USERNAME: admin
+      REMNAWAVE_ADMIN_PASSWORD: TestAdminPassword123
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: Set up Docker
-        uses: docker/setup-buildx-action@v3
       - name: Start Remnawave panel
+        run: docker compose up --detach --wait --quiet-pull
+      - name: Register admin account
         run: |
-          docker compose up --detach --wait --quiet-pull
+          curl -sf -X POST http://localhost:3000/api/auth/register \
+            -H "Content-Type: application/json" \
+            -d "{\"username\":\"$REMNAWAVE_ADMIN_USERNAME\",\"password\":\"$REMNAWAVE_ADMIN_PASSWORD\"}" \
+            | jq -e '.response.accessToken' > /dev/null
       - name: Run acceptance tests
         env:
           TF_ACC: "1"
           REMNAWAVE_ENDPOINT: "http://localhost:3000"
-          REMNAWAVE_USERNAME: "admin"
-          REMNAWAVE_PASSWORD: "admin"
+          REMNAWAVE_USERNAME: ${{ env.REMNAWAVE_ADMIN_USERNAME }}
+          REMNAWAVE_PASSWORD: ${{ env.REMNAWAVE_ADMIN_PASSWORD }}
         run: go test ./provider -run TestAcc -count=1 -timeout 600s -v
       - name: Tear down
         if: always()
