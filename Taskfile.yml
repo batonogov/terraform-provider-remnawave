@@ -37,12 +37,12 @@ tasks:
         -H "Content-Type: application/json"
         -H "X-Forwarded-For: 127.0.0.1"
         -H "X-Forwarded-Proto: https"
-        -d '{"username":"admin","password":"TestAdminPassword123456"}' || true
+        -d '{"username":"admin","password":"TestAdminPassword1234567"}' || true
       - >-
         TF_ACC=1
         REMNAWAVE_ENDPOINT=http://localhost:3000
         REMNAWAVE_USERNAME=admin
-        REMNAWAVE_PASSWORD=TestAdminPassword123456
+        REMNAWAVE_PASSWORD=TestAdminPassword1234567
         REMNAWAVE_PROXY_HEADERS=true
         go test ./provider -run TestAcc -count=1 -timeout 600s -v
 

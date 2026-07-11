@@ -79,10 +79,10 @@ docker compose up -d --wait
 # Register admin (first run only)
 curl -sf -X POST http://localhost:3000/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"TestAdminPassword123456"}'
+  -d '{"username":"admin","password":"TestAdminPassword1234567"}'
 # Run tests
 TF_ACC=1 REMNAWAVE_ENDPOINT=http://localhost:3000 \
-  REMNAWAVE_USERNAME=admin REMNAWAVE_PASSWORD=TestAdminPassword123456 \
+  REMNAWAVE_USERNAME=admin REMNAWAVE_PASSWORD=TestAdminPassword1234567 \
   go test ./provider -run TestAcc -count=1 -timeout 600s -v
 ```
 
