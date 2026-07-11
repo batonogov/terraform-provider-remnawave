@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 // TestAccUserResource tests the full lifecycle of a remnawave_user resource:
@@ -37,6 +38,15 @@ resource "remnawave_user" "test" {
 				),
 			},
 			// Import test disabled — needs explicit ID mapping, will add in follow-up
+			{
+				ResourceName:            "remnawave_user.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"trojan_password", "vless_uuid", "ss_password"},
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					return s.RootModule().Resources["remnawave_user.test"].Primary.Attributes["uuid"], nil
+				},
+			},
 		},
 	})
 }
