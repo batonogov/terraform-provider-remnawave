@@ -168,6 +168,7 @@ func (p *RemnawaveProvider) Resources(_ context.Context) []func() resource.Resou
 		NewNodeResource,
 		NewHostResource,
 		NewConfigProfileResource,
+		NewSubscriptionSettingsResource,
 	}
 }
 
