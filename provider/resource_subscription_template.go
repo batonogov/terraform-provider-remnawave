@@ -74,7 +74,11 @@ func (r *subscriptionTemplateResource) Read(ctx context.Context, req resource.Re
 	state.Name = types.StringValue(tmpl.Name)
 	if tmpl.TemplateType != "" { state.TemplateType = types.StringValue(tmpl.TemplateType) }
 	if tmpl.TemplateJSON != nil {
-		b, _ := json.Marshal(tmpl.TemplateJSON)
+		b, err := json.Marshal(tmpl.TemplateJSON)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to marshal template_json", err.Error())
+			return
+		}
 		state.TemplateJSON = types.StringValue(string(b))
 	}
 	if tmpl.EncodedTemplateYaml != "" { state.EncodedYaml = types.StringValue(tmpl.EncodedTemplateYaml) }
