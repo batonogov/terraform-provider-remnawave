@@ -128,3 +128,17 @@ type ConfigProfileNode struct {
 	Name        string `json:"name,omitempty"`
 	CountryCode string `json:"countryCode,omitempty"`
 }
+
+// SubscriptionSettings is a singleton (GET/PATCH /api/subscription-settings).
+type SubscriptionSettings struct {
+	UUID                     string            `json:"uuid,omitempty"`
+	ProfileTitle             *string           `json:"profileTitle,omitempty"`
+	SupportLink              *string           `json:"supportLink,omitempty"`
+	ProfileUpdateInterval    *int              `json:"profileUpdateInterval,omitempty"`
+	IsProfileWebpageURLEnabled *bool          `json:"isProfileWebpageUrlEnabled,omitempty"`
+	ServeJsonAtBaseSubscription *bool          `json:"serveJsonAtBaseSubscription,omitempty"`
+	IsShowCustomRemarks      *bool             `json:"isShowCustomRemarks,omitempty"`
+	HappAnnounce             *string           `json:"happAnnounce,omitempty"`
+	HappRouting              *string           `json:"happRouting,omitempty"`
+	RandomizeHosts           *bool             `json:"randomizeHosts,omitempty"`
+}

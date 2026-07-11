@@ -342,6 +342,19 @@ func (c *Client) DeleteUser(ctx context.Context, uuid string) error {
 	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/users/%s", uuid), nil, nil)
 }
 
+type usersListResponse struct {
+	Total int    `json:"total"`
+	Users []User `json:"users"`
+}
+
+func (c *Client) GetAllUsers(ctx context.Context) ([]User, error) {
+	var out usersListResponse
+	if err := c.doRequest(ctx, http.MethodGet, "/api/users", nil, &out); err != nil {
+		return nil, err
+	}
+	return out.Users, nil
+}
+
 // ─── Node API ───
 
 func (c *Client) CreateNode(ctx context.Context, node *Node) (*Node, error) {
@@ -469,4 +482,22 @@ func (c *Client) GetAllConfigProfiles(ctx context.Context) ([]ConfigProfile, err
 		return nil, err
 	}
 	return out.ConfigProfiles, nil
+}
+
+// ─── Subscription Settings API (singleton) ───
+
+func (c *Client) GetSubscriptionSettings(ctx context.Context) (*SubscriptionSettings, error) {
+	var out SubscriptionSettings
+	if err := c.doRequest(ctx, http.MethodGet, "/api/subscription-settings", nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) UpdateSubscriptionSettings(ctx context.Context, settings *SubscriptionSettings) (*SubscriptionSettings, error) {
+	var out SubscriptionSettings
+	if err := c.doRequest(ctx, http.MethodPatch, "/api/subscription-settings", settings, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
