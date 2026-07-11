@@ -5,9 +5,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -16,16 +13,16 @@ type subscriptionSettingsResource struct {
 }
 
 type subscriptionSettingsModel struct {
-	ID                        types.String `tfsdk:"id"`
-	ProfileTitle              types.String `tfsdk:"profile_title"`
-	SupportLink               types.String `tfsdk:"support_link"`
-	ProfileUpdateInterval     types.Int64  `tfsdk:"profile_update_interval"`
-	IsProfileWebpageURLEnabled types.Bool  `tfsdk:"is_profile_webpage_url_enabled"`
-	ServeJsonAtBaseSubscription types.Bool `tfsdk:"serve_json_at_base_subscription"`
-	IsShowCustomRemarks       types.Bool   `tfsdk:"is_show_custom_remarks"`
-	HappAnnounce              types.String `tfsdk:"happ_announce"`
-	HappRouting               types.String `tfsdk:"happ_routing"`
-	RandomizeHosts            types.Bool   `tfsdk:"randomize_hosts"`
+	ID                          types.String `tfsdk:"id"`
+	ProfileTitle                types.String `tfsdk:"profile_title"`
+	SupportLink                 types.String `tfsdk:"support_link"`
+	ProfileUpdateInterval       types.Int64  `tfsdk:"profile_update_interval"`
+	IsProfileWebpageURLEnabled  types.Bool   `tfsdk:"is_profile_webpage_url_enabled"`
+	ServeJsonAtBaseSubscription types.Bool   `tfsdk:"serve_json_at_base_subscription"`
+	IsShowCustomRemarks         types.Bool   `tfsdk:"is_show_custom_remarks"`
+	HappAnnounce                types.String `tfsdk:"happ_announce"`
+	HappRouting                 types.String `tfsdk:"happ_routing"`
+	RandomizeHosts              types.Bool   `tfsdk:"randomize_hosts"`
 }
 
 func NewSubscriptionSettingsResource() resource.Resource {
@@ -41,57 +38,52 @@ func (r *subscriptionSettingsResource) Schema(_ context.Context, _ resource.Sche
 		Description: "Manages Remnawave subscription settings (singleton). Delete only removes from Terraform state.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Computed: true,
+				Computed:    true,
 				Description: "Always 'settings' — this is a singleton resource.",
 			},
 			"profile_title": schema.StringAttribute{
-				Required: true,
+				Optional:    true,
+				Computed:    true,
 				Description: "Subscription profile title shown in VPN clients.",
 			},
 			"support_link": schema.StringAttribute{
-				Required: true,
+				Optional:    true,
+				Computed:    true,
 				Description: "Support link shown in subscription page.",
 			},
 			"profile_update_interval": schema.Int64Attribute{
-				Optional: true,
-				Computed: true,
-				Default: int64default.StaticInt64(60),
-				Description: "Subscription update interval in minutes (default: 60).",
+				Optional:    true,
+				Computed:    true,
+				Description:  "Subscription update interval in minutes.",
 			},
 			"is_profile_webpage_url_enabled": schema.BoolAttribute{
-				Optional: true,
-				Computed: true,
-				Default: booldefault.StaticBool(false),
+				Optional:    true,
+				Computed:    true,
 				Description: "Enable profile webpage URL.",
 			},
 			"serve_json_at_base_subscription": schema.BoolAttribute{
-				Optional: true,
-				Computed: true,
-				Default: booldefault.StaticBool(false),
+				Optional:    true,
+				Computed:    true,
 				Description: "Serve JSON at base subscription URL.",
 			},
 			"is_show_custom_remarks": schema.BoolAttribute{
-				Optional: true,
-				Computed: true,
-				Default: booldefault.StaticBool(false),
+				Optional:    true,
+				Computed:    true,
 				Description: "Show custom remarks for users.",
 			},
 			"happ_announce": schema.StringAttribute{
-				Optional: true,
-				Computed: true,
-				Default: stringdefault.StaticString(""),
+				Optional:    true,
+				Computed:    true,
 				Description: "Happ announce message (max 200 chars).",
 			},
 			"happ_routing": schema.StringAttribute{
-				Optional: true,
-				Computed: true,
-				Default: stringdefault.StaticString(""),
+				Optional:    true,
+				Computed:    true,
 				Description: "Happ routing config.",
 			},
 			"randomize_hosts": schema.BoolAttribute{
-				Optional: true,
-				Computed: true,
-				Default: booldefault.StaticBool(false),
+				Optional:    true,
+				Computed:    true,
 				Description: "Randomize host order in subscription.",
 			},
 		},
