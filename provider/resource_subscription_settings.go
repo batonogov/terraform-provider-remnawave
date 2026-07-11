@@ -109,7 +109,15 @@ func (r *subscriptionSettingsResource) Create(ctx context.Context, req resource.
 		return
 	}
 
+	// GET current settings to obtain UUID (required for PATCH)
+	current, err := r.client.GetSubscriptionSettings(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to read current subscription settings", err.Error())
+		return
+	}
+
 	settings := planToSubscriptionSettings(&plan)
+	settings.UUID = current.UUID
 	updated, err := r.client.UpdateSubscriptionSettings(ctx, settings)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to set subscription settings", err.Error())
@@ -146,7 +154,15 @@ func (r *subscriptionSettingsResource) Update(ctx context.Context, req resource.
 		return
 	}
 
+	// GET current to obtain UUID (required for PATCH)
+	current, err := r.client.GetSubscriptionSettings(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to read current subscription settings", err.Error())
+		return
+	}
+
 	settings := planToSubscriptionSettings(&plan)
+	settings.UUID = current.UUID
 	updated, err := r.client.UpdateSubscriptionSettings(ctx, settings)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to update subscription settings", err.Error())
