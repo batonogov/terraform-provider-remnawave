@@ -52,6 +52,12 @@ linters:
           - gocritic
           - gosec
 
+      # G101 false positives on env var name constants
+      - path: provider/provider\.go
+        linters:
+          - gosec
+        text: "G101"
+
       - path: vendor/
         linters:
           - all

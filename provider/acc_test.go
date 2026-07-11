@@ -52,7 +52,7 @@ func testAccProviderBlock() (string, string) {
 		}
 		password := os.Getenv(envPassword)
 		if password == "" {
-			password = "TestAdminPassword123"
+			password = "TestAdminPassword123456"
 		}
 		authBlock = "username = \"" + username + "\"\n  password = \"" + password + "\""
 	}

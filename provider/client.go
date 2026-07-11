@@ -208,8 +208,8 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, o
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized && c.apiToken == "" {
-		// #nosec G104 -- discarding body before re-auth; Close error is not actionable
-		resp.Body.Close() //nolint:errcheck // best-effort close before re-auth
+		// #nosec G104 -- discarding body before re-auth; not actionable
+		_ = resp.Body.Close()
 		c.authMu.Lock()
 		c.accessToken = ""
 		c.authMu.Unlock()
@@ -225,7 +225,10 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, o
 		req2.Header.Set("Content-Type", "application/json")
 		// Reset body reader for retry
 		if body != nil {
-			b, _ := json.Marshal(body)
+			b, err := json.Marshal(body)
+			if err != nil {
+				return err
+			}
 			req2.Body = io.NopCloser(bytes.NewReader(b))
 		}
 		resp, err = c.httpClient.Do(req2)
@@ -246,8 +249,10 @@ func (c *Client) sendRequest(req *http.Request, out any) error {
 }
 
 func (c *Client) decodeResponse(resp *http.Response, out any) error {
-	// #nosec G104 -- discarding body close error; not actionable after read
-	defer resp.Body.Close() //nolint:errcheck
+	defer func() {
+		// #nosec G104 -- body close error after read is not actionable
+		_ = resp.Body.Close()
+	}()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

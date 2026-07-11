@@ -54,7 +54,7 @@ jobs:
     timeout-minutes: 30
     env:
       REMNAWAVE_ADMIN_USERNAME: admin
-      REMNAWAVE_ADMIN_PASSWORD: TestAdminPassword123
+      REMNAWAVE_ADMIN_PASSWORD: TestAdminPassword123456
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

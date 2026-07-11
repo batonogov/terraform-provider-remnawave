@@ -35,12 +35,12 @@ tasks:
       - >-
         curl -sf -X POST http://localhost:3000/api/auth/register
         -H "Content-Type: application/json"
-        -d '{"username":"admin","password":"TestAdminPassword123"}' || true
+        -d '{"username":"admin","password":"TestAdminPassword123456"}' || true
       - >-
         TF_ACC=1
         REMNAWAVE_ENDPOINT=http://localhost:3000
         REMNAWAVE_USERNAME=admin
-        REMNAWAVE_PASSWORD=TestAdminPassword123
+        REMNAWAVE_PASSWORD=TestAdminPassword123456
         go test ./provider -run TestAcc -count=1 -timeout 600s -v
 
   pre-commit:
