@@ -1,0 +1,60 @@
+services:
+  remnawave:
+    image: remnawave/backend:${REMNAWAVE_VERSION:-latest}
+    container_name: remnawave-test
+    hostname: remnawave
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    environment:
+      APP_PORT: "3000"
+      METRICS_PORT: "3001"
+      DATABASE_URL: "postgresql://postgres:postgres@remnawave-db:5432/postgres"
+      REDIS_HOST: "remnawave-redis"
+      REDIS_PORT: "6379"
+      JWT_AUTH_SECRET: "test_jwt_secret_for_acceptance_tests_only_not_for_production_use_64chars"
+      JWT_API_TOKENS_SECRET: "test_api_token_secret_for_acceptance_tests_only_not_for_production_64chars"
+      FRONT_END_DOMAIN: "*"
+      SUB_PUBLIC_DOMAIN: "localhost:3000/api/sub"
+      IS_DOCS_ENABLED: "true"
+      SWAGGER_PATH: "/docs"
+      SCALAR_PATH: "/scalar"
+      METRICS_USER: "admin"
+      METRICS_PASS: "testmetricspass123"
+      NODE_ENV: "development"
+    depends_on:
+      remnawave-db:
+        condition: service_healthy
+      remnawave-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3001/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    restart: unless-stopped
+
+  remnawave-db:
+    image: postgres:18.4-alpine
+    container_name: remnawave-test-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  remnawave-redis:
+    image: valkey/valkey:9-alpine
+    container_name: remnawave-test-redis
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped

@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+      - name: Run golangci-lint
+        run: golangci-lint run
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build
+        run: go build -v ./...
+
+  test-unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run unit tests
+        run: go test ./provider -skip '^TestAcc' -count=1 -v
+
+  test-acc:
+    name: Acceptance Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      REMNAWAVE_ADMIN_USERNAME: admin
+      REMNAWAVE_ADMIN_PASSWORD: TestAdminPassword1234567
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Start Remnawave panel
+        run: docker compose up --detach --wait --quiet-pull
+      - name: Wait for panel API readiness
+        run: |
+          echo "Waiting for panel API on port 3000..."
+          for i in $(seq 1 60); do
+            response=$(curl -s -w "\n%{http_code}" \
+              -H "X-Forwarded-For: 127.0.0.1" \
+              -H "X-Forwarded-Proto: https" \
+              http://localhost:3000/api/auth/status 2>/dev/null) || true
+            http_code=$(echo "$response" | tail -1)
+            if [ "$http_code" = "200" ]; then
+              echo "Panel API ready after ${i}s"
+              echo "$response" | sed '$d' | jq .
+              break
+            fi
+            echo "  attempt $i: HTTP $http_code"
+            sleep 2
+          done
+          if [ "$http_code" != "200" ]; then
+            echo "Panel API did not become ready"
+            docker logs remnawave-test 2>&1 | tail -30
+            exit 1
+          fi
+      - name: Register admin account
+        run: |
+          response=$(curl -s -w "\n%{http_code}" \
+            -H "Content-Type: application/json" \
+            -H "X-Forwarded-For: 127.0.0.1" \
+            -H "X-Forwarded-Proto: https" \
+            -X POST http://localhost:3000/api/auth/register \
+            -d "{\"username\":\"$REMNAWAVE_ADMIN_USERNAME\",\"password\":\"$REMNAWAVE_ADMIN_PASSWORD\"}")
+          http_code=$(echo "$response" | tail -1)
+          body=$(echo "$response" | sed '$d')
+          echo "HTTP $http_code: $body"
+          if [ "$http_code" != "200" ] && [ "$http_code" != "201" ]; then
+            echo "Registration failed with HTTP $http_code"
+            exit 1
+          fi
+          ADMIN_JWT=$(echo "$body" | jq -r '.response.accessToken')
+          echo "Admin JWT obtained"
+
+          # Create API token for acceptance tests
+          token_response=$(curl -s -w "\n%{http_code}" \
+            -H "Content-Type: application/json" \
+            -H "X-Forwarded-For: 127.0.0.1" \
+            -H "X-Forwarded-Proto: https" \
+            -H "X-Remnawave-Client-Type: browser" \
+            -H "Authorization: Bearer $ADMIN_JWT" \
+            -X POST http://localhost:3000/api/tokens \
+            -d '{"name":"acceptance-tests","expiresInDays":1,"scopes":["*"]}')
+          token_http_code=$(echo "$token_response" | tail -1)
+          token_body=$(echo "$token_response" | sed '$d')
+          echo "Token creation: HTTP $token_http_code"
+          API_TOKEN=$(echo "$token_body" | jq -r '.response.token')
+          if [ "$API_TOKEN" = "null" ] || [ -z "$API_TOKEN" ]; then
+            echo "Failed to create API token: $token_body"
+            exit 1
+          fi
+          echo "API token created"
+          echo "REMNAWAVE_API_TOKEN=$API_TOKEN" >> $GITHUB_ENV
+      - name: Run acceptance tests
+        env:
+          TF_ACC: "1"
+          REMNAWAVE_ENDPOINT: "http://localhost:3000"
+          REMNAWAVE_API_TOKEN: ${{ env.REMNAWAVE_API_TOKEN }}
+          REMNAWAVE_PROXY_HEADERS: "true"
+        run: go test ./provider -run TestAcc -count=1 -timeout 600s -v
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

@@ -1,0 +1,69 @@
+# golangci-lint configuration v2
+
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - unconvert
+    - unparam
+    - gocritic
+    - errname
+    - errorlint
+    - gosec
+
+  settings:
+    errcheck:
+      check-blank: true
+      exclude-functions:
+        - (io.Closer).Close
+        - (*os.File).Close
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+      disabled-checks:
+        - unnamedResult
+        - ifElseChain
+        - hugeParam
+        - paramTypeCombine
+        - builtinShadow
+        - singleCaseSwitch
+        - rangeValCopy
+        - unlambda
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gocritic
+          - gosec
+
+      # G101 false positives on env var name constants
+      - path: provider/provider\.go
+        linters:
+          - gosec
+        text: "G101"
+
+      - path: vendor/
+        linters:
+          - all
+
+formatters:
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/batonogov/terraform-provider-remnawave
