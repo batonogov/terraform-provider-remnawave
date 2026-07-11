@@ -103,22 +103,24 @@ type HostInbound struct {
 }
 
 // ConfigProfile maps to the Remnawave ConfigProfile model.
+// API: /api/config-profiles (POST create, PATCH update, DELETE /:uuid, GET /:uuid, GET list)
 type ConfigProfile struct {
-	UUID     string                 `json:"uuid,omitempty"`
-	Name     string                 `json:"name"`
-	Config   any                    `json:"config,omitempty"`
+	UUID   string `json:"uuid,omitempty"`
+	Name   string `json:"name"`
+	Config any    `json:"config,omitempty"`
+	// Computed fields
 	Inbounds []ConfigProfileInbound `json:"inbounds,omitempty"`
 	Nodes    []ConfigProfileNode    `json:"nodes,omitempty"`
 }
 
 type ConfigProfileInbound struct {
-	UUID        string  `json:"uuid,omitempty"`
-	ProfileUUID string  `json:"profileUuid,omitempty"`
-	Tag         string  `json:"tag,omitempty"`
-	Type        string  `json:"type,omitempty"`
-	Network     *string `json:"network,omitempty"`
-	Security    *string `json:"security,omitempty"`
-	Port        *int    `json:"port,omitempty"`
+	UUID       string `json:"uuid,omitempty"`
+	ProfileUUID string `json:"profileUuid,omitempty"`
+	Tag        string `json:"tag,omitempty"`
+	Type       string `json:"type,omitempty"`
+	Network    *string `json:"network,omitempty"`
+	Security   *string `json:"security,omitempty"`
+	Port       *int    `json:"port,omitempty"`
 }
 
 type ConfigProfileNode struct {

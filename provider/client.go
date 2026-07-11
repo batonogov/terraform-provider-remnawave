@@ -342,19 +342,6 @@ func (c *Client) DeleteUser(ctx context.Context, uuid string) error {
 	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/users/%s", uuid), nil, nil)
 }
 
-type usersListResponse struct {
-	Total int    `json:"total"`
-	Users []User `json:"users"`
-}
-
-func (c *Client) GetAllUsers(ctx context.Context) ([]User, error) {
-	var out usersListResponse
-	if err := c.doRequest(ctx, http.MethodGet, "/api/users", nil, &out); err != nil {
-		return nil, err
-	}
-	return out.Users, nil
-}
-
 // ─── Node API ───
 
 func (c *Client) CreateNode(ctx context.Context, node *Node) (*Node, error) {
@@ -472,8 +459,8 @@ func (c *Client) DeleteConfigProfile(ctx context.Context, uuid string) error {
 }
 
 type configProfilesListResponse struct {
-	Total          int             `json:"total"`
-	ConfigProfiles []ConfigProfile `json:"configProfiles"`
+	Total           int              `json:"total"`
+	ConfigProfiles  []ConfigProfile  `json:"configProfiles"`
 }
 
 func (c *Client) GetAllConfigProfiles(ctx context.Context) ([]ConfigProfile, error) {

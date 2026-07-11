@@ -388,3 +388,73 @@ func (d *systemHealthDataSource) Read(ctx context.Context, _ datasource.ReadRequ
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
+
+// ─── Config Profiles Data Source ───
+
+type configProfilesDataSource struct {
+	client *Client
+}
+
+type configProfilesDataSourceModel struct {
+	ConfigProfiles []configProfileItem `tfsdk:"config_profiles"`
+}
+
+type configProfileItem struct {
+	UUID types.String `tfsdk:"uuid"`
+	Name types.String `tfsdk:"name"`
+}
+
+func NewConfigProfilesDataSource() datasource.DataSource {
+	return &configProfilesDataSource{}
+}
+
+func (d *configProfilesDataSource) Metadata(_ context.Context, _ datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = "remnawave_config_profiles"
+}
+
+func (d *configProfilesDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Lists all Remnawave config profiles.",
+		Attributes: map[string]schema.Attribute{
+			"config_profiles": schema.ListNestedAttribute{
+				Computed: true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"uuid": schema.StringAttribute{Computed: true},
+						"name": schema.StringAttribute{Computed: true},
+					},
+				},
+			},
+		},
+	}
+}
+
+func (d *configProfilesDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+	client, ok := req.ProviderData.(*Client)
+	if !ok {
+		resp.Diagnostics.AddError("Unexpected type", "Expected *Client")
+		return
+	}
+	d.client = client
+}
+
+func (d *configProfilesDataSource) Read(ctx context.Context, _ datasource.ReadRequest, resp *datasource.ReadResponse) {
+	profiles, err := d.client.GetAllConfigProfiles(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to list config profiles", err.Error())
+		return
+	}
+
+	var state configProfilesDataSourceModel
+	for _, p := range profiles {
+		state.ConfigProfiles = append(state.ConfigProfiles, configProfileItem{
+			UUID: types.StringValue(p.UUID),
+			Name: types.StringValue(p.Name),
+		})
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
