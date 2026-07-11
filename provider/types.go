@@ -142,3 +142,9 @@ type SubscriptionSettings struct {
 	HappRouting              *string           `json:"happRouting,omitempty"`
 	RandomizeHosts           *bool             `json:"randomizeHosts,omitempty"`
 }
+
+// ExternalSquad maps to the Remnawave ExternalSquad model.
+type ExternalSquad struct {
+	UUID string `json:"uuid,omitempty"`
+	Name string `json:"name"`
+}

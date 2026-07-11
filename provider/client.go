@@ -501,3 +501,33 @@ func (c *Client) UpdateSubscriptionSettings(ctx context.Context, settings *Subsc
 	}
 	return &out, nil
 }
+
+// ─── External Squad API ───
+
+func (c *Client) CreateExternalSquad(ctx context.Context, squad *ExternalSquad) (*ExternalSquad, error) {
+	var out ExternalSquad
+	if err := c.doRequest(ctx, http.MethodPost, "/api/external-squads", squad, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) GetExternalSquadByUUID(ctx context.Context, uuid string) (*ExternalSquad, error) {
+	var out ExternalSquad
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/external-squads/%s", uuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) UpdateExternalSquad(ctx context.Context, squad *ExternalSquad) (*ExternalSquad, error) {
+	var out ExternalSquad
+	if err := c.doRequest(ctx, http.MethodPatch, "/api/external-squads", squad, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) DeleteExternalSquad(ctx context.Context, uuid string) error {
+	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/external-squads/%s", uuid), nil, nil)
+}
