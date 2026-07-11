@@ -121,7 +121,11 @@ func (r *configProfileResource) Read(ctx context.Context, req resource.ReadReque
 	state.UUID = types.StringValue(profile.UUID)
 	state.Name = types.StringValue(profile.Name)
 	if profile.Config != nil {
-		b, _ := json.Marshal(profile.Config)
+		b, err := json.Marshal(profile.Config)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to marshal config", err.Error())
+			return
+		}
 		state.Config = types.StringValue(string(b))
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
@@ -156,7 +160,11 @@ func (r *configProfileResource) Update(ctx context.Context, req resource.UpdateR
 	plan.UUID = types.StringValue(updated.UUID)
 	plan.Name = types.StringValue(updated.Name)
 	if updated.Config != nil {
-		b, _ := json.Marshal(updated.Config)
+		b, err := json.Marshal(updated.Config)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to marshal config", err.Error())
+			return
+		}
 		plan.Config = types.StringValue(string(b))
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
