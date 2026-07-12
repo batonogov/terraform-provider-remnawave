@@ -33,32 +33,48 @@ func (r *snippetResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 }
 
 func (r *snippetResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil { return }
+	if req.ProviderData == nil {
+		return
+	}
 	client, ok := req.ProviderData.(*Client)
-	if !ok { resp.Diagnostics.AddError("Unexpected type", "Expected *Client"); return }
+	if !ok {
+		resp.Diagnostics.AddError("Unexpected type", "Expected *Client")
+		return
+	}
 	r.client = client
 }
 
 func (r *snippetResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan snippetModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() { return }
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	var snippetData any
 	if err := json.Unmarshal([]byte(plan.Snippet.ValueString()), &snippetData); err != nil {
-		resp.Diagnostics.AddError("Invalid snippet JSON", err.Error()); return
+		resp.Diagnostics.AddError("Invalid snippet JSON", err.Error())
+		return
 	}
 	_, err := r.client.CreateSnippet(ctx, &Snippet{Name: plan.Name.ValueString(), Snippet: snippetData})
-	if err != nil { resp.Diagnostics.AddError("Failed to create snippet", err.Error()); return }
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to create snippet", err.Error())
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
 func (r *snippetResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state snippetModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() { return }
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	// Snippets are returned as a list, find by name
 	list, err := r.client.GetSnippets(ctx)
-	if err != nil { resp.Diagnostics.AddError("Failed to read snippets", err.Error()); return }
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to read snippets", err.Error())
+		return
+	}
 	found := false
 	for _, s := range list.Snippets {
 		if s.Name != state.Name.ValueString() {
@@ -73,27 +89,38 @@ func (r *snippetResource) Read(ctx context.Context, req resource.ReadRequest, re
 		state.Snippet = types.StringValue(string(b))
 		break
 	}
-	if !found { resp.State.RemoveResource(ctx); return }
+	if !found {
+		resp.State.RemoveResource(ctx)
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *snippetResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan snippetModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() { return }
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	var snippetData any
 	if err := json.Unmarshal([]byte(plan.Snippet.ValueString()), &snippetData); err != nil {
-		resp.Diagnostics.AddError("Invalid snippet JSON", err.Error()); return
+		resp.Diagnostics.AddError("Invalid snippet JSON", err.Error())
+		return
 	}
 	_, err := r.client.UpdateSnippet(ctx, &Snippet{Name: plan.Name.ValueString(), Snippet: snippetData})
-	if err != nil { resp.Diagnostics.AddError("Failed to update snippet", err.Error()); return }
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to update snippet", err.Error())
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
 func (r *snippetResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var state snippetModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() { return }
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	if err := r.client.DeleteSnippet(ctx, state.Name.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Failed to delete snippet", err.Error())
 	}

@@ -17,9 +17,9 @@ import (
 
 // Client manages communication with the Remnawave REST API.
 type Client struct {
-	baseURL     *url.URL
-	httpClient  *http.Client
-	apiToken    string
+	baseURL    *url.URL
+	httpClient *http.Client
+	apiToken   string
 
 	authMu      sync.Mutex
 	accessToken string
@@ -91,11 +91,11 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 	}
 
 	return &Client{
-		baseURL:     baseURL,
-		httpClient:  httpClient,
-		apiToken:    cfg.APIToken,
-		username:    cfg.Username,
-		password:    cfg.Password,
+		baseURL:      baseURL,
+		httpClient:   httpClient,
+		apiToken:     cfg.APIToken,
+		username:     cfg.Username,
+		password:     cfg.Password,
 		proxyHeaders: cfg.ProxyHeaders,
 	}, nil
 }
@@ -299,7 +299,18 @@ func (c *Client) resolvePath(path string) string {
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
+
+	// Handle query string if present in path
+	rawQuery := ""
+	if idx := strings.Index(path, "?"); idx >= 0 {
+		rawQuery = path[idx+1:]
+		path = path[:idx]
+	}
+
 	base.Path = strings.TrimSuffix(base.Path, "/") + path
+	if rawQuery != "" {
+		base.RawQuery = rawQuery
+	}
 	return base.String()
 }
 
@@ -472,8 +483,8 @@ func (c *Client) DeleteConfigProfile(ctx context.Context, uuid string) error {
 }
 
 type configProfilesListResponse struct {
-	Total           int              `json:"total"`
-	ConfigProfiles  []ConfigProfile  `json:"configProfiles"`
+	Total          int             `json:"total"`
+	ConfigProfiles []ConfigProfile `json:"configProfiles"`
 }
 
 func (c *Client) GetAllConfigProfiles(ctx context.Context) ([]ConfigProfile, error) {
@@ -613,8 +624,8 @@ func (c *Client) UpdatePanelSettings(ctx context.Context, settings *PanelSetting
 // ─── Snippet API ───
 
 type snippetsListResponse struct {
-	Total    int        `json:"total"`
-	Snippets []Snippet  `json:"snippets"`
+	Total    int       `json:"total"`
+	Snippets []Snippet `json:"snippets"`
 }
 
 func (c *Client) CreateSnippet(ctx context.Context, s *Snippet) (*snippetsListResponse, error) {
@@ -699,6 +710,34 @@ func (c *Client) GetAllApiTokens(ctx context.Context) ([]ApiToken, error) {
 		return nil, err
 	}
 	return out.Tokens, nil
+}
+
+func (c *Client) GetSystemStats(ctx context.Context, tz string) (map[string]any, error) {
+	path := "/api/system/stats"
+	if tz != "" {
+		path += "?tz=" + tz
+	}
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, path, nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) GetSystemRecap(ctx context.Context) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, "/api/system/stats/recap", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) GetNodesMetrics(ctx context.Context) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, "/api/system/nodes/metrics", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // ─── Keygen API ───

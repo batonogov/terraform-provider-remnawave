@@ -38,26 +38,37 @@ func (r *nodePluginResource) Schema(_ context.Context, _ resource.SchemaRequest,
 }
 
 func (r *nodePluginResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil { return }
+	if req.ProviderData == nil {
+		return
+	}
 	client, ok := req.ProviderData.(*Client)
-	if !ok { resp.Diagnostics.AddError("Unexpected type", "Expected *Client"); return }
+	if !ok {
+		resp.Diagnostics.AddError("Unexpected type", "Expected *Client")
+		return
+	}
 	r.client = client
 }
 
 func (r *nodePluginResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan nodePluginModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() { return }
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	plugin := &NodePlugin{Name: plan.Name.ValueString()}
 	if !plan.PluginConfig.IsNull() && plan.PluginConfig.ValueString() != "" {
 		var cfg any
 		if err := json.Unmarshal([]byte(plan.PluginConfig.ValueString()), &cfg); err != nil {
-			resp.Diagnostics.AddError("Invalid plugin_config JSON", err.Error()); return
+			resp.Diagnostics.AddError("Invalid plugin_config JSON", err.Error())
+			return
 		}
 		plugin.PluginConfig = cfg
 	}
 	created, err := r.client.CreateNodePlugin(ctx, plugin)
-	if err != nil { resp.Diagnostics.AddError("Failed to create node plugin", err.Error()); return }
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to create node plugin", err.Error())
+		return
+	}
 	plan.UUID = types.StringValue(created.UUID)
 	plan.PluginConfig = types.StringNull()
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
@@ -66,17 +77,27 @@ func (r *nodePluginResource) Create(ctx context.Context, req resource.CreateRequ
 func (r *nodePluginResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state nodePluginModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() { return }
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	plugin, err := r.client.GetNodePluginByUUID(ctx, state.UUID.ValueString())
 	if err != nil {
-		if isNotFound(err) { tflog.Warn(ctx, "node plugin not found", map[string]any{"uuid": state.UUID.ValueString()}); resp.State.RemoveResource(ctx); return }
-		resp.Diagnostics.AddError("Failed to read node plugin", err.Error()); return
+		if isNotFound(err) {
+			tflog.Warn(ctx, "node plugin not found", map[string]any{"uuid": state.UUID.ValueString()})
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError("Failed to read node plugin", err.Error())
+		return
 	}
 	state.UUID = types.StringValue(plugin.UUID)
 	state.Name = types.StringValue(plugin.Name)
 	if plugin.PluginConfig != nil {
 		b, err := json.Marshal(plugin.PluginConfig)
-		if err != nil { resp.Diagnostics.AddError("Failed to marshal plugin_config", err.Error()); return }
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to marshal plugin_config", err.Error())
+			return
+		}
 		state.PluginConfig = types.StringValue(string(b))
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
@@ -85,24 +106,32 @@ func (r *nodePluginResource) Read(ctx context.Context, req resource.ReadRequest,
 func (r *nodePluginResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan nodePluginModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() { return }
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	plugin := &NodePlugin{UUID: plan.UUID.ValueString(), Name: plan.Name.ValueString()}
 	if !plan.PluginConfig.IsNull() && plan.PluginConfig.ValueString() != "" {
 		var cfg any
 		if err := json.Unmarshal([]byte(plan.PluginConfig.ValueString()), &cfg); err != nil {
-			resp.Diagnostics.AddError("Invalid plugin_config JSON", err.Error()); return
+			resp.Diagnostics.AddError("Invalid plugin_config JSON", err.Error())
+			return
 		}
 		plugin.PluginConfig = cfg
 	}
 	_, err := r.client.UpdateNodePlugin(ctx, plugin)
-	if err != nil { resp.Diagnostics.AddError("Failed to update node plugin", err.Error()); return }
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to update node plugin", err.Error())
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
 func (r *nodePluginResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var state nodePluginModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() { return }
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	if err := r.client.DeleteNodePlugin(ctx, state.UUID.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Failed to delete node plugin", err.Error())
 	}

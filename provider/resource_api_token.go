@@ -13,11 +13,11 @@ import (
 
 type apiTokenResource struct{ client *Client }
 type apiTokenModel struct {
-	UUID         types.String `tfsdk:"uuid"`
-	Name         types.String `tfsdk:"name"`
-	ExpiresInDays types.Int64 `tfsdk:"expires_in_days"`
-	Scopes       types.Set    `tfsdk:"scopes"`
-	Token        types.String `tfsdk:"token"`
+	UUID          types.String `tfsdk:"uuid"`
+	Name          types.String `tfsdk:"name"`
+	ExpiresInDays types.Int64  `tfsdk:"expires_in_days"`
+	Scopes        types.Set    `tfsdk:"scopes"`
+	Token         types.String `tfsdk:"token"`
 }
 
 func NewApiTokenResource() resource.Resource { return &apiTokenResource{} }
@@ -40,16 +40,23 @@ func (r *apiTokenResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 }
 
 func (r *apiTokenResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil { return }
+	if req.ProviderData == nil {
+		return
+	}
 	client, ok := req.ProviderData.(*Client)
-	if !ok { resp.Diagnostics.AddError("Unexpected type", "Expected *Client"); return }
+	if !ok {
+		resp.Diagnostics.AddError("Unexpected type", "Expected *Client")
+		return
+	}
 	r.client = client
 }
 
 func (r *apiTokenResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan apiTokenModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() { return }
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	token := &ApiToken{Name: plan.Name.ValueString(), Scopes: []string{"*"}}
 	if !plan.Scopes.IsNull() {
 		token.Scopes = nil
@@ -59,7 +66,10 @@ func (r *apiTokenResource) Create(ctx context.Context, req resource.CreateReques
 	}
 	created, err := r.client.CreateApiToken(ctx, &ApiToken{Name: plan.Name.ValueString()})
 	_ = token
-	if err != nil { resp.Diagnostics.AddError("Failed to create API token", err.Error()); return }
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to create API token", err.Error())
+		return
+	}
 	plan.UUID = types.StringValue(created.UUID)
 	plan.Token = types.StringValue(created.Token)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
@@ -78,7 +88,9 @@ func (r *apiTokenResource) Update(ctx context.Context, req resource.UpdateReques
 func (r *apiTokenResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var state apiTokenModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() { return }
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	if err := r.client.DeleteApiToken(ctx, state.UUID.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Failed to delete API token", err.Error())
 	}
