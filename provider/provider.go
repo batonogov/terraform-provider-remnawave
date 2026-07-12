@@ -198,6 +198,11 @@ func (p *RemnawaveProvider) DataSources(_ context.Context) []func() datasource.D
 		NewNodesMetricsDataSource,
 		NewBandwidthStatsDataSource,
 		NewBandwidthStatsUserDataSource,
+		NewBandwidthRealtimeDataSource,
+		NewSystemBandwidthStatsDataSource,
+		NewSystemNodesStatsDataSource,
+		NewSubscriptionRequestHistoryStatsDataSource,
+		NewConnectionKeysDataSource,
 	}
 }
 
