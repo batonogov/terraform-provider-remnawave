@@ -17,9 +17,9 @@ import (
 
 // Client manages communication with the Remnawave REST API.
 type Client struct {
-	baseURL     *url.URL
-	httpClient  *http.Client
-	apiToken    string
+	baseURL    *url.URL
+	httpClient *http.Client
+	apiToken   string
 
 	authMu      sync.Mutex
 	accessToken string
@@ -91,11 +91,11 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 	}
 
 	return &Client{
-		baseURL:     baseURL,
-		httpClient:  httpClient,
-		apiToken:    cfg.APIToken,
-		username:    cfg.Username,
-		password:    cfg.Password,
+		baseURL:      baseURL,
+		httpClient:   httpClient,
+		apiToken:     cfg.APIToken,
+		username:     cfg.Username,
+		password:     cfg.Password,
 		proxyHeaders: cfg.ProxyHeaders,
 	}, nil
 }
@@ -472,8 +472,8 @@ func (c *Client) DeleteConfigProfile(ctx context.Context, uuid string) error {
 }
 
 type configProfilesListResponse struct {
-	Total           int              `json:"total"`
-	ConfigProfiles  []ConfigProfile  `json:"configProfiles"`
+	Total          int             `json:"total"`
+	ConfigProfiles []ConfigProfile `json:"configProfiles"`
 }
 
 func (c *Client) GetAllConfigProfiles(ctx context.Context) ([]ConfigProfile, error) {
@@ -613,8 +613,8 @@ func (c *Client) UpdatePanelSettings(ctx context.Context, settings *PanelSetting
 // ─── Snippet API ───
 
 type snippetsListResponse struct {
-	Total    int        `json:"total"`
-	Snippets []Snippet  `json:"snippets"`
+	Total    int       `json:"total"`
+	Snippets []Snippet `json:"snippets"`
 }
 
 func (c *Client) CreateSnippet(ctx context.Context, s *Snippet) (*snippetsListResponse, error) {
@@ -739,4 +739,69 @@ func (c *Client) UpdateInfraProvider(ctx context.Context, p *InfraProvider) (*In
 
 func (c *Client) DeleteInfraProvider(ctx context.Context, uuid string) error {
 	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/infra-billing/providers/%s", uuid), nil, nil)
+}
+
+// ─── Infra Billing Node API ───
+
+type billingNodesResponse struct {
+	TotalBillingNodes          int              `json:"totalBillingNodes"`
+	BillingNodes               []BillingNode    `json:"billingNodes"`
+	AvailableBillingNodes      []map[string]any `json:"availableBillingNodes"`
+	TotalAvailableBillingNodes int              `json:"totalAvailableBillingNodes"`
+	Stats                      map[string]any   `json:"stats"`
+}
+
+func (c *Client) CreateBillingNode(ctx context.Context, req map[string]any) (*billingNodesResponse, error) {
+	var out billingNodesResponse
+	if err := c.doRequest(ctx, http.MethodPost, "/api/infra-billing/nodes", req, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) UpdateBillingNode(ctx context.Context, req map[string]any) (*billingNodesResponse, error) {
+	var out billingNodesResponse
+	if err := c.doRequest(ctx, http.MethodPatch, "/api/infra-billing/nodes", req, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) GetBillingNodes(ctx context.Context) (*billingNodesResponse, error) {
+	var out billingNodesResponse
+	if err := c.doRequest(ctx, http.MethodGet, "/api/infra-billing/nodes", nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) DeleteBillingNode(ctx context.Context, uuid string) error {
+	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/infra-billing/nodes/%s", uuid), nil, nil)
+}
+
+// ─── Infra Billing History API ───
+
+type billingHistoryResponse struct {
+	Records []BillingHistoryRecord `json:"records"`
+	Total   int                    `json:"total"`
+}
+
+func (c *Client) CreateBillingHistory(ctx context.Context, req map[string]any) (*billingHistoryResponse, error) {
+	var out billingHistoryResponse
+	if err := c.doRequest(ctx, http.MethodPost, "/api/infra-billing/history", req, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) GetBillingHistory(ctx context.Context) (*billingHistoryResponse, error) {
+	var out billingHistoryResponse
+	if err := c.doRequest(ctx, http.MethodGet, "/api/infra-billing/history", nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) DeleteBillingHistory(ctx context.Context, uuid string) error {
+	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/infra-billing/history/%s", uuid), nil, nil)
 }

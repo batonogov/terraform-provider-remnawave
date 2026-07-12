@@ -114,13 +114,13 @@ type ConfigProfile struct {
 }
 
 type ConfigProfileInbound struct {
-	UUID       string `json:"uuid,omitempty"`
-	ProfileUUID string `json:"profileUuid,omitempty"`
-	Tag        string `json:"tag,omitempty"`
-	Type       string `json:"type,omitempty"`
-	Network    *string `json:"network,omitempty"`
-	Security   *string `json:"security,omitempty"`
-	Port       *int    `json:"port,omitempty"`
+	UUID        string  `json:"uuid,omitempty"`
+	ProfileUUID string  `json:"profileUuid,omitempty"`
+	Tag         string  `json:"tag,omitempty"`
+	Type        string  `json:"type,omitempty"`
+	Network     *string `json:"network,omitempty"`
+	Security    *string `json:"security,omitempty"`
+	Port        *int    `json:"port,omitempty"`
 }
 
 type ConfigProfileNode struct {
@@ -131,16 +131,16 @@ type ConfigProfileNode struct {
 
 // SubscriptionSettings is a singleton (GET/PATCH /api/subscription-settings).
 type SubscriptionSettings struct {
-	UUID                     string            `json:"uuid,omitempty"`
-	ProfileTitle             *string           `json:"profileTitle,omitempty"`
-	SupportLink              *string           `json:"supportLink,omitempty"`
-	ProfileUpdateInterval    *int              `json:"profileUpdateInterval,omitempty"`
-	IsProfileWebpageURLEnabled *bool          `json:"isProfileWebpageUrlEnabled,omitempty"`
-	ServeJsonAtBaseSubscription *bool          `json:"serveJsonAtBaseSubscription,omitempty"`
-	IsShowCustomRemarks      *bool             `json:"isShowCustomRemarks,omitempty"`
-	HappAnnounce             *string           `json:"happAnnounce,omitempty"`
-	HappRouting              *string           `json:"happRouting,omitempty"`
-	RandomizeHosts           *bool             `json:"randomizeHosts,omitempty"`
+	UUID                        string  `json:"uuid,omitempty"`
+	ProfileTitle                *string `json:"profileTitle,omitempty"`
+	SupportLink                 *string `json:"supportLink,omitempty"`
+	ProfileUpdateInterval       *int    `json:"profileUpdateInterval,omitempty"`
+	IsProfileWebpageURLEnabled  *bool   `json:"isProfileWebpageUrlEnabled,omitempty"`
+	ServeJsonAtBaseSubscription *bool   `json:"serveJsonAtBaseSubscription,omitempty"`
+	IsShowCustomRemarks         *bool   `json:"isShowCustomRemarks,omitempty"`
+	HappAnnounce                *string `json:"happAnnounce,omitempty"`
+	HappRouting                 *string `json:"happRouting,omitempty"`
+	RandomizeHosts              *bool   `json:"randomizeHosts,omitempty"`
 }
 
 // InternalSquad maps to the Remnawave InternalSquad model.
@@ -167,8 +167,8 @@ type SubscriptionTemplate struct {
 
 // PanelSettings maps to the Remnawave RemnawaveSettings model (singleton).
 type PanelSettings struct {
-	BrandingSettings  *BrandingSettings  `json:"brandingSettings,omitempty"`
-	PasswordSettings  *PasswordAuthSettings `json:"passwordSettings,omitempty"`
+	BrandingSettings *BrandingSettings     `json:"brandingSettings,omitempty"`
+	PasswordSettings *PasswordAuthSettings `json:"passwordSettings,omitempty"`
 }
 
 type BrandingSettings struct {
@@ -204,8 +204,27 @@ type ApiToken struct {
 
 // InfraProvider maps to the Remnawave InfraProvider model.
 type InfraProvider struct {
+	UUID        string  `json:"uuid,omitempty"`
+	Name        string  `json:"name"`
+	FaviconLink *string `json:"faviconLink,omitempty"`
+	LoginURL    *string `json:"loginUrl,omitempty"`
+}
+
+// BillingNode maps to the Remnawave InfraBillingNode model.
+// API: /api/infra-billing/nodes (POST create, PATCH update batch, DELETE /:uuid, GET list)
+type BillingNode struct {
+	UUID          string  `json:"uuid,omitempty"`
+	ProviderUUID  string  `json:"providerUuid"`
+	NodeUUID      *string `json:"nodeUuid,omitempty"`
+	Name          *string `json:"name,omitempty"`
+	NextBillingAt string  `json:"nextBillingAt"`
+}
+
+// BillingHistoryRecord maps to the Remnawave InfraBillingHistoryRecord model.
+// API: /api/infra-billing/history (POST create, DELETE /:uuid, GET list)
+type BillingHistoryRecord struct {
 	UUID         string  `json:"uuid,omitempty"`
-	Name         string  `json:"name"`
-	FaviconLink  *string `json:"faviconLink,omitempty"`
-	LoginURL     *string `json:"loginUrl,omitempty"`
+	ProviderUUID string  `json:"providerUuid"`
+	Amount       float64 `json:"amount"`
+	BilledAt     string  `json:"billedAt"`
 }

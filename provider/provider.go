@@ -177,6 +177,8 @@ func (p *RemnawaveProvider) Resources(_ context.Context) []func() resource.Resou
 		NewNodePluginResource,
 		NewApiTokenResource,
 		NewInfraProviderResource,
+		NewBillingNodeResource,
+		NewBillingHistoryResource,
 	}
 }
 
