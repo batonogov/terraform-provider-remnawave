@@ -18,22 +18,27 @@ type hostResource struct {
 }
 
 type hostResourceModel struct {
-	UUID            types.String `tfsdk:"uuid"`
-	Remark          types.String `tfsdk:"remark"`
-	Address         types.String `tfsdk:"address"`
-	Port            types.Int64  `tfsdk:"port"`
-	SNI             types.String `tfsdk:"sni"`
-	HostHeader      types.String `tfsdk:"host_header"`
-	ALPN            types.String `tfsdk:"alpn"`
-	Fingerprint     types.String `tfsdk:"fingerprint"`
-	IsDisabled      types.Bool   `tfsdk:"is_disabled"`
-	SecurityLayer   types.String `tfsdk:"security_layer"`
+	UUID              types.String `tfsdk:"uuid"`
+	Remark            types.String `tfsdk:"remark"`
+	Address           types.String `tfsdk:"address"`
+	Port              types.Int64  `tfsdk:"port"`
+	SNI               types.String `tfsdk:"sni"`
+	HostHeader        types.String `tfsdk:"host_header"`
+	ALPN              types.String `tfsdk:"alpn"`
+	Fingerprint       types.String `tfsdk:"fingerprint"`
+	IsDisabled        types.Bool   `tfsdk:"is_disabled"`
+	SecurityLayer     types.String `tfsdk:"security_layer"`
 	ServerDescription types.String `tfsdk:"server_description"`
-	IsHidden        types.Bool   `tfsdk:"is_hidden"`
-	ShuffleHost     types.Bool   `tfsdk:"shuffle_host"`
+	IsHidden          types.Bool   `tfsdk:"is_hidden"`
+	ShuffleHost       types.Bool   `tfsdk:"shuffle_host"`
 	// Inbound link
 	ConfigProfileUUID        types.String `tfsdk:"config_profile_uuid"`
 	ConfigProfileInboundUUID types.String `tfsdk:"config_profile_inbound_uuid"`
+	Tags                     types.List   `tfsdk:"tags"`
+	Nodes                    types.List   `tfsdk:"nodes"`
+	MihomoX25519             types.Bool   `tfsdk:"mihomo_x25519"`
+	ExcludedInternalSquads   types.List   `tfsdk:"excluded_internal_squads"`
+	Path                     types.String `tfsdk:"path"`
 }
 
 func NewHostResource() resource.Resource {
@@ -114,6 +119,30 @@ func (r *hostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"config_profile_inbound_uuid": schema.StringAttribute{
 				Required:    true,
 				Description: "UUID of the inbound within the config profile.",
+			},
+			"tags": schema.ListAttribute{
+				Optional:    true,
+				ElementType: types.StringType,
+				Description: "List of tags (max 10, uppercase letters/numbers/underscores/colons, max 36 chars each).",
+			},
+			"nodes": schema.ListAttribute{
+				Optional:    true,
+				ElementType: types.StringType,
+				Description: "List of node UUIDs associated with this host.",
+			},
+			"mihomo_x25519": schema.BoolAttribute{
+				Optional:    true,
+				Computed:    true,
+				Description: "Enable Mihomo X25519 proxy.",
+			},
+			"excluded_internal_squads": schema.ListAttribute{
+				Optional:    true,
+				ElementType: types.StringType,
+				Description: "Internal squad UUIDs from which this host is excluded.",
+			},
+			"path": schema.StringAttribute{
+				Optional:    true,
+				Description: "WebSocket path or HTTP path.",
 			},
 		},
 	}
@@ -251,6 +280,34 @@ func planToHost(p *hostResourceModel) *Host {
 		ConfigProfileUUID:        p.ConfigProfileUUID.ValueString(),
 		ConfigProfileInboundUUID: p.ConfigProfileInboundUUID.ValueString(),
 	}
+	if !p.Tags.IsNull() {
+		tags := []string{}
+		for _, v := range p.Tags.Elements() {
+			tags = append(tags, v.(types.String).ValueString())
+		}
+		h.Tags = tags
+	}
+	if !p.Nodes.IsNull() {
+		nodes := []string{}
+		for _, v := range p.Nodes.Elements() {
+			nodes = append(nodes, v.(types.String).ValueString())
+		}
+		h.Nodes = nodes
+	}
+	if !p.MihomoX25519.IsNull() {
+		h.MihomoX25519 = p.MihomoX25519.ValueBool()
+	}
+	if !p.ExcludedInternalSquads.IsNull() {
+		squads := []string{}
+		for _, v := range p.ExcludedInternalSquads.Elements() {
+			squads = append(squads, v.(types.String).ValueString())
+		}
+		h.ExcludedInternalSquads = squads
+	}
+	if !p.Path.IsNull() {
+		pathVal := p.Path.ValueString()
+		h.Path = &pathVal
+	}
 	return h
 }
 
@@ -294,6 +351,34 @@ func hostToPlan(h *Host, p *hostResourceModel) {
 	if h.Inbound != nil {
 		p.ConfigProfileUUID = types.StringValue(h.Inbound.ConfigProfileUUID)
 		p.ConfigProfileInboundUUID = types.StringValue(h.Inbound.ConfigProfileInboundUUID)
+	}
+	if h.Tags != nil {
+		elems := make([]attr.Value, 0, len(h.Tags))
+		for _, t := range h.Tags {
+			elems = append(elems, types.StringValue(t))
+		}
+		tagsList, _ := types.ListValue(types.StringType, elems)
+		p.Tags = tagsList
+	}
+	if h.Nodes != nil {
+		elems := make([]attr.Value, 0, len(h.Nodes))
+		for _, n := range h.Nodes {
+			elems = append(elems, types.StringValue(n))
+		}
+		nodesList, _ := types.ListValue(types.StringType, elems)
+		p.Nodes = nodesList
+	}
+	p.MihomoX25519 = types.BoolValue(h.MihomoX25519)
+	if h.ExcludedInternalSquads != nil {
+		elems := make([]attr.Value, 0, len(h.ExcludedInternalSquads))
+		for _, s := range h.ExcludedInternalSquads {
+			elems = append(elems, types.StringValue(s))
+		}
+		squadsList, _ := types.ListValue(types.StringType, elems)
+		p.ExcludedInternalSquads = squadsList
+	}
+	if h.Path != nil {
+		p.Path = types.StringValue(*h.Path)
 	}
 }
 

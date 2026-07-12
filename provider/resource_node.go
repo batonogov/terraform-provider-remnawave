@@ -33,8 +33,14 @@ type nodeResourceModel struct {
 	UsersOnline             types.Int64  `tfsdk:"users_online"`
 	Note                    types.String `tfsdk:"note"`
 	// config_profile_uuid + config_profile_inbounds are required for create
-	ConfigProfileUUID        types.String `tfsdk:"config_profile_uuid"`
-	ConfigProfileInbounds    types.Set    `tfsdk:"config_profile_inbounds"`
+	ConfigProfileUUID         types.String  `tfsdk:"config_profile_uuid"`
+	ConfigProfileInbounds     types.Set     `tfsdk:"config_profile_inbounds"`
+	ProxyURL                  types.String  `tfsdk:"proxy_url"`
+	ConsumptionMultiplier     types.Float64 `tfsdk:"consumption_multiplier"`
+	NodeConsumptionMultiplier types.Float64 `tfsdk:"node_consumption_multiplier"`
+	Tags                      types.List    `tfsdk:"tags"`
+	ProviderUUID              types.String  `tfsdk:"provider_uuid"`
+	ActivePluginUUID          types.String  `tfsdk:"active_plugin_uuid"`
 }
 
 func NewNodeResource() resource.Resource {
@@ -118,6 +124,31 @@ func (r *nodeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Optional:    true,
 				ElementType: types.StringType,
 				Description: "Set of inbound UUIDs enabled for this node's config profile.",
+			},
+			"proxy_url": schema.StringAttribute{
+				Optional:    true,
+				Description: "SOCKS5 proxy URL for node communication. Format: socks5://[user:pass@]host:port",
+			},
+			"consumption_multiplier": schema.Float64Attribute{
+				Optional:    true,
+				Description: "Traffic consumption multiplier (0.0-100.0, 1 decimal place).",
+			},
+			"node_consumption_multiplier": schema.Float64Attribute{
+				Optional:    true,
+				Description: "Node consumption multiplier (0.0-100.0, 1 decimal place).",
+			},
+			"tags": schema.ListAttribute{
+				Optional:    true,
+				ElementType: types.StringType,
+				Description: "List of tags (max 10, uppercase letters/numbers/underscores/colons, max 36 chars each).",
+			},
+			"provider_uuid": schema.StringAttribute{
+				Optional:    true,
+				Description: "UUID of the infra billing provider for this node.",
+			},
+			"active_plugin_uuid": schema.StringAttribute{
+				Optional:    true,
+				Description: "UUID of the active node plugin.",
 			},
 		},
 	}
@@ -222,9 +253,9 @@ func (r *nodeResource) ImportState(ctx context.Context, req resource.ImportState
 
 func planToNode(p *nodeResourceModel) *Node {
 	n := &Node{
-		UUID:    p.UUID.ValueString(),
-		Name:    p.Name.ValueString(),
-		Address: p.Address.ValueString(),
+		UUID:                    p.UUID.ValueString(),
+		Name:                    p.Name.ValueString(),
+		Address:                 p.Address.ValueString(),
 		IsTrafficTrackingActive: p.IsTrafficTrackingActive.ValueBool(),
 		CountryCode:             p.CountryCode.ValueString(),
 	}
@@ -259,6 +290,31 @@ func planToNode(p *nodeResourceModel) *Node {
 			ActiveConfigProfileUUID: p.ConfigProfileUUID.ValueString(),
 			ActiveInbounds:          inbounds,
 		}
+	}
+	if !p.ProxyURL.IsNull() {
+		proxyURL := p.ProxyURL.ValueString()
+		n.ProxyURL = &proxyURL
+	}
+	if !p.ConsumptionMultiplier.IsNull() {
+		n.ConsumptionMultiplier = p.ConsumptionMultiplier.ValueFloat64()
+	}
+	if !p.NodeConsumptionMultiplier.IsNull() {
+		n.NodeConsumptionMultiplier = p.NodeConsumptionMultiplier.ValueFloat64()
+	}
+	if !p.Tags.IsNull() {
+		tags := []string{}
+		for _, v := range p.Tags.Elements() {
+			tags = append(tags, v.(types.String).ValueString())
+		}
+		n.Tags = tags
+	}
+	if !p.ProviderUUID.IsNull() {
+		providerUUID := p.ProviderUUID.ValueString()
+		n.ProviderUUID = &providerUUID
+	}
+	if !p.ActivePluginUUID.IsNull() {
+		activePluginUUID := p.ActivePluginUUID.ValueString()
+		n.ActivePluginUUID = &activePluginUUID
 	}
 	return n
 }
@@ -300,5 +356,24 @@ func nodeToPlan(n *Node, p *nodeResourceModel) {
 		}
 		s, _ := types.SetValue(types.StringType, elems)
 		p.ConfigProfileInbounds = s
+	}
+	if n.ProxyURL != nil {
+		p.ProxyURL = types.StringValue(*n.ProxyURL)
+	}
+	p.ConsumptionMultiplier = types.Float64Value(n.ConsumptionMultiplier)
+	p.NodeConsumptionMultiplier = types.Float64Value(n.NodeConsumptionMultiplier)
+	if n.Tags != nil {
+		elems := make([]attr.Value, 0, len(n.Tags))
+		for _, t := range n.Tags {
+			elems = append(elems, types.StringValue(t))
+		}
+		tagsList, _ := types.ListValue(types.StringType, elems)
+		p.Tags = tagsList
+	}
+	if n.ProviderUUID != nil {
+		p.ProviderUUID = types.StringValue(*n.ProviderUUID)
+	}
+	if n.ActivePluginUUID != nil {
+		p.ActivePluginUUID = types.StringValue(*n.ActivePluginUUID)
 	}
 }
