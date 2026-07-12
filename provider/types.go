@@ -152,20 +152,8 @@ type InternalSquad struct {
 
 // ExternalSquad maps to the Remnawave ExternalSquad model.
 type ExternalSquad struct {
-	UUID                 string                  `json:"uuid,omitempty"`
-	Name                 string                  `json:"name"`
-	Templates            []ExternalSquadTemplate `json:"templates,omitempty"`
-	SubscriptionSettings any                     `json:"subscriptionSettings,omitempty"`
-	HostOverrides        any                     `json:"hostOverrides,omitempty"`
-	ResponseHeaders      map[string]string       `json:"responseHeaders,omitempty"`
-	HwidSettings         any                     `json:"hwidSettings,omitempty"`
-	CustomRemarks        any                     `json:"customRemarks,omitempty"`
-	SubpageConfigUUID    *string                 `json:"subpageConfigUuid,omitempty"`
-}
-
-type ExternalSquadTemplate struct {
-	TemplateUUID string `json:"templateUuid"`
-	TemplateType string `json:"templateType"`
+	UUID string `json:"uuid,omitempty"`
+	Name string `json:"name"`
 }
 
 // SubscriptionTemplate maps to the Remnawave SubscriptionTemplate model.
@@ -225,7 +213,6 @@ type InfraProvider struct {
 }
 
 // BillingNode maps to the Remnawave InfraBillingNode model.
-// API: /api/infra-billing/nodes (POST create, PATCH update batch, DELETE /:uuid, GET list)
 type BillingNode struct {
 	UUID          string  `json:"uuid,omitempty"`
 	ProviderUUID  string  `json:"providerUuid"`
@@ -235,7 +222,6 @@ type BillingNode struct {
 }
 
 // BillingHistoryRecord maps to the Remnawave InfraBillingHistoryRecord model.
-// API: /api/infra-billing/history (POST create, DELETE /:uuid, GET list)
 type BillingHistoryRecord struct {
 	UUID         string  `json:"uuid,omitempty"`
 	ProviderUUID string  `json:"providerUuid"`

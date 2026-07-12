@@ -54,7 +54,7 @@ func (r *subscriptionSettingsResource) Schema(_ context.Context, _ resource.Sche
 			"profile_update_interval": schema.Int64Attribute{
 				Optional:    true,
 				Computed:    true,
-				Description:  "Subscription update interval in minutes.",
+				Description: "Subscription update interval in minutes.",
 			},
 			"is_profile_webpage_url_enabled": schema.BoolAttribute{
 				Optional:    true,
