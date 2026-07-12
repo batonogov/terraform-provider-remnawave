@@ -412,16 +412,26 @@ func (d *keygenDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 }
 
 func (d *keygenDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	if req.ProviderData == nil { return }
+	if req.ProviderData == nil {
+		return
+	}
 	client, ok := req.ProviderData.(*Client)
-	if !ok { resp.Diagnostics.AddError("Unexpected type", "Expected *Client"); return }
+	if !ok {
+		resp.Diagnostics.AddError("Unexpected type", "Expected *Client")
+		return
+	}
 	d.client = client
 }
 
 func (d *keygenDataSource) Read(ctx context.Context, _ datasource.ReadRequest, resp *datasource.ReadResponse) {
 	data, err := d.client.GetKeygenPubKey(ctx)
-	if err != nil { resp.Diagnostics.AddError("Failed to get keygen pubkey", err.Error()); return }
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to get keygen pubkey", err.Error())
+		return
+	}
 	state := keygenDataSourceModel{}
-	if pk, ok := data["pubKey"].(string); ok { state.PubKey = types.StringValue(pk) }
+	if pk, ok := data["pubKey"].(string); ok {
+		state.PubKey = types.StringValue(pk)
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }

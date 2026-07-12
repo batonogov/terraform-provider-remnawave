@@ -18,19 +18,19 @@ type hostResource struct {
 }
 
 type hostResourceModel struct {
-	UUID            types.String `tfsdk:"uuid"`
-	Remark          types.String `tfsdk:"remark"`
-	Address         types.String `tfsdk:"address"`
-	Port            types.Int64  `tfsdk:"port"`
-	SNI             types.String `tfsdk:"sni"`
-	HostHeader      types.String `tfsdk:"host_header"`
-	ALPN            types.String `tfsdk:"alpn"`
-	Fingerprint     types.String `tfsdk:"fingerprint"`
-	IsDisabled      types.Bool   `tfsdk:"is_disabled"`
-	SecurityLayer   types.String `tfsdk:"security_layer"`
+	UUID              types.String `tfsdk:"uuid"`
+	Remark            types.String `tfsdk:"remark"`
+	Address           types.String `tfsdk:"address"`
+	Port              types.Int64  `tfsdk:"port"`
+	SNI               types.String `tfsdk:"sni"`
+	HostHeader        types.String `tfsdk:"host_header"`
+	ALPN              types.String `tfsdk:"alpn"`
+	Fingerprint       types.String `tfsdk:"fingerprint"`
+	IsDisabled        types.Bool   `tfsdk:"is_disabled"`
+	SecurityLayer     types.String `tfsdk:"security_layer"`
 	ServerDescription types.String `tfsdk:"server_description"`
-	IsHidden        types.Bool   `tfsdk:"is_hidden"`
-	ShuffleHost     types.Bool   `tfsdk:"shuffle_host"`
+	IsHidden          types.Bool   `tfsdk:"is_hidden"`
+	ShuffleHost       types.Bool   `tfsdk:"shuffle_host"`
 	// Inbound link
 	ConfigProfileUUID        types.String `tfsdk:"config_profile_uuid"`
 	ConfigProfileInboundUUID types.String `tfsdk:"config_profile_inbound_uuid"`
