@@ -53,6 +53,7 @@ func (p *RemnawaveProvider) Metadata(_ context.Context, _ provider.MetadataReque
 
 func (p *RemnawaveProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "A Terraform provider for Remnawave — a proxy management panel built on Xray-core. Manage VPN users, nodes, hosts, squads, billing, and more as infrastructure-as-code.",
 		Attributes: map[string]schema.Attribute{
 			"endpoint": schema.StringAttribute{
 				Required:    true,
