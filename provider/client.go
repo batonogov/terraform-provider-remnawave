@@ -936,3 +936,39 @@ func (c *Client) UpdateSubpageConfig(ctx context.Context, sc *SubpageConfig) (*S
 func (c *Client) DeleteSubpageConfig(ctx context.Context, uuid string) error {
 	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/subscription-page-configs/%s", uuid), nil, nil)
 }
+
+// ─── Metadata API ───
+
+func (c *Client) GetUserMetadata(ctx context.Context, uuid string) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/metadata/user/%s", uuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) UpsertUserMetadata(ctx context.Context, uuid string, metadata map[string]any) (map[string]any, error) {
+	body := map[string]any{"metadata": metadata}
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodPut, fmt.Sprintf("/api/metadata/user/%s", uuid), body, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) GetNodeMetadata(ctx context.Context, uuid string) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/metadata/node/%s", uuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) UpsertNodeMetadata(ctx context.Context, uuid string, metadata map[string]any) (map[string]any, error) {
+	body := map[string]any{"metadata": metadata}
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodPut, fmt.Sprintf("/api/metadata/node/%s", uuid), body, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
