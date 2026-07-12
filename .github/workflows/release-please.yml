@@ -20,6 +20,8 @@ jobs:
         id: release
         with:
           release-type: go
+          bump-minor-pre-major: true
+          bootstrap-sha: 05e00f19800bee92170fb7865c0bbacf72edbdc6
 
   goreleaser:
     name: GoReleaser
