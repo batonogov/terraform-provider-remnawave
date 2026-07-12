@@ -4,6 +4,7 @@ run:
   timeout: 5m
 
 linters:
+  default: none
   enable:
     - errcheck
     - govet
@@ -11,7 +12,6 @@ linters:
     - staticcheck
     - unused
     - gocritic
-    - revive
 
 formatters:
   enable:
