@@ -22,6 +22,8 @@ jobs:
           release-type: go
           bump-minor-pre-major: true
           bootstrap-sha: 05e00f19800bee92170fb7865c0bbacf72edbdc6
+          # Force first release to be 0.1.0, not 1.0.0
+          release-as: "0.1.0"
 
   goreleaser:
     name: GoReleaser
