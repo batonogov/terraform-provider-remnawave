@@ -181,6 +181,8 @@ type SubscriptionTemplate struct {
 type PanelSettings struct {
 	BrandingSettings *BrandingSettings     `json:"brandingSettings,omitempty"`
 	PasswordSettings *PasswordAuthSettings `json:"passwordSettings,omitempty"`
+	PasskeySettings  any                   `json:"passkeySettings,omitempty"`
+	OAuth2Settings   any                   `json:"oauth2Settings,omitempty"`
 }
 
 type BrandingSettings struct {
