@@ -15,9 +15,10 @@ import (
 
 type internalSquadResource struct{ client *Client }
 type internalSquadModel struct {
-	UUID     types.String `tfsdk:"uuid"`
-	Name     types.String `tfsdk:"name"`
-	Inbounds types.Set    `tfsdk:"inbounds"`
+	UUID            types.String `tfsdk:"uuid"`
+	Name            types.String `tfsdk:"name"`
+	Inbounds        types.Set    `tfsdk:"inbounds"`
+	AccessibleNodes types.List   `tfsdk:"accessible_nodes"`
 }
 
 func NewInternalSquadResource() resource.Resource { return &internalSquadResource{} }
@@ -33,6 +34,11 @@ func (r *internalSquadResource) Schema(_ context.Context, _ resource.SchemaReque
 			"uuid":     schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 			"name":     schema.StringAttribute{Required: true, Description: "Squad name (2-30 chars)."},
 			"inbounds": schema.SetAttribute{Optional: true, ElementType: types.StringType, Description: "Set of config profile inbound UUIDs."},
+			"accessible_nodes": schema.ListAttribute{
+				Computed:    true,
+				ElementType: types.StringType,
+				Description: "List of accessible node UUIDs derived from the squad's inbound configuration (read-only).",
+			},
 		},
 	}
 }
@@ -67,6 +73,8 @@ func (r *internalSquadResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 	plan.UUID = types.StringValue(created.UUID)
+	// Initialize accessible_nodes as empty list (computed, will be populated by Read)
+	plan.AccessibleNodes, _ = types.ListValue(types.StringType, []attr.Value{})
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -88,6 +96,20 @@ func (r *internalSquadResource) Read(ctx context.Context, req resource.ReadReque
 	}
 	state.UUID = types.StringValue(squad.UUID)
 	state.Name = types.StringValue(squad.Name)
+
+	// Fetch accessible nodes (read-only derived data).
+	accessible, err := r.client.GetInternalSquadAccessibleNodes(ctx, squad.UUID)
+	elems := make([]attr.Value, 0)
+	if err != nil {
+		tflog.Warn(ctx, "failed to fetch accessible nodes", map[string]any{"uuid": squad.UUID, "err": err.Error()})
+	} else {
+		for _, n := range accessible.AccessibleNodes {
+			elems = append(elems, types.StringValue(n.UUID))
+		}
+	}
+	nodesList, _ := types.ListValue(types.StringType, elems)
+	state.AccessibleNodes = nodesList
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 

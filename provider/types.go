@@ -150,6 +150,22 @@ type InternalSquad struct {
 	Inbounds []string `json:"inbounds"`
 }
 
+// AccessibleNode represents a node accessible through an internal squad's inbounds.
+type AccessibleNode struct {
+	UUID              string   `json:"uuid"`
+	NodeName          string   `json:"nodeName"`
+	CountryCode       string   `json:"countryCode"`
+	ConfigProfileUUID string   `json:"configProfileUuid"`
+	ConfigProfileName string   `json:"configProfileName"`
+	ActiveInbounds    []string `json:"activeInbounds"`
+}
+
+// InternalSquadAccessibleNodes wraps the response from GET /api/internal-squads/:uuid/accessible-nodes.
+type InternalSquadAccessibleNodes struct {
+	SquadUUID       string           `json:"squadUuid"`
+	AccessibleNodes []AccessibleNode `json:"accessibleNodes"`
+}
+
 // ExternalSquad maps to the Remnawave ExternalSquad model.
 type ExternalSquad struct {
 	UUID string `json:"uuid,omitempty"`
