@@ -15,10 +15,12 @@ func TestAccSubpageConfigResource(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
 		Steps: []resource.TestStep{{
+			// Create only accepts name — config is validated by a complex
+			// schema (SubscriptionPageRawConfigSchema) on the backend side.
+			// We test create with just the name here.
 			Config: providerCfg + `
 resource "remnawave_subpage_config" "test" {
-  name   = "test-subpage"
-  config = jsonencode({ title = "Test" })
+  name = "test-subpage"
 }
 `,
 			Check: resource.ComposeAggregateTestCheckFunc(
