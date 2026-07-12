@@ -936,3 +936,45 @@ func (c *Client) UpdateSubpageConfig(ctx context.Context, sc *SubpageConfig) (*S
 func (c *Client) DeleteSubpageConfig(ctx context.Context, uuid string) error {
 	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/subscription-page-configs/%s", uuid), nil, nil)
 }
+
+// ─── Misc Stats API ───
+
+func (c *Client) GetBandwidthRealtime(ctx context.Context) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, "/api/bandwidth-stats/nodes/realtime", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) GetSystemBandwidthStats(ctx context.Context) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, "/api/system/stats/bandwidth", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) GetSystemNodesStats(ctx context.Context) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, "/api/system/stats/nodes", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) GetSubscriptionRequestHistoryStats(ctx context.Context) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, "/api/subscription-request-history/stats", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) GetConnectionKeys(ctx context.Context, uuid string) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/subscriptions/connection-keys/%s", uuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
