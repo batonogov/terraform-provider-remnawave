@@ -20,6 +20,7 @@ resource "remnawave_infra_provider" "test" {
 }
 resource "remnawave_billing_node" "test" {
   provider_uuid   = remnawave_infra_provider.test.uuid
+  name            = "billing-node-test"
   next_billing_at = "2026-08-01T00:00:00.000Z"
 }
 `,
