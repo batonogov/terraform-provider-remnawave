@@ -543,6 +543,14 @@ func (c *Client) DeleteInternalSquad(ctx context.Context, uuid string) error {
 	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/internal-squads/%s", uuid), nil, nil)
 }
 
+func (c *Client) GetInternalSquadAccessibleNodes(ctx context.Context, uuid string) (*InternalSquadAccessibleNodes, error) {
+	var out InternalSquadAccessibleNodes
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/internal-squads/%s/accessible-nodes", uuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // ─── External Squad API ───
 
 func (c *Client) CreateExternalSquad(ctx context.Context, squad *ExternalSquad) (*ExternalSquad, error) {
