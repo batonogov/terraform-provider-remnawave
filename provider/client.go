@@ -741,38 +741,67 @@ func (c *Client) DeleteInfraProvider(ctx context.Context, uuid string) error {
 	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/infra-billing/providers/%s", uuid), nil, nil)
 }
 
-// ─── Subscriptions API ───
+// ─── Infra Billing Node API ───
 
-func (c *Client) GetSubscriptionByUUID(ctx context.Context, uuid string) (map[string]any, error) {
-	var out map[string]any
-	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/subscriptions/by-uuid/%s", uuid), nil, &out); err != nil {
-		return nil, err
-	}
-	return out, nil
+type billingNodesResponse struct {
+	TotalBillingNodes          int              `json:"totalBillingNodes"`
+	BillingNodes               []BillingNode    `json:"billingNodes"`
+	AvailableBillingNodes      []map[string]any `json:"availableBillingNodes"`
+	TotalAvailableBillingNodes int              `json:"totalAvailableBillingNodes"`
+	Stats                      map[string]any   `json:"stats"`
 }
 
-func (c *Client) GetSubscriptionByUsername(ctx context.Context, username string) (map[string]any, error) {
-	var out map[string]any
-	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/subscriptions/by-username/%s", username), nil, &out); err != nil {
+func (c *Client) CreateBillingNode(ctx context.Context, req map[string]any) (*billingNodesResponse, error) {
+	var out billingNodesResponse
+	if err := c.doRequest(ctx, http.MethodPost, "/api/infra-billing/nodes", req, &out); err != nil {
 		return nil, err
 	}
-	return out, nil
+	return &out, nil
 }
 
-func (c *Client) GetSubscriptionByShortUUID(ctx context.Context, shortUUID string) (map[string]any, error) {
-	var out map[string]any
-	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/subscriptions/by-short-uuid/%s", shortUUID), nil, &out); err != nil {
+func (c *Client) UpdateBillingNode(ctx context.Context, req map[string]any) (*billingNodesResponse, error) {
+	var out billingNodesResponse
+	if err := c.doRequest(ctx, http.MethodPatch, "/api/infra-billing/nodes", req, &out); err != nil {
 		return nil, err
 	}
-	return out, nil
+	return &out, nil
 }
 
-// ─── Subscription Request History API ───
-
-func (c *Client) GetSubscriptionRequestHistory(ctx context.Context) (map[string]any, error) {
-	var out map[string]any
-	if err := c.doRequest(ctx, http.MethodGet, "/api/subscription-request-history", nil, &out); err != nil {
+func (c *Client) GetBillingNodes(ctx context.Context) (*billingNodesResponse, error) {
+	var out billingNodesResponse
+	if err := c.doRequest(ctx, http.MethodGet, "/api/infra-billing/nodes", nil, &out); err != nil {
 		return nil, err
 	}
-	return out, nil
+	return &out, nil
+}
+
+func (c *Client) DeleteBillingNode(ctx context.Context, uuid string) error {
+	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/infra-billing/nodes/%s", uuid), nil, nil)
+}
+
+// ─── Infra Billing History API ───
+
+type billingHistoryResponse struct {
+	Records []BillingHistoryRecord `json:"records"`
+	Total   int                    `json:"total"`
+}
+
+func (c *Client) CreateBillingHistory(ctx context.Context, req map[string]any) (*billingHistoryResponse, error) {
+	var out billingHistoryResponse
+	if err := c.doRequest(ctx, http.MethodPost, "/api/infra-billing/history", req, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) GetBillingHistory(ctx context.Context) (*billingHistoryResponse, error) {
+	var out billingHistoryResponse
+	if err := c.doRequest(ctx, http.MethodGet, "/api/infra-billing/history", nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) DeleteBillingHistory(ctx context.Context, uuid string) error {
+	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/infra-billing/history/%s", uuid), nil, nil)
 }
