@@ -73,6 +73,8 @@ func (r *internalSquadResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 	plan.UUID = types.StringValue(created.UUID)
+	// Initialize accessible_nodes as empty list (computed, will be populated by Read)
+	plan.AccessibleNodes, _ = types.ListValue(types.StringType, []attr.Value{})
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -97,16 +99,16 @@ func (r *internalSquadResource) Read(ctx context.Context, req resource.ReadReque
 
 	// Fetch accessible nodes (read-only derived data).
 	accessible, err := r.client.GetInternalSquadAccessibleNodes(ctx, squad.UUID)
+	elems := make([]attr.Value, 0)
 	if err != nil {
 		tflog.Warn(ctx, "failed to fetch accessible nodes", map[string]any{"uuid": squad.UUID, "err": err.Error()})
-	} else if len(accessible.AccessibleNodes) > 0 {
-		elems := make([]attr.Value, 0, len(accessible.AccessibleNodes))
+	} else {
 		for _, n := range accessible.AccessibleNodes {
 			elems = append(elems, types.StringValue(n.UUID))
 		}
-		nodesList, _ := types.ListValue(types.StringType, elems)
-		state.AccessibleNodes = nodesList
 	}
+	nodesList, _ := types.ListValue(types.StringType, elems)
+	state.AccessibleNodes = nodesList
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
