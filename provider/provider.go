@@ -180,6 +180,8 @@ func (p *RemnawaveProvider) Resources(_ context.Context) []func() resource.Resou
 		NewBillingNodeResource,
 		NewBillingHistoryResource,
 		NewSubpageConfigResource,
+		NewUserMetadataResource,
+		NewNodeMetadataResource,
 	}
 }
 
