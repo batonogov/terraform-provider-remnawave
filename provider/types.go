@@ -114,13 +114,13 @@ type ConfigProfile struct {
 }
 
 type ConfigProfileInbound struct {
-	UUID       string `json:"uuid,omitempty"`
-	ProfileUUID string `json:"profileUuid,omitempty"`
-	Tag        string `json:"tag,omitempty"`
-	Type       string `json:"type,omitempty"`
-	Network    *string `json:"network,omitempty"`
-	Security   *string `json:"security,omitempty"`
-	Port       *int    `json:"port,omitempty"`
+	UUID        string  `json:"uuid,omitempty"`
+	ProfileUUID string  `json:"profileUuid,omitempty"`
+	Tag         string  `json:"tag,omitempty"`
+	Type        string  `json:"type,omitempty"`
+	Network     *string `json:"network,omitempty"`
+	Security    *string `json:"security,omitempty"`
+	Port        *int    `json:"port,omitempty"`
 }
 
 type ConfigProfileNode struct {
@@ -131,16 +131,16 @@ type ConfigProfileNode struct {
 
 // SubscriptionSettings is a singleton (GET/PATCH /api/subscription-settings).
 type SubscriptionSettings struct {
-	UUID                     string            `json:"uuid,omitempty"`
-	ProfileTitle             *string           `json:"profileTitle,omitempty"`
-	SupportLink              *string           `json:"supportLink,omitempty"`
-	ProfileUpdateInterval    *int              `json:"profileUpdateInterval,omitempty"`
-	IsProfileWebpageURLEnabled *bool          `json:"isProfileWebpageUrlEnabled,omitempty"`
-	ServeJsonAtBaseSubscription *bool          `json:"serveJsonAtBaseSubscription,omitempty"`
-	IsShowCustomRemarks      *bool             `json:"isShowCustomRemarks,omitempty"`
-	HappAnnounce             *string           `json:"happAnnounce,omitempty"`
-	HappRouting              *string           `json:"happRouting,omitempty"`
-	RandomizeHosts           *bool             `json:"randomizeHosts,omitempty"`
+	UUID                        string  `json:"uuid,omitempty"`
+	ProfileTitle                *string `json:"profileTitle,omitempty"`
+	SupportLink                 *string `json:"supportLink,omitempty"`
+	ProfileUpdateInterval       *int    `json:"profileUpdateInterval,omitempty"`
+	IsProfileWebpageURLEnabled  *bool   `json:"isProfileWebpageUrlEnabled,omitempty"`
+	ServeJsonAtBaseSubscription *bool   `json:"serveJsonAtBaseSubscription,omitempty"`
+	IsShowCustomRemarks         *bool   `json:"isShowCustomRemarks,omitempty"`
+	HappAnnounce                *string `json:"happAnnounce,omitempty"`
+	HappRouting                 *string `json:"happRouting,omitempty"`
+	RandomizeHosts              *bool   `json:"randomizeHosts,omitempty"`
 }
 
 // InternalSquad maps to the Remnawave InternalSquad model.
@@ -167,8 +167,10 @@ type SubscriptionTemplate struct {
 
 // PanelSettings maps to the Remnawave RemnawaveSettings model (singleton).
 type PanelSettings struct {
-	BrandingSettings  *BrandingSettings  `json:"brandingSettings,omitempty"`
-	PasswordSettings  *PasswordAuthSettings `json:"passwordSettings,omitempty"`
+	BrandingSettings *BrandingSettings     `json:"brandingSettings,omitempty"`
+	PasswordSettings *PasswordAuthSettings `json:"passwordSettings,omitempty"`
+	PasskeySettings  any                   `json:"passkeySettings,omitempty"`
+	OAuth2Settings   any                   `json:"oauth2Settings,omitempty"`
 }
 
 type BrandingSettings struct {
@@ -204,8 +206,8 @@ type ApiToken struct {
 
 // InfraProvider maps to the Remnawave InfraProvider model.
 type InfraProvider struct {
-	UUID         string  `json:"uuid,omitempty"`
-	Name         string  `json:"name"`
-	FaviconLink  *string `json:"faviconLink,omitempty"`
-	LoginURL     *string `json:"loginUrl,omitempty"`
+	UUID        string  `json:"uuid,omitempty"`
+	Name        string  `json:"name"`
+	FaviconLink *string `json:"faviconLink,omitempty"`
+	LoginURL    *string `json:"loginUrl,omitempty"`
 }
