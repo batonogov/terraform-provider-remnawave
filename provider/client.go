@@ -805,3 +805,39 @@ func (c *Client) GetBillingHistory(ctx context.Context) (*billingHistoryResponse
 func (c *Client) DeleteBillingHistory(ctx context.Context, uuid string) error {
 	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/infra-billing/history/%s", uuid), nil, nil)
 }
+
+// ─── Subscriptions API ───
+
+func (c *Client) GetSubscriptionByUUID(ctx context.Context, uuid string) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/subscriptions/by-uuid/%s", uuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) GetSubscriptionByUsername(ctx context.Context, username string) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/subscriptions/by-username/%s", username), nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) GetSubscriptionByShortUUID(ctx context.Context, shortUUID string) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/subscriptions/by-short-uuid/%s", shortUUID), nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ─── Subscription Request History API ───
+
+func (c *Client) GetSubscriptionRequestHistory(ctx context.Context) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, "/api/subscription-request-history", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}

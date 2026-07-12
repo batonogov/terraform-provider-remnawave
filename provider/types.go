@@ -152,8 +152,20 @@ type InternalSquad struct {
 
 // ExternalSquad maps to the Remnawave ExternalSquad model.
 type ExternalSquad struct {
-	UUID string `json:"uuid,omitempty"`
-	Name string `json:"name"`
+	UUID                 string                  `json:"uuid,omitempty"`
+	Name                 string                  `json:"name"`
+	Templates            []ExternalSquadTemplate `json:"templates,omitempty"`
+	SubscriptionSettings any                     `json:"subscriptionSettings,omitempty"`
+	HostOverrides        any                     `json:"hostOverrides,omitempty"`
+	ResponseHeaders      map[string]string       `json:"responseHeaders,omitempty"`
+	HwidSettings         any                     `json:"hwidSettings,omitempty"`
+	CustomRemarks        any                     `json:"customRemarks,omitempty"`
+	SubpageConfigUUID    *string                 `json:"subpageConfigUuid,omitempty"`
+}
+
+type ExternalSquadTemplate struct {
+	TemplateUUID string `json:"templateUuid"`
+	TemplateType string `json:"templateType"`
 }
 
 // SubscriptionTemplate maps to the Remnawave SubscriptionTemplate model.
@@ -169,6 +181,8 @@ type SubscriptionTemplate struct {
 type PanelSettings struct {
 	BrandingSettings *BrandingSettings     `json:"brandingSettings,omitempty"`
 	PasswordSettings *PasswordAuthSettings `json:"passwordSettings,omitempty"`
+	PasskeySettings  any                   `json:"passkeySettings,omitempty"`
+	OAuth2Settings   any                   `json:"oauth2Settings,omitempty"`
 }
 
 type BrandingSettings struct {
