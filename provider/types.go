@@ -228,3 +228,10 @@ type BillingHistoryRecord struct {
 	Amount       float64 `json:"amount"`
 	BilledAt     string  `json:"billedAt"`
 }
+
+// SubpageConfig maps to the Remnawave SubscriptionPageConfig model.
+type SubpageConfig struct {
+	UUID   string `json:"uuid,omitempty"`
+	Name   string `json:"name"`
+	Config any    `json:"config,omitempty"`
+}
