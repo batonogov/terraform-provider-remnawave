@@ -299,7 +299,13 @@ func (c *Client) resolvePath(path string) string {
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
-	base.Path = strings.TrimSuffix(base.Path, "/") + path
+	// Split path and query so the "?" doesn't get URL-encoded into base.Path
+	if idx := strings.Index(path, "?"); idx >= 0 {
+		base.Path = strings.TrimSuffix(base.Path, "/") + path[:idx]
+		base.RawQuery = path[idx+1:]
+	} else {
+		base.Path = strings.TrimSuffix(base.Path, "/") + path
+	}
 	return base.String()
 }
 
