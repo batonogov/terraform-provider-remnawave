@@ -48,6 +48,7 @@ func (r *subpageConfigResource) Schema(_ context.Context, _ resource.SchemaReque
 			},
 			"config": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "Subscription page config as a JSON string. Opaque to the provider — the panel manages the structure.",
 			},
 		},
@@ -111,6 +112,14 @@ func (r *subpageConfigResource) Create(ctx context.Context, req resource.CreateR
 			}
 			plan.Config = types.StringValue(string(b))
 		}
+	} else if created.Config != nil {
+		// Config not set in plan — populate from API default config
+		b, err := json.Marshal(created.Config)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to marshal config", err.Error())
+			return
+		}
+		plan.Config = types.StringValue(string(b))
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
