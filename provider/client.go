@@ -17,9 +17,9 @@ import (
 
 // Client manages communication with the Remnawave REST API.
 type Client struct {
-	baseURL     *url.URL
-	httpClient  *http.Client
-	apiToken    string
+	baseURL    *url.URL
+	httpClient *http.Client
+	apiToken   string
 
 	authMu      sync.Mutex
 	accessToken string
@@ -91,11 +91,11 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 	}
 
 	return &Client{
-		baseURL:     baseURL,
-		httpClient:  httpClient,
-		apiToken:    cfg.APIToken,
-		username:    cfg.Username,
-		password:    cfg.Password,
+		baseURL:      baseURL,
+		httpClient:   httpClient,
+		apiToken:     cfg.APIToken,
+		username:     cfg.Username,
+		password:     cfg.Password,
 		proxyHeaders: cfg.ProxyHeaders,
 	}, nil
 }
@@ -472,8 +472,8 @@ func (c *Client) DeleteConfigProfile(ctx context.Context, uuid string) error {
 }
 
 type configProfilesListResponse struct {
-	Total           int              `json:"total"`
-	ConfigProfiles  []ConfigProfile  `json:"configProfiles"`
+	Total          int             `json:"total"`
+	ConfigProfiles []ConfigProfile `json:"configProfiles"`
 }
 
 func (c *Client) GetAllConfigProfiles(ctx context.Context) ([]ConfigProfile, error) {
@@ -613,8 +613,8 @@ func (c *Client) UpdatePanelSettings(ctx context.Context, settings *PanelSetting
 // ─── Snippet API ───
 
 type snippetsListResponse struct {
-	Total    int        `json:"total"`
-	Snippets []Snippet  `json:"snippets"`
+	Total    int       `json:"total"`
+	Snippets []Snippet `json:"snippets"`
 }
 
 func (c *Client) CreateSnippet(ctx context.Context, s *Snippet) (*snippetsListResponse, error) {
@@ -739,4 +739,40 @@ func (c *Client) UpdateInfraProvider(ctx context.Context, p *InfraProvider) (*In
 
 func (c *Client) DeleteInfraProvider(ctx context.Context, uuid string) error {
 	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/infra-billing/providers/%s", uuid), nil, nil)
+}
+
+// ─── Subscriptions API ───
+
+func (c *Client) GetSubscriptionByUUID(ctx context.Context, uuid string) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/subscriptions/by-uuid/%s", uuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) GetSubscriptionByUsername(ctx context.Context, username string) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/subscriptions/by-username/%s", username), nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) GetSubscriptionByShortUUID(ctx context.Context, shortUUID string) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/subscriptions/by-short-uuid/%s", shortUUID), nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ─── Subscription Request History API ───
+
+func (c *Client) GetSubscriptionRequestHistory(ctx context.Context) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, "/api/subscription-request-history", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
