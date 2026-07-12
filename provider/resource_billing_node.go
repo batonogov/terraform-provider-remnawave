@@ -63,6 +63,9 @@ func (r *billingNodeResource) Create(ctx context.Context, req resource.CreateReq
 	body := map[string]any{
 		"providerUuid":  plan.ProviderUUID.ValueString(),
 		"nextBillingAt": plan.NextBillingAt.ValueString(),
+		// API requires nodeUuid and name to be present (nullable, not undefined)
+		"nodeUuid":      nil,
+		"name":          nil,
 	}
 	if !plan.NodeUUID.IsNull() && plan.NodeUUID.ValueString() != "" {
 		body["nodeUuid"] = plan.NodeUUID.ValueString()
