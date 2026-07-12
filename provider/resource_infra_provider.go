@@ -39,25 +39,37 @@ func (r *infraProviderResource) Schema(_ context.Context, _ resource.SchemaReque
 }
 
 func (r *infraProviderResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil { return }
+	if req.ProviderData == nil {
+		return
+	}
 	client, ok := req.ProviderData.(*Client)
-	if !ok { resp.Diagnostics.AddError("Unexpected type", "Expected *Client"); return }
+	if !ok {
+		resp.Diagnostics.AddError("Unexpected type", "Expected *Client")
+		return
+	}
 	r.client = client
 }
 
 func (r *infraProviderResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan infraProviderModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() { return }
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	p := &InfraProvider{Name: plan.Name.ValueString()}
 	if !plan.FaviconLink.IsNull() && plan.FaviconLink.ValueString() != "" {
-		f := plan.FaviconLink.ValueString(); p.FaviconLink = &f
+		f := plan.FaviconLink.ValueString()
+		p.FaviconLink = &f
 	}
 	if !plan.LoginURL.IsNull() && plan.LoginURL.ValueString() != "" {
-		l := plan.LoginURL.ValueString(); p.LoginURL = &l
+		l := plan.LoginURL.ValueString()
+		p.LoginURL = &l
 	}
 	created, err := r.client.CreateInfraProvider(ctx, p)
-	if err != nil { resp.Diagnostics.AddError("Failed to create infra provider", err.Error()); return }
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to create infra provider", err.Error())
+		return
+	}
 	plan.UUID = types.StringValue(created.UUID)
 	plan.FaviconLink = types.StringNull()
 	plan.LoginURL = types.StringNull()
@@ -67,35 +79,59 @@ func (r *infraProviderResource) Create(ctx context.Context, req resource.CreateR
 func (r *infraProviderResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state infraProviderModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() { return }
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	p, err := r.client.GetInfraProviderByUUID(ctx, state.UUID.ValueString())
 	if err != nil {
-		if isNotFound(err) { tflog.Warn(ctx, "infra provider not found", map[string]any{"uuid": state.UUID.ValueString()}); resp.State.RemoveResource(ctx); return }
-		resp.Diagnostics.AddError("Failed to read infra provider", err.Error()); return
+		if isNotFound(err) {
+			tflog.Warn(ctx, "infra provider not found", map[string]any{"uuid": state.UUID.ValueString()})
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError("Failed to read infra provider", err.Error())
+		return
 	}
 	state.UUID = types.StringValue(p.UUID)
 	state.Name = types.StringValue(p.Name)
-	if p.FaviconLink != nil { state.FaviconLink = types.StringValue(*p.FaviconLink) }
-	if p.LoginURL != nil { state.LoginURL = types.StringValue(*p.LoginURL) }
+	if p.FaviconLink != nil {
+		state.FaviconLink = types.StringValue(*p.FaviconLink)
+	}
+	if p.LoginURL != nil {
+		state.LoginURL = types.StringValue(*p.LoginURL)
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *infraProviderResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan infraProviderModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() { return }
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	p := &InfraProvider{UUID: plan.UUID.ValueString(), Name: plan.Name.ValueString()}
-	if !plan.FaviconLink.IsNull() { f := plan.FaviconLink.ValueString(); p.FaviconLink = &f }
-	if !plan.LoginURL.IsNull() { l := plan.LoginURL.ValueString(); p.LoginURL = &l }
+	if !plan.FaviconLink.IsNull() {
+		f := plan.FaviconLink.ValueString()
+		p.FaviconLink = &f
+	}
+	if !plan.LoginURL.IsNull() {
+		l := plan.LoginURL.ValueString()
+		p.LoginURL = &l
+	}
 	_, err := r.client.UpdateInfraProvider(ctx, p)
-	if err != nil { resp.Diagnostics.AddError("Failed to update infra provider", err.Error()); return }
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to update infra provider", err.Error())
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
 func (r *infraProviderResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var state infraProviderModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() { return }
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	if err := r.client.DeleteInfraProvider(ctx, state.UUID.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Failed to delete infra provider", err.Error())
 	}

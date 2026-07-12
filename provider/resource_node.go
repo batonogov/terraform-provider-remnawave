@@ -33,8 +33,8 @@ type nodeResourceModel struct {
 	UsersOnline             types.Int64  `tfsdk:"users_online"`
 	Note                    types.String `tfsdk:"note"`
 	// config_profile_uuid + config_profile_inbounds are required for create
-	ConfigProfileUUID        types.String `tfsdk:"config_profile_uuid"`
-	ConfigProfileInbounds    types.Set    `tfsdk:"config_profile_inbounds"`
+	ConfigProfileUUID     types.String `tfsdk:"config_profile_uuid"`
+	ConfigProfileInbounds types.Set    `tfsdk:"config_profile_inbounds"`
 }
 
 func NewNodeResource() resource.Resource {
@@ -222,9 +222,9 @@ func (r *nodeResource) ImportState(ctx context.Context, req resource.ImportState
 
 func planToNode(p *nodeResourceModel) *Node {
 	n := &Node{
-		UUID:    p.UUID.ValueString(),
-		Name:    p.Name.ValueString(),
-		Address: p.Address.ValueString(),
+		UUID:                    p.UUID.ValueString(),
+		Name:                    p.Name.ValueString(),
+		Address:                 p.Address.ValueString(),
 		IsTrafficTrackingActive: p.IsTrafficTrackingActive.ValueBool(),
 		CountryCode:             p.CountryCode.ValueString(),
 	}
