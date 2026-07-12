@@ -195,6 +195,8 @@ func (p *RemnawaveProvider) DataSources(_ context.Context) []func() datasource.D
 		NewSystemStatsDataSource,
 		NewSystemRecapDataSource,
 		NewNodesMetricsDataSource,
+		NewBandwidthStatsDataSource,
+		NewBandwidthStatsUserDataSource,
 	}
 }
 

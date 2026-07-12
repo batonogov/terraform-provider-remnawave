@@ -880,3 +880,29 @@ func (c *Client) GetSubscriptionRequestHistory(ctx context.Context) (map[string]
 	}
 	return out, nil
 }
+
+// ─── Bandwidth Stats API ───
+
+func (c *Client) GetBandwidthStatsNodes(ctx context.Context, start, end string, topNodesLimit int) (map[string]any, error) {
+	path := fmt.Sprintf("/api/bandwidth-stats/nodes?start=%s&end=%s", start, end)
+	if topNodesLimit > 0 {
+		path += fmt.Sprintf("&topNodesLimit=%d", topNodesLimit)
+	}
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, path, nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) GetBandwidthStatsUser(ctx context.Context, uuid, start, end string, topNodesLimit int) (map[string]any, error) {
+	path := fmt.Sprintf("/api/bandwidth-stats/users/%s?start=%s&end=%s", uuid, start, end)
+	if topNodesLimit > 0 {
+		path += fmt.Sprintf("&topNodesLimit=%d", topNodesLimit)
+	}
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, path, nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
