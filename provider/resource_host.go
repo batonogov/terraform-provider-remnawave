@@ -305,8 +305,8 @@ func planToHost(p *hostResourceModel) *Host {
 		h.ExcludedInternalSquads = squads
 	}
 	if !p.Path.IsNull() {
-		path := p.Path.ValueString()
-		h.Path = &path
+		pathVal := p.Path.ValueString()
+		h.Path = &pathVal
 	}
 	return h
 }
