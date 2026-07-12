@@ -180,6 +180,7 @@ func (p *RemnawaveProvider) Resources(_ context.Context) []func() resource.Resou
 		NewBillingNodeResource,
 		NewBillingHistoryResource,
 		NewSubpageConfigResource,
+		NewHwidDeviceResource,
 	}
 }
 
@@ -198,6 +199,8 @@ func (p *RemnawaveProvider) DataSources(_ context.Context) []func() datasource.D
 		NewNodesMetricsDataSource,
 		NewBandwidthStatsDataSource,
 		NewBandwidthStatsUserDataSource,
+		NewHwidStatsDataSource,
+		NewHwidTopUsersDataSource,
 	}
 }
 

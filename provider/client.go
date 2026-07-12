@@ -936,3 +936,41 @@ func (c *Client) UpdateSubpageConfig(ctx context.Context, sc *SubpageConfig) (*S
 func (c *Client) DeleteSubpageConfig(ctx context.Context, uuid string) error {
 	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/subscription-page-configs/%s", uuid), nil, nil)
 }
+
+// ─── HWID API ───
+
+func (c *Client) CreateHwidDevice(ctx context.Context, req map[string]any) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodPost, "/api/hwid/devices", req, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) DeleteHwidDevice(ctx context.Context, req map[string]any) error {
+	return c.doRequest(ctx, http.MethodDelete, "/api/hwid/devices/delete", req, nil)
+}
+
+func (c *Client) GetUserHwidDevices(ctx context.Context, userUuid string) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/hwid/devices/%s", userUuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) GetHwidStats(ctx context.Context) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, "/api/hwid/devices/stats", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) GetHwidTopUsers(ctx context.Context) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, "/api/hwid/devices/top-users", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
