@@ -159,7 +159,7 @@ jobs:
           REMNAWAVE_ENDPOINT: "http://localhost:3000"
           REMNAWAVE_PROXY_HEADERS: "true"
         run: go test ./provider -run TestAcc -count=1 -timeout 600s -v
-      - name: Test admin JWT-only resource
+      - name: Test admin JWT-only resources
         env:
           TF_ACC: "1"
           REMNAWAVE_ENDPOINT: "http://localhost:3000"
@@ -167,7 +167,7 @@ jobs:
           REMNAWAVE_USERNAME: ${{ env.REMNAWAVE_ADMIN_USERNAME }}
           REMNAWAVE_PASSWORD: ${{ env.REMNAWAVE_ADMIN_PASSWORD }}
           REMNAWAVE_PROXY_HEADERS: "true"
-        run: go test ./provider -run '^TestAccPanelSettingsResource$' -count=1 -timeout 600s -v
+        run: go test ./provider -run '^TestAcc(PanelSettings|ApiToken)Resource$' -count=1 -timeout 600s -v
       - name: Tear down
         if: always()
         run: docker compose down -v

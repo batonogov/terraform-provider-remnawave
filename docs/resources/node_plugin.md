@@ -21,7 +21,7 @@ Manages a Remnawave node plugin.
 
 ### Optional
 
-- `plugin_config` (String) Plugin config as JSON string (opaque).
+- `plugin_config` (String) Plugin config as JSON. Supported keys are sharedLists, torrentBlocker, ingressFilter, egressFilter, and connectionDrop.
 
 ### Read-Only
 

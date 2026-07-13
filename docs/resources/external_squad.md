@@ -19,6 +19,16 @@ Manages a Remnawave external squad.
 
 - `name` (String) Squad name (2-30 chars).
 
+### Optional
+
+- `custom_remarks` (String) Squad custom remarks as JSON.
+- `host_overrides` (String) Squad host overrides as JSON.
+- `hwid_settings` (String) Squad HWID settings as JSON.
+- `response_headers` (String) Squad response headers as JSON object.
+- `subpage_config_uuid` (String) Subscription page config UUID assigned to the squad.
+- `subscription_settings` (String) Squad-specific subscription settings as JSON.
+- `templates` (String) Template assignments as JSON array.
+
 ### Read-Only
 
 - `uuid` (String)

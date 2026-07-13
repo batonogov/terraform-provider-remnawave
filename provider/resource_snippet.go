@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -27,7 +28,7 @@ func (r *snippetResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 		Description: "Manages a Remnawave Xray config snippet (keyed by name).",
 		Attributes: map[string]schema.Attribute{
 			"name":    schema.StringAttribute{Required: true, Description: "Snippet name (2-255 chars)."},
-			"snippet": schema.StringAttribute{Required: true, Description: "Snippet content as JSON array string."},
+			"snippet": schema.StringAttribute{Required: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Snippet content as JSON array string."},
 		},
 	}
 }

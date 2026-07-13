@@ -34,9 +34,14 @@ resource "remnawave_user" "example" {
 
 ### Optional
 
+- `active_internal_squads` (Set of String) UUIDs of internal squads assigned to the user.
+- `created_at` (String) Creation timestamp. May be supplied when importing users into Remnawave.
 - `description` (String) Free-form description.
 - `email` (String) User email address.
+- `external_squad_uuid` (String) External squad UUID assigned to the user.
 - `hwid_device_limit` (Number) Max hardware devices allowed.
+- `last_traffic_reset_at` (String) Initial last-traffic-reset timestamp. Remnawave only accepts it during creation.
+- `short_uuid` (String) Short UUID used in subscription URLs.
 - `ss_password` (String, Sensitive) Shadowsocks password (8-32 chars). Auto-generated if not set.
 - `status` (String) User status: ACTIVE or DISABLED. LIMITED/EXPIRED are managed by the panel.
 - `tag` (String) User tag (uppercase letters, numbers, underscores; max 16).
@@ -48,9 +53,16 @@ resource "remnawave_user" "example" {
 
 ### Read-Only
 
+- `first_connected_at` (String) Timestamp of the user's first connection.
 - `id` (Number) Numeric ID of the user.
-- `short_uuid` (String) Short UUID used in subscription URLs.
+- `last_connected_node_uuid` (String) UUID of the node used for the most recent connection.
+- `last_triggered_threshold` (Number) Last traffic notification threshold triggered by the panel.
+- `lifetime_used_traffic_bytes` (Number) Lifetime traffic consumed by the user.
+- `online_at` (String) Timestamp when the user was last observed online.
+- `sub_revoked_at` (String) Timestamp of the most recent subscription revocation.
 - `subscription_url` (String) Subscription URL for the user.
+- `updated_at` (String) Last update timestamp.
+- `used_traffic_bytes` (Number) Traffic used in the current reset period.
 - `uuid` (String) UUID of the user (assigned by the panel).
 
 ## Import

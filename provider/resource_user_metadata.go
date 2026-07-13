@@ -46,8 +46,9 @@ func (r *userMetadataResource) Schema(_ context.Context, _ resource.SchemaReques
 				},
 			},
 			"metadata": schema.StringAttribute{
-				Required:    true,
-				Description: "Free-form metadata as a JSON object string, e.g. jsonencode({ department = \"engineering\" }).",
+				Required:      true,
+				PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}},
+				Description:   "Free-form metadata as a JSON object string, e.g. jsonencode({ department = \"engineering\" }).",
 			},
 		},
 	}

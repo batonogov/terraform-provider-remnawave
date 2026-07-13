@@ -2,10 +2,12 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -24,6 +26,10 @@ type subscriptionSettingsModel struct {
 	HappAnnounce                types.String `tfsdk:"happ_announce"`
 	HappRouting                 types.String `tfsdk:"happ_routing"`
 	RandomizeHosts              types.Bool   `tfsdk:"randomize_hosts"`
+	CustomRemarks               types.String `tfsdk:"custom_remarks"`
+	CustomResponseHeaders       types.String `tfsdk:"custom_response_headers"`
+	ResponseRules               types.String `tfsdk:"response_rules"`
+	HwidSettings                types.String `tfsdk:"hwid_settings"`
 }
 
 func NewSubscriptionSettingsResource() resource.Resource {
@@ -86,6 +92,30 @@ func (r *subscriptionSettingsResource) Schema(_ context.Context, _ resource.Sche
 				Optional:    true,
 				Computed:    true,
 				Description: "Randomize host order in subscription.",
+			},
+			"custom_remarks": schema.StringAttribute{
+				Optional:      true,
+				Computed:      true,
+				PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}},
+				Description:   "Custom user-state remarks as JSON.",
+			},
+			"custom_response_headers": schema.StringAttribute{
+				Optional:      true,
+				Computed:      true,
+				PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}},
+				Description:   "Custom subscription response headers as JSON object.",
+			},
+			"response_rules": schema.StringAttribute{
+				Optional:      true,
+				Computed:      true,
+				PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}},
+				Description:   "Subscription response-rules configuration as JSON.",
+			},
+			"hwid_settings": schema.StringAttribute{
+				Optional:      true,
+				Computed:      true,
+				PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}},
+				Description:   "HWID enforcement settings as JSON.",
 			},
 		},
 	}
@@ -224,35 +254,84 @@ func planToSubscriptionSettings(p *subscriptionSettingsModel) *SubscriptionSetti
 		v := p.RandomizeHosts.ValueBool()
 		s.RandomizeHosts = &v
 	}
+	if !p.CustomRemarks.IsNull() && !p.CustomRemarks.IsUnknown() {
+		s.CustomRemarks = json.RawMessage(p.CustomRemarks.ValueString())
+	}
+	if !p.CustomResponseHeaders.IsNull() && !p.CustomResponseHeaders.IsUnknown() {
+		s.CustomResponseHeaders = json.RawMessage(p.CustomResponseHeaders.ValueString())
+	}
+	if !p.ResponseRules.IsNull() && !p.ResponseRules.IsUnknown() {
+		s.ResponseRules = json.RawMessage(p.ResponseRules.ValueString())
+	}
+	if !p.HwidSettings.IsNull() && !p.HwidSettings.IsUnknown() {
+		s.HwidSettings = json.RawMessage(p.HwidSettings.ValueString())
+	}
 	return s
 }
 
 func subscriptionSettingsToPlan(s *SubscriptionSettings, p *subscriptionSettingsModel) {
 	if s.ProfileTitle != nil {
 		p.ProfileTitle = types.StringValue(*s.ProfileTitle)
+	} else {
+		p.ProfileTitle = types.StringNull()
 	}
 	if s.SupportLink != nil {
 		p.SupportLink = types.StringValue(*s.SupportLink)
+	} else {
+		p.SupportLink = types.StringNull()
 	}
 	if s.ProfileUpdateInterval != nil {
 		p.ProfileUpdateInterval = types.Int64Value(int64(*s.ProfileUpdateInterval))
+	} else {
+		p.ProfileUpdateInterval = types.Int64Null()
 	}
 	if s.IsProfileWebpageURLEnabled != nil {
 		p.IsProfileWebpageURLEnabled = types.BoolValue(*s.IsProfileWebpageURLEnabled)
+	} else {
+		p.IsProfileWebpageURLEnabled = types.BoolNull()
 	}
 	if s.ServeJsonAtBaseSubscription != nil {
 		p.ServeJsonAtBaseSubscription = types.BoolValue(*s.ServeJsonAtBaseSubscription)
+	} else {
+		p.ServeJsonAtBaseSubscription = types.BoolNull()
 	}
 	if s.IsShowCustomRemarks != nil {
 		p.IsShowCustomRemarks = types.BoolValue(*s.IsShowCustomRemarks)
+	} else {
+		p.IsShowCustomRemarks = types.BoolNull()
 	}
 	if s.HappAnnounce != nil {
 		p.HappAnnounce = types.StringValue(*s.HappAnnounce)
+	} else {
+		p.HappAnnounce = types.StringNull()
 	}
 	if s.HappRouting != nil {
 		p.HappRouting = types.StringValue(*s.HappRouting)
+	} else {
+		p.HappRouting = types.StringNull()
 	}
 	if s.RandomizeHosts != nil {
 		p.RandomizeHosts = types.BoolValue(*s.RandomizeHosts)
+	} else {
+		p.RandomizeHosts = types.BoolNull()
 	}
+	p.CustomRemarks = rawJSONToString(s.CustomRemarks)
+	p.CustomResponseHeaders = rawJSONToString(s.CustomResponseHeaders)
+	p.ResponseRules = rawJSONToString(s.ResponseRules)
+	p.HwidSettings = rawJSONToString(s.HwidSettings)
+}
+
+func rawJSONToString(value json.RawMessage) types.String {
+	if len(value) == 0 || string(value) == "null" {
+		return types.StringNull()
+	}
+	var normalized any
+	if err := json.Unmarshal(value, &normalized); err != nil {
+		return types.StringValue(string(value))
+	}
+	b, err := json.Marshal(normalized)
+	if err != nil {
+		return types.StringValue(string(value))
+	}
+	return types.StringValue(string(b))
 }

@@ -35,8 +35,32 @@ resource "remnawave_user_metadata" "test" {
 	})
 }
 
-// TestAccNodeMetadataResource tests node metadata.
-// Skipped: node creation requires a real Xray backend not available in test env.
 func TestAccNodeMetadataResource(t *testing.T) {
-	t.Skip("node_metadata requires a real Xray node which is not available in test env")
+	testAccPreCheck(t)
+	endpoint, authBlock := testAccProviderBlock()
+	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+		Steps: []resource.TestStep{{
+			Config: providerCfg + testAccProfileConfig("metadata-profile", "VLESS_TCP_META_ACC") + `
+resource "remnawave_node" "metadata" {
+  name                    = "metadata-node"
+  address                 = "127.0.0.11"
+  port                    = 2223
+  config_profile_uuid     = remnawave_config_profile.profile.uuid
+  config_profile_inbounds = [remnawave_config_profile.profile.inbounds[0].uuid]
+}
+
+resource "remnawave_node_metadata" "test" {
+  node_uuid = remnawave_node.metadata.uuid
+  metadata  = jsonencode({ environment = "acceptance" })
+}
+`,
+			Check: resource.ComposeAggregateTestCheckFunc(
+				resource.TestCheckResourceAttrSet("remnawave_node_metadata.test", "uuid"),
+				resource.TestCheckResourceAttrSet("remnawave_node_metadata.test", "metadata"),
+			),
+		}},
+	})
 }

@@ -82,7 +82,7 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "UpdateNodePlugin", method: http.MethodPatch, path: "/api/node-plugins", args: []any{&NodePlugin{UUID: "item-id", Name: "plugin"}}},
 		{name: "DeleteNodePlugin", method: http.MethodDelete, path: "/api/node-plugins/item-id", args: []any{"item-id"}},
 
-		{name: "CreateApiToken", method: http.MethodPost, path: "/api/tokens", args: []any{&ApiToken{Name: "token"}}},
+		{name: "CreateApiToken", method: http.MethodPost, path: "/api/tokens", args: []any{&ApiToken{Name: "token", ExpiresInDays: 7, Scopes: []string{"users:read"}}}, wantJSON: map[string]any{"name": "token", "expiresInDays": float64(7), "scopes": []any{"users:read"}}},
 		{name: "DeleteApiToken", method: http.MethodDelete, path: "/api/tokens/item-id", args: []any{"item-id"}},
 		{name: "GetAllApiTokens", method: http.MethodGet, path: "/api/tokens"},
 
@@ -132,7 +132,7 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "GetConnectionKeys", method: http.MethodGet, path: "/api/subscriptions/connection-keys/item-id", args: []any{"item-id"}},
 
 		{name: "CreateHwidDevice", method: http.MethodPost, path: "/api/hwid/devices", args: []any{map[string]any{"hwid": "device-id"}}, wantJSON: map[string]any{"hwid": "device-id"}},
-		{name: "DeleteHwidDevice", method: http.MethodDelete, path: "/api/hwid/devices/delete", args: []any{map[string]any{"hwid": "device-id"}}, wantJSON: map[string]any{"hwid": "device-id"}},
+		{name: "DeleteHwidDevice", method: http.MethodPost, path: "/api/hwid/devices/delete", args: []any{map[string]any{"hwid": "device-id"}}, wantJSON: map[string]any{"hwid": "device-id"}},
 		{name: "GetUserHwidDevices", method: http.MethodGet, path: "/api/hwid/devices/item-id", args: []any{"item-id"}},
 		{name: "GetHwidStats", method: http.MethodGet, path: "/api/hwid/devices/stats"},
 		{name: "GetHwidTopUsers", method: http.MethodGet, path: "/api/hwid/devices/top-users"},

@@ -25,4 +25,30 @@ Manages a Remnawave config profile (Xray configuration template).
 
 ### Read-Only
 
+- `inbounds` (Attributes List) Inbounds parsed by Remnawave from the Xray config. Their UUIDs are used by nodes, hosts, and squads. (see [below for nested schema](#nestedatt--inbounds))
+- `nodes` (Attributes List) Nodes currently assigned to this config profile. (see [below for nested schema](#nestedatt--nodes))
 - `uuid` (String) UUID of the config profile.
+
+<a id="nestedatt--inbounds"></a>
+### Nested Schema for `inbounds`
+
+Read-Only:
+
+- `network` (String)
+- `port` (Number)
+- `profile_uuid` (String)
+- `raw_inbound` (String) Raw inbound as normalized JSON.
+- `security` (String)
+- `tag` (String)
+- `type` (String)
+- `uuid` (String)
+
+
+<a id="nestedatt--nodes"></a>
+### Nested Schema for `nodes`
+
+Read-Only:
+
+- `country_code` (String)
+- `name` (String)
+- `uuid` (String)

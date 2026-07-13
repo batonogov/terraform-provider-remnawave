@@ -26,5 +26,6 @@ Manages a Remnawave API token. Note: requires admin JWT auth (not API token). To
 
 ### Read-Only
 
+- `expire_at` (String) Token expiration timestamp returned by Remnawave.
 - `token` (String, Sensitive) JWT token value (only available on create).
 - `uuid` (String) Token UUID.

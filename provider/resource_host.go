@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -18,27 +19,39 @@ type hostResource struct {
 }
 
 type hostResourceModel struct {
-	UUID              types.String `tfsdk:"uuid"`
-	Remark            types.String `tfsdk:"remark"`
-	Address           types.String `tfsdk:"address"`
-	Port              types.Int64  `tfsdk:"port"`
-	SNI               types.String `tfsdk:"sni"`
-	HostHeader        types.String `tfsdk:"host_header"`
-	ALPN              types.String `tfsdk:"alpn"`
-	Fingerprint       types.String `tfsdk:"fingerprint"`
-	IsDisabled        types.Bool   `tfsdk:"is_disabled"`
-	SecurityLayer     types.String `tfsdk:"security_layer"`
-	ServerDescription types.String `tfsdk:"server_description"`
-	IsHidden          types.Bool   `tfsdk:"is_hidden"`
-	ShuffleHost       types.Bool   `tfsdk:"shuffle_host"`
+	UUID                   types.String `tfsdk:"uuid"`
+	Remark                 types.String `tfsdk:"remark"`
+	Address                types.String `tfsdk:"address"`
+	Port                   types.Int64  `tfsdk:"port"`
+	SNI                    types.String `tfsdk:"sni"`
+	HostHeader             types.String `tfsdk:"host_header"`
+	ALPN                   types.String `tfsdk:"alpn"`
+	Fingerprint            types.String `tfsdk:"fingerprint"`
+	IsDisabled             types.Bool   `tfsdk:"is_disabled"`
+	SecurityLayer          types.String `tfsdk:"security_layer"`
+	XHTTPExtraParams       types.String `tfsdk:"xhttp_extra_params"`
+	MuxParams              types.String `tfsdk:"mux_params"`
+	SockoptParams          types.String `tfsdk:"sockopt_params"`
+	FinalMask              types.String `tfsdk:"final_mask"`
+	ServerDescription      types.String `tfsdk:"server_description"`
+	IsHidden               types.Bool   `tfsdk:"is_hidden"`
+	OverrideSniFromAddress types.Bool   `tfsdk:"override_sni_from_address"`
+	KeepSniBlank           types.Bool   `tfsdk:"keep_sni_blank"`
+	PinnedPeerCertSha256   types.String `tfsdk:"pinned_peer_cert_sha256"`
+	VerifyPeerCertByName   types.String `tfsdk:"verify_peer_cert_by_name"`
+	VlessRouteID           types.Int64  `tfsdk:"vless_route_id"`
+	ShuffleHost            types.Bool   `tfsdk:"shuffle_host"`
 	// Inbound link
-	ConfigProfileUUID        types.String `tfsdk:"config_profile_uuid"`
-	ConfigProfileInboundUUID types.String `tfsdk:"config_profile_inbound_uuid"`
-	Tags                     types.List   `tfsdk:"tags"`
-	Nodes                    types.List   `tfsdk:"nodes"`
-	MihomoX25519             types.Bool   `tfsdk:"mihomo_x25519"`
-	ExcludedInternalSquads   types.List   `tfsdk:"excluded_internal_squads"`
-	Path                     types.String `tfsdk:"path"`
+	ConfigProfileUUID            types.String `tfsdk:"config_profile_uuid"`
+	ConfigProfileInboundUUID     types.String `tfsdk:"config_profile_inbound_uuid"`
+	Tags                         types.List   `tfsdk:"tags"`
+	Nodes                        types.List   `tfsdk:"nodes"`
+	MihomoX25519                 types.Bool   `tfsdk:"mihomo_x25519"`
+	MihomoIPVersion              types.String `tfsdk:"mihomo_ip_version"`
+	XrayJSONTemplateUUID         types.String `tfsdk:"xray_json_template_uuid"`
+	ExcludedInternalSquads       types.List   `tfsdk:"excluded_internal_squads"`
+	ExcludeFromSubscriptionTypes types.Set    `tfsdk:"exclude_from_subscription_types"`
+	Path                         types.String `tfsdk:"path"`
 }
 
 func NewHostResource() resource.Resource {
@@ -98,6 +111,10 @@ func (r *hostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Computed:    true,
 				Description: "Security layer: DEFAULT, TLS, or NONE.",
 			},
+			"xhttp_extra_params": schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "XHTTP extra parameters as JSON."},
+			"mux_params":         schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Mux parameters as JSON."},
+			"sockopt_params":     schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Socket options as JSON."},
+			"final_mask":         schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Final mask configuration as JSON."},
 			"server_description": schema.StringAttribute{
 				Optional:    true,
 				Description: "Short server description (max 30 chars).",
@@ -106,6 +123,21 @@ func (r *hostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Optional:    true,
 				Computed:    true,
 				Description: "Hide host from subscription.",
+			},
+			"override_sni_from_address": schema.BoolAttribute{
+				Optional: true, Computed: true, Description: "Derive SNI from the host address.",
+			},
+			"keep_sni_blank": schema.BoolAttribute{
+				Optional: true, Computed: true, Description: "Keep SNI blank instead of deriving it.",
+			},
+			"pinned_peer_cert_sha256": schema.StringAttribute{
+				Optional: true, Description: "Pinned peer certificate SHA-256 value.",
+			},
+			"verify_peer_cert_by_name": schema.StringAttribute{
+				Optional: true, Description: "Peer certificate name to verify.",
+			},
+			"vless_route_id": schema.Int64Attribute{
+				Optional: true, Description: "VLESS route ID (0-65535).",
 			},
 			"shuffle_host": schema.BoolAttribute{
 				Optional:    true,
@@ -122,11 +154,13 @@ func (r *hostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			},
 			"tags": schema.ListAttribute{
 				Optional:    true,
+				Computed:    true,
 				ElementType: types.StringType,
 				Description: "List of tags (max 10, uppercase letters/numbers/underscores/colons, max 36 chars each).",
 			},
 			"nodes": schema.ListAttribute{
 				Optional:    true,
+				Computed:    true,
 				ElementType: types.StringType,
 				Description: "List of node UUIDs associated with this host.",
 			},
@@ -135,10 +169,23 @@ func (r *hostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Computed:    true,
 				Description: "Enable Mihomo X25519 proxy.",
 			},
+			"mihomo_ip_version": schema.StringAttribute{
+				Optional: true, Description: "Mihomo IP version preference.",
+			},
+			"xray_json_template_uuid": schema.StringAttribute{
+				Optional: true, Description: "Xray JSON subscription template UUID.",
+			},
 			"excluded_internal_squads": schema.ListAttribute{
 				Optional:    true,
+				Computed:    true,
 				ElementType: types.StringType,
 				Description: "Internal squad UUIDs from which this host is excluded.",
+			},
+			"exclude_from_subscription_types": schema.SetAttribute{
+				Optional:    true,
+				Computed:    true,
+				ElementType: types.StringType,
+				Description: "Subscription template types from which this host is excluded.",
 			},
 			"path": schema.StringAttribute{
 				Optional:    true,
@@ -247,14 +294,16 @@ func (r *hostResource) ImportState(ctx context.Context, req resource.ImportState
 
 func planToHost(p *hostResourceModel) *Host {
 	h := &Host{
-		UUID:          p.UUID.ValueString(),
-		Remark:        p.Remark.ValueString(),
-		Address:       p.Address.ValueString(),
-		Port:          int(p.Port.ValueInt64()),
-		IsDisabled:    p.IsDisabled.ValueBool(),
-		SecurityLayer: p.SecurityLayer.ValueString(),
-		IsHidden:      p.IsHidden.ValueBool(),
-		ShuffleHost:   p.ShuffleHost.ValueBool(),
+		UUID:                   p.UUID.ValueString(),
+		Remark:                 p.Remark.ValueString(),
+		Address:                p.Address.ValueString(),
+		Port:                   int(p.Port.ValueInt64()),
+		IsDisabled:             p.IsDisabled.ValueBool(),
+		SecurityLayer:          p.SecurityLayer.ValueString(),
+		IsHidden:               p.IsHidden.ValueBool(),
+		OverrideSniFromAddress: p.OverrideSniFromAddress.ValueBool(),
+		KeepSniBlank:           p.KeepSniBlank.ValueBool(),
+		ShuffleHost:            p.ShuffleHost.ValueBool(),
 	}
 	if !p.SNI.IsNull() {
 		sni := p.SNI.ValueString()
@@ -275,6 +324,30 @@ func planToHost(p *hostResourceModel) *Host {
 	if !p.ServerDescription.IsNull() {
 		sd := p.ServerDescription.ValueString()
 		h.ServerDescription = &sd
+	}
+	if !p.XHTTPExtraParams.IsNull() && !p.XHTTPExtraParams.IsUnknown() {
+		h.XHTTPExtraParams = json.RawMessage(p.XHTTPExtraParams.ValueString())
+	}
+	if !p.MuxParams.IsNull() && !p.MuxParams.IsUnknown() {
+		h.MuxParams = json.RawMessage(p.MuxParams.ValueString())
+	}
+	if !p.SockoptParams.IsNull() && !p.SockoptParams.IsUnknown() {
+		h.SockoptParams = json.RawMessage(p.SockoptParams.ValueString())
+	}
+	if !p.FinalMask.IsNull() && !p.FinalMask.IsUnknown() {
+		h.FinalMask = json.RawMessage(p.FinalMask.ValueString())
+	}
+	if !p.PinnedPeerCertSha256.IsNull() && !p.PinnedPeerCertSha256.IsUnknown() {
+		value := p.PinnedPeerCertSha256.ValueString()
+		h.PinnedPeerCertSha256 = &value
+	}
+	if !p.VerifyPeerCertByName.IsNull() && !p.VerifyPeerCertByName.IsUnknown() {
+		value := p.VerifyPeerCertByName.ValueString()
+		h.VerifyPeerCertByName = &value
+	}
+	if !p.VlessRouteID.IsNull() && !p.VlessRouteID.IsUnknown() {
+		value := int(p.VlessRouteID.ValueInt64())
+		h.VlessRouteID = &value
 	}
 	h.Inbound = &HostInbound{
 		ConfigProfileUUID:        p.ConfigProfileUUID.ValueString(),
@@ -297,12 +370,25 @@ func planToHost(p *hostResourceModel) *Host {
 	if !p.MihomoX25519.IsNull() {
 		h.MihomoX25519 = p.MihomoX25519.ValueBool()
 	}
+	if !p.MihomoIPVersion.IsNull() && !p.MihomoIPVersion.IsUnknown() {
+		value := p.MihomoIPVersion.ValueString()
+		h.MihomoIPVersion = &value
+	}
+	if !p.XrayJSONTemplateUUID.IsNull() && !p.XrayJSONTemplateUUID.IsUnknown() {
+		value := p.XrayJSONTemplateUUID.ValueString()
+		h.XrayJsonTemplateUUID = &value
+	}
 	if !p.ExcludedInternalSquads.IsNull() {
 		squads := []string{}
 		for _, v := range p.ExcludedInternalSquads.Elements() {
 			squads = append(squads, v.(types.String).ValueString())
 		}
 		h.ExcludedInternalSquads = squads
+	}
+	if !p.ExcludeFromSubscriptionTypes.IsNull() && !p.ExcludeFromSubscriptionTypes.IsUnknown() {
+		for _, value := range p.ExcludeFromSubscriptionTypes.Elements() {
+			h.ExcludeFromSubscriptionTypes = append(h.ExcludeFromSubscriptionTypes, value.(types.String).ValueString())
+		}
 	}
 	if !p.Path.IsNull() {
 		pathVal := p.Path.ValueString()
@@ -318,6 +404,8 @@ func hostToPlan(h *Host, p *hostResourceModel) {
 	p.Port = types.Int64Value(int64(h.Port))
 	p.IsDisabled = types.BoolValue(h.IsDisabled)
 	p.IsHidden = types.BoolValue(h.IsHidden)
+	p.OverrideSniFromAddress = types.BoolValue(h.OverrideSniFromAddress)
+	p.KeepSniBlank = types.BoolValue(h.KeepSniBlank)
 	p.ShuffleHost = types.BoolValue(h.ShuffleHost)
 
 	if h.SecurityLayer != "" {
@@ -348,6 +436,25 @@ func hostToPlan(h *Host, p *hostResourceModel) {
 	} else {
 		p.ServerDescription = types.StringNull()
 	}
+	p.XHTTPExtraParams = rawJSONToString(h.XHTTPExtraParams)
+	p.MuxParams = rawJSONToString(h.MuxParams)
+	p.SockoptParams = rawJSONToString(h.SockoptParams)
+	p.FinalMask = rawJSONToString(h.FinalMask)
+	if h.PinnedPeerCertSha256 != nil {
+		p.PinnedPeerCertSha256 = types.StringValue(*h.PinnedPeerCertSha256)
+	} else {
+		p.PinnedPeerCertSha256 = types.StringNull()
+	}
+	if h.VerifyPeerCertByName != nil {
+		p.VerifyPeerCertByName = types.StringValue(*h.VerifyPeerCertByName)
+	} else {
+		p.VerifyPeerCertByName = types.StringNull()
+	}
+	if h.VlessRouteID != nil {
+		p.VlessRouteID = types.Int64Value(int64(*h.VlessRouteID))
+	} else {
+		p.VlessRouteID = types.Int64Null()
+	}
 	if h.Inbound != nil {
 		p.ConfigProfileUUID = types.StringValue(h.Inbound.ConfigProfileUUID)
 		p.ConfigProfileInboundUUID = types.StringValue(h.Inbound.ConfigProfileInboundUUID)
@@ -369,6 +476,16 @@ func hostToPlan(h *Host, p *hostResourceModel) {
 		p.Nodes = nodesList
 	}
 	p.MihomoX25519 = types.BoolValue(h.MihomoX25519)
+	if h.MihomoIPVersion != nil {
+		p.MihomoIPVersion = types.StringValue(*h.MihomoIPVersion)
+	} else {
+		p.MihomoIPVersion = types.StringNull()
+	}
+	if h.XrayJsonTemplateUUID != nil {
+		p.XrayJSONTemplateUUID = types.StringValue(*h.XrayJsonTemplateUUID)
+	} else {
+		p.XrayJSONTemplateUUID = types.StringNull()
+	}
 	if h.ExcludedInternalSquads != nil {
 		elems := make([]attr.Value, 0, len(h.ExcludedInternalSquads))
 		for _, s := range h.ExcludedInternalSquads {
@@ -377,6 +494,7 @@ func hostToPlan(h *Host, p *hostResourceModel) {
 		squadsList, _ := types.ListValue(types.StringType, elems)
 		p.ExcludedInternalSquads = squadsList
 	}
+	p.ExcludeFromSubscriptionTypes, _ = types.SetValueFrom(context.Background(), types.StringType, h.ExcludeFromSubscriptionTypes)
 	if h.Path != nil {
 		p.Path = types.StringValue(*h.Path)
 	}

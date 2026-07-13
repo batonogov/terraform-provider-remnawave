@@ -18,24 +18,40 @@ Manages a Remnawave node (Xray server).
 ### Required
 
 - `address` (String) Node address (IP or hostname).
+- `config_profile_uuid` (String) UUID of the config profile assigned to this node.
 - `name` (String) Node name (3-30 chars).
 
 ### Optional
 
+- `active_plugin_uuid` (String) Active node plugin UUID.
 - `config_profile_inbounds` (Set of String) Set of inbound UUIDs enabled for this node's config profile.
-- `config_profile_uuid` (String) UUID of the config profile assigned to this node.
+- `consumption_multiplier` (Number) User traffic consumption multiplier (0.0-100.0).
 - `country_code` (String) ISO 3166-1 alpha-2 country code (2 chars).
 - `is_traffic_tracking_active` (Boolean) Enable traffic tracking for this node.
+- `node_consumption_multiplier` (Number) Node traffic consumption multiplier (0.0-100.0).
 - `note` (String) Free-form note (max 255 chars).
 - `notify_percent` (Number) Notify at this traffic usage percentage (0-100).
 - `port` (Number) Node port for internal panel API communication.
+- `provider_uuid` (String) Infrastructure provider UUID associated with the node.
+- `proxy_url` (String) Optional SOCKS5 proxy URL used to reach the node.
+- `tags` (Set of String) Node tags (up to 10).
 - `traffic_limit_bytes` (Number) Traffic limit in bytes for this node.
 - `traffic_reset_day` (Number) Day of month (1-31) to reset traffic counter.
 
 ### Read-Only
 
+- `created_at` (String) Creation timestamp.
 - `is_connected` (Boolean) Whether the node is currently connected.
 - `is_connecting` (Boolean) Whether the node is in the process of connecting.
 - `is_disabled` (Boolean) Whether the node is administratively disabled.
+- `last_status_change` (String) Timestamp of the most recent connection status change.
+- `last_status_message` (String) Most recent connection status message.
+- `provider_details` (String) Associated infrastructure provider summary as JSON.
+- `system` (String) Node system information and live statistics as JSON.
+- `traffic_used_bytes` (Number) Traffic consumed by the node according to the panel.
+- `updated_at` (String) Last update timestamp.
 - `users_online` (Number) Number of users currently online on this node.
 - `uuid` (String) UUID of the node (assigned by the panel).
+- `versions` (String) Xray and node component versions as JSON.
+- `view_position` (Number) Panel ordering position.
+- `xray_uptime` (Number) Xray uptime reported by the node.

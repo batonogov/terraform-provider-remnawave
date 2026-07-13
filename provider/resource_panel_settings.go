@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -34,8 +35,8 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 			"branding_title":        schema.StringAttribute{Optional: true, Computed: true, Description: "Panel branding title."},
 			"branding_logo_url":     schema.StringAttribute{Optional: true, Computed: true, Description: "Panel branding logo URL."},
 			"password_auth_enabled": schema.BoolAttribute{Optional: true, Computed: true, Description: "Enable password auth."},
-			"passkey_settings":      schema.StringAttribute{Optional: true, Computed: true, Description: "Passkey/WebAuthn settings as JSON string."},
-			"oauth2_settings":       schema.StringAttribute{Optional: true, Computed: true, Description: "OAuth2 provider settings as JSON string."},
+			"passkey_settings":      schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Passkey/WebAuthn settings as JSON string."},
+			"oauth2_settings":       schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "OAuth2 provider settings as JSON string."},
 		},
 	}
 }

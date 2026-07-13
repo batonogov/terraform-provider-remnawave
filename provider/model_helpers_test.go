@@ -103,6 +103,31 @@ type stringerValue string
 
 func (v stringerValue) String() string { return string(v) }
 
+func TestCanonicalJSONPlanValues(t *testing.T) {
+	t.Parallel()
+
+	canonical, err := canonicalJSONString(" { \"z\": 1, \"a\": [ true, null ] } ")
+	if err != nil || canonical != `{"a":[true,null],"z":1}` {
+		t.Fatalf("canonicalJSONString() = %q, %v", canonical, err)
+	}
+	if _, err := canonicalJSONString("not-json"); err == nil {
+		t.Fatal("canonicalJSONString accepted invalid JSON")
+	}
+
+	canonical, config, err := canonicalNodePluginJSON(`{"connectionDrop":{"enabled":false,"whitelistIps":[]}}`)
+	if err != nil || canonical != `{"connectionDrop":{"enabled":false,"whitelistIps":[]},"sharedLists":[]}` {
+		t.Fatalf("canonicalNodePluginJSON() = %q, %#v, %v", canonical, config, err)
+	}
+	if _, ok := config["sharedLists"]; !ok {
+		t.Fatal("canonicalNodePluginJSON did not apply sharedLists default")
+	}
+	for _, invalid := range []string{"null", "[]", "not-json", `{"unsupported":true}`} {
+		if _, _, err := canonicalNodePluginJSON(invalid); err == nil {
+			t.Errorf("canonicalNodePluginJSON(%q) accepted a non-object", invalid)
+		}
+	}
+}
+
 func TestMetadataToJSON(t *testing.T) {
 	t.Parallel()
 
@@ -149,6 +174,133 @@ func TestHwidCreateRequest(t *testing.T) {
 	}
 }
 
+func TestBackend28JSONContracts(t *testing.T) {
+	t.Parallel()
+
+	var user User
+	if err := json.Unmarshal([]byte(`{
+  "uuid":"11111111-1111-4111-8111-111111111111",
+  "username":"alice",
+  "expireAt":"2028-01-01T00:00:00.000Z",
+  "activeInternalSquads":[{"uuid":"22222222-2222-4222-8222-222222222222","name":"default"}]
+}`), &user); err != nil {
+		t.Fatalf("decode Remnawave user: %v", err)
+	}
+	if len(user.ActiveInternalSquads) != 1 || user.ActiveInternalSquads[0].Name != "default" {
+		t.Fatalf("decoded squads = %#v", user.ActiveInternalSquads)
+	}
+	userJSON, err := json.Marshal(user)
+	if err != nil {
+		t.Fatalf("encode user request: %v", err)
+	}
+	var userRequest map[string]any
+	if err := json.Unmarshal(userJSON, &userRequest); err != nil {
+		t.Fatal(err)
+	}
+	if got := userRequest["activeInternalSquads"].([]any)[0]; got != "22222222-2222-4222-8222-222222222222" {
+		t.Errorf("encoded activeInternalSquads[0] = %#v", got)
+	}
+
+	var node Node
+	if err := json.Unmarshal([]byte(`{
+  "uuid":"33333333-3333-4333-8333-333333333333",
+  "name":"node","address":"node.example.com",
+  "configProfile":{"activeConfigProfileUuid":"44444444-4444-4444-8444-444444444444","activeInbounds":[{"uuid":"55555555-5555-4555-8555-555555555555","tag":"VLESS","type":"vless","network":"tcp","security":"reality","port":443}]}
+}`), &node); err != nil {
+		t.Fatalf("decode Remnawave node: %v", err)
+	}
+	if len(node.ConfigProfile.ActiveInbounds) != 1 || node.ConfigProfile.ActiveInbounds[0].Tag != "VLESS" {
+		t.Fatalf("decoded node inbounds = %#v", node.ConfigProfile.ActiveInbounds)
+	}
+	nodeJSON, err := json.Marshal(node)
+	if err != nil {
+		t.Fatalf("encode node request: %v", err)
+	}
+	var nodeRequest map[string]any
+	if err := json.Unmarshal(nodeJSON, &nodeRequest); err != nil {
+		t.Fatal(err)
+	}
+	profile := nodeRequest["configProfile"].(map[string]any)
+	if got := profile["activeInbounds"].([]any)[0]; got != "55555555-5555-4555-8555-555555555555" {
+		t.Errorf("encoded activeInbounds[0] = %#v", got)
+	}
+
+	tokenJSON, err := json.Marshal(ApiToken{Name: "terraform", ExpiresInDays: 7, Scopes: []string{"*"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(tokenJSON) != `{"name":"terraform","expiresInDays":7,"scopes":["*"]}` {
+		t.Errorf("API token request = %s", tokenJSON)
+	}
+}
+
+func TestConfigProfileToState(t *testing.T) {
+	t.Parallel()
+
+	network := "tcp"
+	security := "reality"
+	port := 443
+	var diagnostics diag.Diagnostics
+	state := configProfileResourceModel{}
+	ok := configProfileToState(&ConfigProfile{
+		UUID:   "profile-id",
+		Name:   "profile",
+		Config: map[string]any{"log": map[string]any{"loglevel": "warning"}},
+		Inbounds: []ConfigProfileInbound{{
+			UUID: "inbound-id", ProfileUUID: "profile-id", Tag: "VLESS", Type: "vless",
+			Network: &network, Security: &security, Port: &port, RawInbound: map[string]any{"tag": "VLESS"},
+		}},
+		Nodes: []ConfigProfileNode{{UUID: "node-id", Name: "node", CountryCode: "RU"}},
+	}, &state, &diagnostics)
+	if !ok || diagnostics.HasError() {
+		t.Fatalf("configProfileToState diagnostics = %v", diagnostics)
+	}
+	var inbounds []configProfileInboundResourceModel
+	diagnostics = state.Inbounds.ElementsAs(t.Context(), &inbounds, false)
+	if diagnostics.HasError() || len(inbounds) != 1 || inbounds[0].UUID.ValueString() != "inbound-id" || inbounds[0].RawInbound.ValueString() != `{"tag":"VLESS"}` {
+		t.Errorf("inbounds = %#v, diagnostics = %v", inbounds, diagnostics)
+	}
+	var nodes []configProfileNodeResourceModel
+	diagnostics = state.Nodes.ElementsAs(t.Context(), &nodes, false)
+	if diagnostics.HasError() || len(nodes) != 1 || nodes[0].UUID.ValueString() != "node-id" {
+		t.Errorf("nodes = %#v, diagnostics = %v", nodes, diagnostics)
+	}
+}
+
+func TestExternalSquadConversions(t *testing.T) {
+	t.Parallel()
+
+	plan := &externalSquadModel{
+		Name:                 types.StringValue("external"),
+		Templates:            types.StringValue(`[{"templateUuid":"template-id","templateType":"XRAY_JSON"}]`),
+		SubscriptionSettings: types.StringValue(`{"profileTitle":"External"}`),
+		HostOverrides:        types.StringValue(`{"vlessRouteId":7}`),
+		ResponseHeaders:      types.StringValue(`{"X-Test":"value"}`),
+		HwidSettings:         types.StringValue(`{"enabled":true,"fallbackDeviceLimit":2,"maxDevicesAnnounce":null}`),
+		CustomRemarks:        types.StringValue(`{"expiredUsers":["expired"]}`),
+		SubpageConfigUUID:    types.StringValue("subpage-id"),
+	}
+	squad, err := externalSquadFromPlan(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if squad.Name != "external" || string(squad.ResponseHeaders) != `{"X-Test":"value"}` || squad.SubpageConfigUUID == nil || *squad.SubpageConfigUUID != "subpage-id" {
+		t.Errorf("externalSquadFromPlan() = %#v", squad)
+	}
+
+	state := externalSquadModel{}
+	squad.UUID = "squad-id"
+	externalSquadToPlan(squad, &state)
+	if state.UUID.ValueString() != "squad-id" || state.Templates.IsNull() || state.ResponseHeaders.ValueString() != `{"X-Test":"value"}` {
+		t.Errorf("externalSquadToPlan() = %#v", state)
+	}
+
+	_, err = externalSquadFromPlan(&externalSquadModel{Name: types.StringValue("invalid"), Templates: types.StringValue("not-json")})
+	if err == nil {
+		t.Error("invalid templates JSON was accepted")
+	}
+}
+
 func TestUserModelConversions(t *testing.T) {
 	t.Parallel()
 
@@ -166,22 +318,28 @@ func TestUserModelConversions(t *testing.T) {
 		TelegramID:           types.Int64Value(123),
 		Email:                types.StringValue("alice@example.com"),
 		HwidDeviceLimit:      types.Int64Value(2),
+		ActiveInternalSquads: testStringSet("squad-1", "squad-2"),
+		ExternalSquadUUID:    types.StringValue("external-squad"),
+		CreatedAt:            types.StringValue("2026-01-01T00:00:00.000Z"),
+		LastTrafficResetAt:   types.StringValue("2026-02-01T00:00:00.000Z"),
 	}
 	user := planToUser(plan)
-	if user.Username != "alice" || user.TrafficLimitBytes != 1024 || user.Description == nil || *user.Description != "description" || user.TelegramID == nil || *user.TelegramID != 123 {
+	if user.Username != "alice" || user.TrafficLimitBytes != 1024 || user.Description == nil || *user.Description != "description" || user.TelegramID == nil || *user.TelegramID != 123 || len(user.ActiveInternalSquads) != 2 || user.ExternalSquadUUID == nil || *user.ExternalSquadUUID != "external-squad" || user.CreatedAt != "2026-01-01T00:00:00.000Z" || user.LastTrafficResetAt == nil {
 		t.Errorf("planToUser() = %#v", user)
 	}
 
 	minimal := planToUser(&userResourceModel{
-		Username:        types.StringValue("minimal"),
-		ExpireAt:        types.StringValue("2027-01-01T00:00:00Z"),
-		Description:     types.StringNull(),
-		Tag:             types.StringNull(),
-		TelegramID:      types.Int64Null(),
-		Email:           types.StringNull(),
-		HwidDeviceLimit: types.Int64Null(),
+		Username:             types.StringValue("minimal"),
+		ExpireAt:             types.StringValue("2027-01-01T00:00:00Z"),
+		Description:          types.StringNull(),
+		Tag:                  types.StringNull(),
+		TelegramID:           types.Int64Null(),
+		Email:                types.StringNull(),
+		HwidDeviceLimit:      types.Int64Null(),
+		ActiveInternalSquads: types.SetNull(types.StringType),
+		ExternalSquadUUID:    types.StringNull(),
 	})
-	if minimal.Description != nil || minimal.Tag != nil || minimal.TelegramID != nil || minimal.Email != nil || minimal.HwidDeviceLimit != nil {
+	if minimal.Description != nil || minimal.Tag != nil || minimal.TelegramID != nil || minimal.Email != nil || minimal.HwidDeviceLimit != nil || minimal.ExternalSquadUUID != nil {
 		t.Errorf("minimal planToUser() = %#v", minimal)
 	}
 
@@ -190,14 +348,24 @@ func TestUserModelConversions(t *testing.T) {
 	telegramID := int64(456)
 	email := "server@example.com"
 	hwidLimit := int64(3)
+	externalSquadUUID := "external-squad"
+	subRevokedAt := "2026-03-01T00:00:00.000Z"
+	lastTrafficResetAt := "2026-02-01T00:00:00.000Z"
+	onlineAt := "2026-04-01T00:00:00.000Z"
+	firstConnectedAt := "2026-01-02T00:00:00.000Z"
+	lastConnectedNodeUUID := "node-id"
 	state := userResourceModel{}
 	userToPlan(&User{
 		UUID: "user-id", ID: 7, ShortUUID: "short", Username: "alice", Status: "ACTIVE",
 		TrafficLimitBytes: 2048, TrafficLimitStrategy: "MONTH", ExpireAt: "2028-01-01T00:00:00Z",
 		TrojanPassword: "trojan", VlessUUID: "vless", SsPassword: "ss", SubscriptionURL: "https://sub.example.com",
 		Description: &description, Tag: &tag, TelegramID: &telegramID, Email: &email, HwidDeviceLimit: &hwidLimit,
+		ActiveInternalSquads: []UserSquadRef{{UUID: "squad-1", Name: "Squad"}}, ExternalSquadUUID: &externalSquadUUID,
+		LastTriggeredThreshold: 80, SubRevokedAt: &subRevokedAt, LastTrafficResetAt: &lastTrafficResetAt,
+		CreatedAt: "2026-01-01T00:00:00.000Z", UpdatedAt: "2026-04-01T00:00:00.000Z",
+		UserTraffic: &UserTraffic{UsedTrafficBytes: 1024, LifetimeUsedTrafficBytes: 4096, OnlineAt: &onlineAt, FirstConnectedAt: &firstConnectedAt, LastConnectedNodeUUID: &lastConnectedNodeUUID},
 	}, &state)
-	if state.UUID.ValueString() != "user-id" || state.ID.ValueInt64() != 7 || state.Description.ValueString() != description || state.HwidDeviceLimit.ValueInt64() != 3 {
+	if state.UUID.ValueString() != "user-id" || state.ID.ValueInt64() != 7 || state.Description.ValueString() != description || state.HwidDeviceLimit.ValueInt64() != 3 || len(state.ActiveInternalSquads.Elements()) != 1 || state.ExternalSquadUUID.ValueString() != externalSquadUUID || state.LastTriggeredThreshold.ValueInt64() != 80 || state.UsedTrafficBytes.ValueInt64() != 1024 || state.LastConnectedNodeUUID.ValueString() != "node-id" {
 		t.Errorf("userToPlan() = %#v", state)
 	}
 
@@ -212,21 +380,27 @@ func TestNodeModelConversions(t *testing.T) {
 
 	inbounds := testStringSet("inbound-1", "inbound-2")
 	plan := &nodeResourceModel{
-		UUID:                    types.StringValue("node-id"),
-		Name:                    types.StringValue("node"),
-		Address:                 types.StringValue("127.0.0.1"),
-		Port:                    types.Int64Value(2222),
-		IsTrafficTrackingActive: types.BoolValue(true),
-		TrafficLimitBytes:       types.Int64Value(1024),
-		TrafficResetDay:         types.Int64Value(1),
-		NotifyPercent:           types.Int64Value(80),
-		CountryCode:             types.StringValue("RU"),
-		Note:                    types.StringValue("note"),
-		ConfigProfileUUID:       types.StringValue("profile-id"),
-		ConfigProfileInbounds:   inbounds,
+		UUID:                      types.StringValue("node-id"),
+		Name:                      types.StringValue("node"),
+		Address:                   types.StringValue("127.0.0.1"),
+		Port:                      types.Int64Value(2222),
+		ProxyURL:                  types.StringValue("socks5://proxy.example.com:1080"),
+		IsTrafficTrackingActive:   types.BoolValue(true),
+		TrafficLimitBytes:         types.Int64Value(1024),
+		TrafficResetDay:           types.Int64Value(1),
+		NotifyPercent:             types.Int64Value(80),
+		CountryCode:               types.StringValue("RU"),
+		ConsumptionMultiplier:     types.Float64Value(1.2),
+		NodeConsumptionMultiplier: types.Float64Value(1.3),
+		Tags:                      testStringSet("NODE", "TEST"),
+		ProviderUUID:              types.StringValue("provider-id"),
+		ActivePluginUUID:          types.StringValue("plugin-id"),
+		Note:                      types.StringValue("note"),
+		ConfigProfileUUID:         types.StringValue("profile-id"),
+		ConfigProfileInbounds:     inbounds,
 	}
 	node := planToNode(plan)
-	if node.UUID != "node-id" || node.Port == nil || *node.Port != 2222 || node.Note == nil || *node.Note != "note" || node.ConfigProfile == nil || len(node.ConfigProfile.ActiveInbounds) != 2 {
+	if node.UUID != "node-id" || node.Port == nil || *node.Port != 2222 || node.ProxyURL == nil || *node.ProxyURL != "socks5://proxy.example.com:1080" || node.Note == nil || *node.Note != "note" || node.ConfigProfile == nil || len(node.ConfigProfile.ActiveInbounds) != 2 || node.ConsumptionMultiplier == nil || *node.ConsumptionMultiplier != 1.2 || len(node.Tags) != 2 {
 		t.Errorf("planToNode() = %#v", node)
 	}
 
@@ -249,16 +423,28 @@ func TestNodeModelConversions(t *testing.T) {
 	traffic := int64(4096)
 	reset := 10
 	notify := 90
+	consumption := 1.5
+	nodeConsumption := 1.6
+	proxyURL := "socks5://proxy.example.com:1080"
+	providerUUID := "provider-id"
+	pluginUUID := "plugin-id"
 	note := "from server"
+	lastStatusChange := "2026-04-01T00:00:00.000Z"
+	lastStatusMessage := "connected"
 	state := nodeResourceModel{}
 	nodeToPlan(&Node{
 		UUID: "node-id", Name: "node", Address: "node.example.com", Port: &port,
 		IsConnected: true, IsDisabled: true, IsConnecting: false, IsTrafficTrackingActive: true,
 		TrafficLimitBytes: &traffic, TrafficResetDay: &reset, NotifyPercent: &notify,
-		CountryCode: "DE", Note: &note, UsersOnline: 5,
-		ConfigProfile: &NodeConfigProfile{ActiveConfigProfileUUID: "profile-id", ActiveInbounds: []string{"inbound-1"}},
+		CountryCode: "DE", Note: &note, UsersOnline: 5, ProxyURL: &proxyURL,
+		ConsumptionMultiplier: &consumption, NodeConsumptionMultiplier: &nodeConsumption,
+		Tags: []string{"NODE"}, ProviderUUID: &providerUUID, ActivePluginUUID: &pluginUUID,
+		LastStatusChange: &lastStatusChange, LastStatusMessage: &lastStatusMessage,
+		Provider: json.RawMessage(`{"uuid":"provider-id","name":"provider"}`),
+		System:   json.RawMessage(`{"info":{"hostname":"node"}}`), Versions: json.RawMessage(`{"xray":"1.0","node":"2.0"}`),
+		ConfigProfile: &NodeConfigProfile{ActiveConfigProfileUUID: "profile-id", ActiveInbounds: []NodeConfigProfileInbound{{UUID: "inbound-1"}}},
 	}, &state)
-	if state.UUID.ValueString() != "node-id" || state.Port.ValueInt64() != 2222 || state.UsersOnline.ValueInt64() != 5 || state.ConfigProfileInbounds.Elements()[0].(types.String).ValueString() != "inbound-1" {
+	if state.UUID.ValueString() != "node-id" || state.Port.ValueInt64() != 2222 || state.UsersOnline.ValueInt64() != 5 || state.ConfigProfileInbounds.Elements()[0].(types.String).ValueString() != "inbound-1" || state.ProxyURL.ValueString() != proxyURL || state.ConsumptionMultiplier.ValueFloat64() != 1.5 || len(state.Tags.Elements()) != 1 || state.LastStatusMessage.ValueString() != "connected" || state.ProviderDetails.IsNull() || state.System.ValueString() != `{"info":{"hostname":"node"}}` || state.Versions.IsNull() {
 		t.Errorf("nodeToPlan() = %#v", state)
 	}
 }
@@ -267,35 +453,47 @@ func TestHostModelConversions(t *testing.T) {
 	t.Parallel()
 
 	plan := &hostResourceModel{
-		UUID:                     types.StringValue("host-id"),
-		Remark:                   types.StringValue("host"),
-		Address:                  types.StringValue("host.example.com"),
-		Port:                     types.Int64Value(443),
-		SNI:                      types.StringValue("sni.example.com"),
-		HostHeader:               types.StringValue("header.example.com"),
-		ALPN:                     types.StringValue("h2"),
-		Fingerprint:              types.StringValue("chrome"),
-		IsDisabled:               types.BoolValue(true),
-		SecurityLayer:            types.StringValue("TLS"),
-		ServerDescription:        types.StringValue("description"),
-		IsHidden:                 types.BoolValue(true),
-		ShuffleHost:              types.BoolValue(true),
-		ConfigProfileUUID:        types.StringValue("profile-id"),
-		ConfigProfileInboundUUID: types.StringValue("inbound-id"),
-		Tags:                     testStringList("TAG_1", "TAG_2"),
-		Nodes:                    testStringList("node-1"),
-		MihomoX25519:             types.BoolValue(true),
-		ExcludedInternalSquads:   testStringList("squad-1"),
-		Path:                     types.StringValue("/ws"),
+		UUID:                         types.StringValue("host-id"),
+		Remark:                       types.StringValue("host"),
+		Address:                      types.StringValue("host.example.com"),
+		Port:                         types.Int64Value(443),
+		SNI:                          types.StringValue("sni.example.com"),
+		HostHeader:                   types.StringValue("header.example.com"),
+		ALPN:                         types.StringValue("h2"),
+		Fingerprint:                  types.StringValue("chrome"),
+		IsDisabled:                   types.BoolValue(true),
+		SecurityLayer:                types.StringValue("TLS"),
+		XHTTPExtraParams:             types.StringValue(`{"mode":"auto"}`),
+		MuxParams:                    types.StringValue(`{"enabled":true}`),
+		SockoptParams:                types.StringValue(`{"tcpFastOpen":true}`),
+		FinalMask:                    types.StringValue(`{"enabled":false}`),
+		ServerDescription:            types.StringValue("description"),
+		IsHidden:                     types.BoolValue(true),
+		OverrideSniFromAddress:       types.BoolValue(true),
+		KeepSniBlank:                 types.BoolValue(false),
+		PinnedPeerCertSha256:         types.StringValue("sha256-value"),
+		VerifyPeerCertByName:         types.StringValue("peer.example.com"),
+		VlessRouteID:                 types.Int64Value(42),
+		ShuffleHost:                  types.BoolValue(true),
+		ConfigProfileUUID:            types.StringValue("profile-id"),
+		ConfigProfileInboundUUID:     types.StringValue("inbound-id"),
+		Tags:                         testStringList("TAG_1", "TAG_2"),
+		Nodes:                        testStringList("node-1"),
+		MihomoX25519:                 types.BoolValue(true),
+		MihomoIPVersion:              types.StringValue("ipv4"),
+		XrayJSONTemplateUUID:         types.StringValue("template-id"),
+		ExcludedInternalSquads:       testStringList("squad-1"),
+		ExcludeFromSubscriptionTypes: testStringSet("MIHOMO", "SINGBOX"),
+		Path:                         types.StringValue("/ws"),
 	}
 	host := planToHost(plan)
-	if host.UUID != "host-id" || host.SNI == nil || *host.SNI != "sni.example.com" || host.Inbound == nil || host.Inbound.ConfigProfileUUID != "profile-id" || !reflect.DeepEqual(host.Tags, []string{"TAG_1", "TAG_2"}) || host.Path == nil || *host.Path != "/ws" {
+	if host.UUID != "host-id" || host.SNI == nil || *host.SNI != "sni.example.com" || host.Inbound == nil || host.Inbound.ConfigProfileUUID != "profile-id" || !reflect.DeepEqual(host.Tags, []string{"TAG_1", "TAG_2"}) || host.Path == nil || *host.Path != "/ws" || host.VlessRouteID == nil || *host.VlessRouteID != 42 || len(host.ExcludeFromSubscriptionTypes) != 2 {
 		t.Errorf("planToHost() = %#v", host)
 	}
 
 	state := hostResourceModel{}
 	hostToPlan(host, &state)
-	if state.UUID.ValueString() != "host-id" || state.SNI.ValueString() != "sni.example.com" || len(state.Tags.Elements()) != 2 || state.ConfigProfileInboundUUID.ValueString() != "inbound-id" || state.Path.ValueString() != "/ws" {
+	if state.UUID.ValueString() != "host-id" || state.SNI.ValueString() != "sni.example.com" || len(state.Tags.Elements()) != 2 || state.ConfigProfileInboundUUID.ValueString() != "inbound-id" || state.Path.ValueString() != "/ws" || state.VlessRouteID.ValueInt64() != 42 || state.XHTTPExtraParams.ValueString() != `{"mode":"auto"}` || len(state.ExcludeFromSubscriptionTypes.Elements()) != 2 {
 		t.Errorf("hostToPlan() = %#v", state)
 	}
 
@@ -318,15 +516,19 @@ func TestSettingsModelConversions(t *testing.T) {
 		HappAnnounce:                types.StringValue("announce"),
 		HappRouting:                 types.StringValue("routing"),
 		RandomizeHosts:              types.BoolValue(true),
+		CustomRemarks:               types.StringValue(`{"expiredUsers":["expired"]}`),
+		CustomResponseHeaders:       types.StringValue(`{"X-Test":"value"}`),
+		ResponseRules:               types.StringValue(`{"version":"1","settings":{},"rules":[]}`),
+		HwidSettings:                types.StringValue(`{"enabled":true,"fallbackDeviceLimit":2,"maxDevicesAnnounce":null}`),
 	}
 	settings := planToSubscriptionSettings(settingsPlan)
-	if settings.ProfileTitle == nil || *settings.ProfileTitle != "Profile" || settings.ProfileUpdateInterval == nil || *settings.ProfileUpdateInterval != 60 || settings.RandomizeHosts == nil || !*settings.RandomizeHosts {
+	if settings.ProfileTitle == nil || *settings.ProfileTitle != "Profile" || settings.ProfileUpdateInterval == nil || *settings.ProfileUpdateInterval != 60 || settings.RandomizeHosts == nil || !*settings.RandomizeHosts || string(settings.HwidSettings) == "" {
 		t.Errorf("planToSubscriptionSettings() = %#v", settings)
 	}
 
 	state := subscriptionSettingsModel{}
 	subscriptionSettingsToPlan(settings, &state)
-	if state.ProfileTitle.ValueString() != "Profile" || state.ProfileUpdateInterval.ValueInt64() != 60 || !state.RandomizeHosts.ValueBool() {
+	if state.ProfileTitle.ValueString() != "Profile" || state.ProfileUpdateInterval.ValueInt64() != 60 || !state.RandomizeHosts.ValueBool() || state.CustomResponseHeaders.ValueString() != `{"X-Test":"value"}` || state.HwidSettings.IsNull() {
 		t.Errorf("subscriptionSettingsToPlan() = %#v", state)
 	}
 
