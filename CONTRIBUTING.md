@@ -14,7 +14,14 @@ cd terraform-provider-remnawave
 go build -o terraform-provider-remnawave
 
 # Run unit tests
-go test ./provider -skip '^TestAcc' -count=1 -v
+task test:unit
+
+# Run race detection and create a coverage report
+task test:coverage
+
+# Regenerate or verify Terraform Registry documentation
+task docs
+task docs:check
 
 # Run acceptance tests (requires Docker)
 docker compose up -d --wait
@@ -40,15 +47,15 @@ API_TOKEN=$(curl -sf -X POST http://localhost:3000/api/tokens \
 # Run tests
 TF_ACC=1 REMNAWAVE_ENDPOINT=http://localhost:3000 \
   REMNAWAVE_API_TOKEN=$API_TOKEN REMNAWAVE_PROXY_HEADERS=true \
-  go test ./provider -run TestAcc -count=1 -timeout 120s -v
+  go test ./provider -run TestAcc -count=1 -timeout 600s -v
 ```
 
 ## PR Workflow
 
 1. Create a branch from `main`
 2. Make changes, add tests
-3. Ensure `go vet ./...` and `go build ./...` pass
-4. Ensure CI is green (lint + build + unit + acceptance)
+3. Run `task pre-commit`
+4. Ensure CI is green (lint + build + unit + docs + acceptance)
 5. Create PR with conventional commit messages (`feat:`, `fix:`, `docs:`, etc.)
 6. Squash merge after approval
 
@@ -58,3 +65,5 @@ TF_ACC=1 REMNAWAVE_ENDPOINT=http://localhost:3000 \
 - **File naming**: `provider/resource_<name>.go`, `provider/data_source_<name>.go`
 - **Tests**: `TestAcc<Resource>` for acceptance, `Test<Unit>` for unit
 - **Linting**: golangci-lint with `.golangci.yml` config
+- **Documentation**: edit schemas and `examples/`, then run `task docs`; do not hand-edit generated schema sections
+- **Dependencies**: prefer the standard library and existing modules; add a dependency only when its maintenance and security cost is justified

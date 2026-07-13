@@ -26,6 +26,26 @@ tasks:
     cmds:
       - go test ./provider -skip '^TestAcc' -count=1 -v
 
+  test:coverage:
+    desc: Run unit tests with race detection and coverage
+    cmds:
+      - go test ./provider -skip '^TestAcc' -count=1 -race -covermode=atomic -coverprofile=coverage.out
+      - go tool cover -func=coverage.out
+
+  docs:
+    desc: Format examples and generate Terraform Registry documentation
+    cmds:
+      - terraform fmt -recursive examples
+      - go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.24.0 generate --provider-dir .
+
+  docs:check:
+    desc: Validate docs and fail if generated documentation is stale
+    cmds:
+      - terraform fmt -check -recursive examples
+      - go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.24.0 generate --provider-dir .
+      - go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.24.0 validate --provider-dir .
+      - git diff --exit-code -- docs
+
   test:acc:
     desc: Run acceptance tests (needs Docker)
     cmds:
@@ -37,7 +57,8 @@ tasks:
         -H "Content-Type: application/json"
         -H "X-Forwarded-For: 127.0.0.1"
         -H "X-Forwarded-Proto: https"
-        -d '{"username":"admin","password":"TestAdminPassword1234567"}' || true
+        -H "X-Remnawave-Client-Type: browser"
+        -d '{"username":"admin","password":"TestAdminPassword1234567"}'
       - >-
         TF_ACC=1
         REMNAWAVE_ENDPOINT=http://localhost:3000
@@ -52,4 +73,6 @@ tasks:
       - task: fmt
       - task: vet
       - task: lint
+      - task: test:unit
+      - task: docs:check
       - task: build

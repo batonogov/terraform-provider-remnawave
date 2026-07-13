@@ -190,8 +190,8 @@ type PanelSettings struct {
 }
 
 type BrandingSettings struct {
-	Title   *string `json:"title,omitempty"`
-	LogoURL *string `json:"logoUrl,omitempty"`
+	Title   *string `json:"title"`
+	LogoURL *string `json:"logoUrl"`
 }
 
 type PasswordAuthSettings struct {

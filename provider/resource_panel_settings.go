@@ -59,6 +59,12 @@ func (r *panelSettingsResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 	settings := planToPanelSettings(&plan)
+	current, err := r.client.GetPanelSettings(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to read current panel settings", err.Error())
+		return
+	}
+	settings = mergePanelSettings(current, settings)
 	updated, err := r.client.UpdatePanelSettings(ctx, settings)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to set panel settings", err.Error())
@@ -92,6 +98,12 @@ func (r *panelSettingsResource) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 	settings := planToPanelSettings(&plan)
+	current, err := r.client.GetPanelSettings(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to read current panel settings", err.Error())
+		return
+	}
+	settings = mergePanelSettings(current, settings)
 	updated, err := r.client.UpdatePanelSettings(ctx, settings)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to update panel settings", err.Error())
@@ -112,29 +124,31 @@ func (r *panelSettingsResource) ImportState(ctx context.Context, req resource.Im
 
 func planToPanelSettings(p *panelSettingsModel) *PanelSettings {
 	s := &PanelSettings{}
-	if !p.BrandingTitle.IsNull() || !p.BrandingLogoURL.IsNull() {
+	titleKnown := !p.BrandingTitle.IsNull() && !p.BrandingTitle.IsUnknown()
+	logoKnown := !p.BrandingLogoURL.IsNull() && !p.BrandingLogoURL.IsUnknown()
+	if titleKnown || logoKnown {
 		s.BrandingSettings = &BrandingSettings{}
-		if !p.BrandingTitle.IsNull() {
+		if titleKnown {
 			t := p.BrandingTitle.ValueString()
 			s.BrandingSettings.Title = &t
 		}
-		if !p.BrandingLogoURL.IsNull() {
+		if logoKnown {
 			u := p.BrandingLogoURL.ValueString()
 			s.BrandingSettings.LogoURL = &u
 		}
 	}
-	if !p.PasswordAuthEnabled.IsNull() {
+	if !p.PasswordAuthEnabled.IsNull() && !p.PasswordAuthEnabled.IsUnknown() {
 		s.PasswordSettings = &PasswordAuthSettings{}
 		e := p.PasswordAuthEnabled.ValueBool()
 		s.PasswordSettings.Enabled = &e
 	}
-	if !p.PasskeySettings.IsNull() {
+	if !p.PasskeySettings.IsNull() && !p.PasskeySettings.IsUnknown() {
 		var cfg any
 		if err := json.Unmarshal([]byte(p.PasskeySettings.ValueString()), &cfg); err == nil {
 			s.PasskeySettings = cfg
 		}
 	}
-	if !p.OAuth2Settings.IsNull() {
+	if !p.OAuth2Settings.IsNull() && !p.OAuth2Settings.IsUnknown() {
 		var cfg any
 		if err := json.Unmarshal([]byte(p.OAuth2Settings.ValueString()), &cfg); err == nil {
 			s.OAuth2Settings = cfg
@@ -143,26 +157,55 @@ func planToPanelSettings(p *panelSettingsModel) *PanelSettings {
 	return s
 }
 
+// mergePanelSettings completes nested objects that the backend validates as a
+// whole even on PATCH. Terraform may plan only one member (for example, a new
+// branding title), so preserve the other member from the current settings.
+func mergePanelSettings(current, planned *PanelSettings) *PanelSettings {
+	if current == nil || planned == nil || planned.BrandingSettings == nil || current.BrandingSettings == nil {
+		return planned
+	}
+	if planned.BrandingSettings.Title == nil {
+		planned.BrandingSettings.Title = current.BrandingSettings.Title
+	}
+	if planned.BrandingSettings.LogoURL == nil {
+		planned.BrandingSettings.LogoURL = current.BrandingSettings.LogoURL
+	}
+	return planned
+}
+
 func panelSettingsToPlan(s *PanelSettings, p *panelSettingsModel) {
 	if s.BrandingSettings != nil {
 		if s.BrandingSettings.Title != nil {
 			p.BrandingTitle = types.StringValue(*s.BrandingSettings.Title)
+		} else {
+			p.BrandingTitle = types.StringNull()
 		}
 		if s.BrandingSettings.LogoURL != nil {
 			p.BrandingLogoURL = types.StringValue(*s.BrandingSettings.LogoURL)
+		} else {
+			p.BrandingLogoURL = types.StringNull()
 		}
+	} else {
+		p.BrandingTitle = types.StringNull()
+		p.BrandingLogoURL = types.StringNull()
 	}
 	if s.PasswordSettings != nil && s.PasswordSettings.Enabled != nil {
 		p.PasswordAuthEnabled = types.BoolValue(*s.PasswordSettings.Enabled)
+	} else {
+		p.PasswordAuthEnabled = types.BoolNull()
 	}
 	if s.PasskeySettings != nil {
 		if b, err := json.Marshal(s.PasskeySettings); err == nil {
 			p.PasskeySettings = types.StringValue(string(b))
 		}
+	} else {
+		p.PasskeySettings = types.StringNull()
 	}
 	if s.OAuth2Settings != nil {
 		if b, err := json.Marshal(s.OAuth2Settings); err == nil {
 			p.OAuth2Settings = types.StringValue(string(b))
 		}
+	} else {
+		p.OAuth2Settings = types.StringNull()
 	}
 }

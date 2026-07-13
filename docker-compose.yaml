@@ -1,6 +1,6 @@
 services:
   remnawave:
-    image: remnawave/backend:${REMNAWAVE_VERSION:-latest}
+    image: remnawave/backend:${REMNAWAVE_VERSION:-2.8.0}
     container_name: remnawave-test
     hostname: remnawave
     ports:
