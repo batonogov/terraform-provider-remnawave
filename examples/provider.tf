@@ -2,25 +2,25 @@ terraform {
   required_providers {
     remnawave = {
       source  = "batonogov/remnawave"
-      version = "~> 0.1"
+      version = "~> 0.2.0"
     }
   }
 }
 
-# Option 1: Username/password authentication
+# API token authentication (recommended)
 provider "remnawave" {
-  endpoint = "https://panel.example.com"
-  username = "admin"
-  password = var.remnawave_password
+  endpoint  = "https://panel.example.com"
+  api_token = var.remnawave_api_token
 }
 
-# Option 2: API token authentication
+# Username/password authentication is also supported
 # provider "remnawave" {
-#   endpoint  = "https://panel.example.com"
-#   api_token = var.remnawave_api_token
+#   endpoint = "https://panel.example.com"
+#   username = "admin"
+#   password = var.remnawave_password
 # }
 
-variable "remnawave_password" {
+variable "remnawave_api_token" {
   type      = string
   sensitive = true
 }
