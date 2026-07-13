@@ -120,6 +120,21 @@ Run the complete Docker lifecycle and suite with `task test:acc`.
 Conventional Commits: `feat:`, `fix:`, `docs:`, `ci:`, `test:`, `chore:`.
 Imperative mood, concise subjects.
 
+### Post-merge sync
+
+When the user says that a PR was merged (for example, `смерджил`), immediately
+switch to `main` and fast-forward it from the remote:
+
+```sh
+git switch main
+git pull --ff-only origin main
+git clean -f
+```
+
+Do not delete the feature branch unless the user explicitly asks. `git clean -f`
+removes untracked duplicate/generated files such as `docs/* 2.md`; preview with
+`git clean -nd` first when other untracked files may be present.
+
 ### File naming
 
 | Pattern | Example |
