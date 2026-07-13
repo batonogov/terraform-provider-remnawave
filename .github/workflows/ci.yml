@@ -45,8 +45,40 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: Run unit tests
-        run: go test ./provider -skip '^TestAcc' -count=1 -v
+      - name: Run unit tests with race detection and coverage
+        run: go test ./provider -skip '^TestAcc' -count=1 -race -covermode=atomic -coverprofile=coverage.out
+      - name: Enforce unit coverage floor
+        run: |
+          go tool cover -func=coverage.out
+          total=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub("%", "", $3); print $3}')
+          awk -v total="$total" 'BEGIN {
+            if (total + 0 < 30.0) {
+              printf "Unit coverage %.1f%% is below the 30.0%% floor\n", total
+              exit 1
+            }
+          }'
+
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.5
+          terraform_wrapper: false
+      - name: Check example formatting
+        run: terraform fmt -check -recursive examples
+      - name: Regenerate and validate provider documentation
+        run: |
+          go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.24.0 generate --provider-dir .
+          go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.24.0 validate --provider-dir .
+      - name: Ensure generated documentation is current
+        run: git diff --exit-code -- docs
 
   test-acc:
     name: Acceptance Tests
@@ -125,9 +157,17 @@ jobs:
         env:
           TF_ACC: "1"
           REMNAWAVE_ENDPOINT: "http://localhost:3000"
-          REMNAWAVE_API_TOKEN: ${{ env.REMNAWAVE_API_TOKEN }}
           REMNAWAVE_PROXY_HEADERS: "true"
         run: go test ./provider -run TestAcc -count=1 -timeout 600s -v
+      - name: Test admin JWT-only resource
+        env:
+          TF_ACC: "1"
+          REMNAWAVE_ENDPOINT: "http://localhost:3000"
+          REMNAWAVE_API_TOKEN: ""
+          REMNAWAVE_USERNAME: ${{ env.REMNAWAVE_ADMIN_USERNAME }}
+          REMNAWAVE_PASSWORD: ${{ env.REMNAWAVE_ADMIN_PASSWORD }}
+          REMNAWAVE_PROXY_HEADERS: "true"
+        run: go test ./provider -run '^TestAccPanelSettingsResource$' -count=1 -timeout 600s -v
       - name: Tear down
         if: always()
         run: docker compose down -v

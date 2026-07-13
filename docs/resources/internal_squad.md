@@ -25,4 +25,5 @@ Manages a Remnawave internal squad (group with inbound access control).
 
 ### Read-Only
 
+- `accessible_nodes` (List of String) List of accessible node UUIDs derived from the squad's inbound configuration (read-only).
 - `uuid` (String)

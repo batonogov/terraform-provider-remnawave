@@ -2,7 +2,7 @@ terraform {
   required_providers {
     remnawave = {
       source  = "batonogov/remnawave"
-      version = "0.1.0"
+      version = "~> 0.1"
     }
   }
 }
@@ -27,11 +27,11 @@ variable "remnawave_password" {
 
 # Create a VPN user
 resource "remnawave_user" "example" {
-  username             = "john-doe"
-  expire_at            = "2027-01-01T00:00:00.000Z"
-  traffic_limit_bytes  = 10737418240 # 10 GB
+  username               = "john-doe"
+  expire_at              = "2027-01-01T00:00:00.000Z"
+  traffic_limit_bytes    = 10737418240 # 10 GB
   traffic_limit_strategy = "MONTH"
-  description          = "Example user managed by Terraform"
+  description            = "Example user managed by Terraform"
 }
 
 # List all nodes

@@ -56,7 +56,7 @@ func (p *RemnawaveProvider) Schema(_ context.Context, _ provider.SchemaRequest, 
 		Description: "A Terraform provider for Remnawave — a proxy management panel built on Xray-core. Manage VPN users, nodes, hosts, squads, billing, and more as infrastructure-as-code.",
 		Attributes: map[string]schema.Attribute{
 			"endpoint": schema.StringAttribute{
-				Required:    true,
+				Optional:    true,
 				Description: "Base URL of the Remnawave panel, e.g. https://panel.example.com. Can also be set via REMNAWAVE_ENDPOINT env var.",
 			},
 			"api_token": schema.StringAttribute{

@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -72,8 +73,14 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid endpoint: %w", err)
 	}
-	if baseURL.Scheme == "" {
-		return nil, errors.New("endpoint must include scheme (http or https)")
+	if baseURL.Scheme != "http" && baseURL.Scheme != "https" {
+		return nil, errors.New("endpoint scheme must be http or https")
+	}
+	if baseURL.Host == "" {
+		return nil, errors.New("endpoint must include a host")
+	}
+	if baseURL.RawQuery != "" || baseURL.Fragment != "" {
+		return nil, errors.New("endpoint must not include a query string or fragment")
 	}
 
 	timeout := cfg.Timeout
@@ -110,6 +117,15 @@ func (c *Client) authenticate(ctx context.Context) error {
 		return errors.New("either api_token or username+password must be configured")
 	}
 
+	// Serialize authentication and check the token again after acquiring the
+	// lock. Without the second check, a burst of initial requests can trigger
+	// one login per request.
+	c.authMu.Lock()
+	defer c.authMu.Unlock()
+	if c.accessToken != "" && time.Now().Before(c.tokenExpiry) {
+		return nil
+	}
+
 	payload := map[string]string{
 		"username": c.username,
 		"password": c.password,
@@ -127,12 +143,10 @@ func (c *Client) authenticate(ctx context.Context) error {
 		return errors.New("login succeeded but no access token returned")
 	}
 
-	c.authMu.Lock()
 	c.accessToken = resp.AccessToken
 	// JWT lifetime is configurable on the panel (default 12h). We use 11h
 	// as a conservative default to refresh before expiry.
 	c.tokenExpiry = time.Now().Add(11 * time.Hour)
-	c.authMu.Unlock()
 	return nil
 }
 
@@ -193,22 +207,39 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, o
 
 	endpoint := c.resolvePath(path)
 
-	var bodyReader io.Reader
+	var bodyBytes []byte
 	if body != nil {
-		b, err := json.Marshal(body)
+		bodyBytes, err = json.Marshal(body)
 		if err != nil {
 			return err
 		}
-		bodyReader = bytes.NewReader(b)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, endpoint, bodyReader)
+	newRequest := func(token string) (*http.Request, error) {
+		var bodyReader io.Reader
+		if body != nil {
+			bodyReader = bytes.NewReader(bodyBytes)
+		}
+		req, err := http.NewRequestWithContext(ctx, method, endpoint, bodyReader)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Type", "application/json")
+		if c.apiToken == "" {
+			// The panel distinguishes browser sessions from API-token requests.
+			// Login-issued admin JWTs are rejected by ProxyCheckMiddleware unless
+			// this header is present.
+			req.Header.Set("X-Remnawave-Client-Type", "browser")
+		}
+		c.setProxyHeaders(req)
+		return req, nil
+	}
+
+	req, err := newRequest(token)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-	c.setProxyHeaders(req)
 
 	// On 401, try re-authenticating once (unless using static API token).
 	resp, err := c.httpClient.Do(req)
@@ -220,26 +251,19 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, o
 		// #nosec G104 -- discarding body before re-auth; not actionable
 		_ = resp.Body.Close()
 		c.authMu.Lock()
-		c.accessToken = ""
+		// Do not discard a token that another request has already refreshed.
+		if c.accessToken == token {
+			c.accessToken = ""
+			c.tokenExpiry = time.Time{}
+		}
 		c.authMu.Unlock()
 		token, err = c.token(ctx)
 		if err != nil {
 			return err
 		}
-		req2, err := http.NewRequestWithContext(ctx, method, endpoint, bodyReader)
+		req2, err := newRequest(token)
 		if err != nil {
 			return err
-		}
-		req2.Header.Set("Authorization", "Bearer "+token)
-		req2.Header.Set("Content-Type", "application/json")
-		c.setProxyHeaders(req2)
-		// Reset body reader for retry
-		if body != nil {
-			b, err := json.Marshal(body)
-			if err != nil {
-				return err
-			}
-			req2.Body = io.NopCloser(bytes.NewReader(b))
 		}
 		resp, err = c.httpClient.Do(req2)
 		if err != nil {
@@ -723,7 +747,7 @@ func (c *Client) GetAllApiTokens(ctx context.Context) ([]ApiToken, error) {
 func (c *Client) GetSystemStats(ctx context.Context, tz string) (map[string]any, error) {
 	path := "/api/system/stats"
 	if tz != "" {
-		path += "?tz=" + tz
+		path += "?" + url.Values{"tz": {tz}}.Encode()
 	}
 	var out map[string]any
 	if err := c.doRequest(ctx, http.MethodGet, path, nil, &out); err != nil {
@@ -892,10 +916,11 @@ func (c *Client) GetSubscriptionRequestHistory(ctx context.Context) (map[string]
 // ─── Bandwidth Stats API ───
 
 func (c *Client) GetBandwidthStatsNodes(ctx context.Context, start, end string, topNodesLimit int) (map[string]any, error) {
-	path := fmt.Sprintf("/api/bandwidth-stats/nodes?start=%s&end=%s", start, end)
+	query := url.Values{"start": {start}, "end": {end}}
 	if topNodesLimit > 0 {
-		path += fmt.Sprintf("&topNodesLimit=%d", topNodesLimit)
+		query.Set("topNodesLimit", strconv.Itoa(topNodesLimit))
 	}
+	path := "/api/bandwidth-stats/nodes?" + query.Encode()
 	var out map[string]any
 	if err := c.doRequest(ctx, http.MethodGet, path, nil, &out); err != nil {
 		return nil, err
@@ -904,10 +929,11 @@ func (c *Client) GetBandwidthStatsNodes(ctx context.Context, start, end string, 
 }
 
 func (c *Client) GetBandwidthStatsUser(ctx context.Context, uuid, start, end string, topNodesLimit int) (map[string]any, error) {
-	path := fmt.Sprintf("/api/bandwidth-stats/users/%s?start=%s&end=%s", uuid, start, end)
+	query := url.Values{"start": {start}, "end": {end}}
 	if topNodesLimit > 0 {
-		path += fmt.Sprintf("&topNodesLimit=%d", topNodesLimit)
+		query.Set("topNodesLimit", strconv.Itoa(topNodesLimit))
 	}
+	path := fmt.Sprintf("/api/bandwidth-stats/users/%s?%s", uuid, query.Encode())
 	var out map[string]any
 	if err := c.doRequest(ctx, http.MethodGet, path, nil, &out); err != nil {
 		return nil, err

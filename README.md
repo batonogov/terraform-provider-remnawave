@@ -26,7 +26,7 @@ A Terraform provider for [Remnawave](https://docs.rw) — a proxy management pan
 | `remnawave_host` | Connection endpoint (host) for VPN subscriptions with tags, nodes, mihomo |
 | `remnawave_config_profile` | Xray config profile with inbounds, routing, sniffing |
 | `remnawave_subscription_settings` | Subscription page settings (singleton) |
-| `remnawave_external_squad` | External squad with templates, host overrides, HWID, custom remarks |
+| `remnawave_external_squad` | External squad managed by name |
 | `remnawave_internal_squad` | Internal squad with inbounds |
 | `remnawave_subscription_template` | Subscription template (XRAY_JSON, MIHOMO, CLASH, SINGBOX, etc.) |
 | `remnawave_panel_settings` | Panel branding, auth, passkey & OAuth2 settings (singleton) |
@@ -92,18 +92,8 @@ resource "remnawave_user" "example" {
   description         = "Managed by Terraform"
 }
 
-# Create an external squad with a subscription template
-resource "remnawave_subscription_template" "default" {
-  name          = "vless-trojan"
-  template_type = "XRAY_JSON"
-}
-
 resource "remnawave_external_squad" "default" {
   name = "Standard"
-  templates = [
-    { template_uuid = remnawave_subscription_template.default.uuid
-      template_type = "XRAY_JSON" }
-  ]
 }
 
 # Monitor system health
@@ -120,6 +110,10 @@ The provider supports two authentication methods:
 1. **API Token** (recommended) — generate one in the panel under *API Keys*. Set via `api_token` attribute or `REMNAWAVE_API_TOKEN` env var.
 2. **Username/Password** — the provider logs in via `POST /api/auth/login` and obtains a JWT automatically. Auto-refreshes on 401.
 
+All provider attributes can be supplied through environment variables, so the
+provider block may be empty when the environment is configured. Explicit HCL
+values take precedence over environment variables.
+
 ## Environment Variables
 
 | Variable | Description |
@@ -132,6 +126,20 @@ The provider supports two authentication methods:
 | `REMNAWAVE_REQUEST_TIMEOUT` | HTTP timeout (default `30s`) |
 | `REMNAWAVE_PROXY_HEADERS` | Send X-Forwarded-For/Proto headers (bypass ProxyCheckMiddleware) |
 
+## Documentation
+
+Terraform Registry documentation is generated from provider schemas and the
+examples under `examples/`. See [`docs/index.md`](docs/index.md) for the provider
+schema, with dedicated pages under `docs/resources/` and `docs/data-sources/`.
+
+```bash
+# Regenerate docs after changing schemas or examples
+task docs
+
+# Validate formatting and detect stale generated docs
+task docs:check
+```
+
 ## Development
 
 ```bash
@@ -139,18 +147,13 @@ The provider supports two authentication methods:
 go build -o terraform-provider-remnawave
 
 # Unit tests
-go test ./provider -skip '^TestAcc' -count=1 -v
+task test:unit
 
-# Acceptance tests (requires Docker)
-docker compose up -d --wait
-# Register admin (first run only)
-curl -sf -X POST http://localhost:3000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"TestAdminPassword1234567"}'
-# Run tests
-TF_ACC=1 REMNAWAVE_ENDPOINT=http://localhost:3000 \
-  REMNAWAVE_USERNAME=admin REMNAWAVE_PASSWORD=TestAdminPassword1234567 \
-  go test ./provider -run TestAcc -count=1 -timeout 600s -v
+# Race detection and coverage report
+task test:coverage
+
+# Acceptance tests (Docker lifecycle included)
+task test:acc
 ```
 
 ## License
