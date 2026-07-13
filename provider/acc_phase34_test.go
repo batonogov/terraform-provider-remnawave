@@ -39,23 +39,53 @@ func TestAccNodePluginResource(t *testing.T) {
 		Steps: []resource.TestStep{{
 			Config: providerCfg + `
 resource "remnawave_node_plugin" "test" {
-  name = "test-plugin"
+  name          = "test-plugin"
+  plugin_config = jsonencode({
+    sharedLists = []
+    connectionDrop = {
+      enabled      = false
+      whitelistIps = []
+    }
+  })
 }
 `,
 			Check: resource.ComposeAggregateTestCheckFunc(
 				resource.TestCheckResourceAttr("remnawave_node_plugin.test", "name", "test-plugin"),
 				resource.TestCheckResourceAttrSet("remnawave_node_plugin.test", "uuid"),
+				resource.TestCheckResourceAttrSet("remnawave_node_plugin.test", "plugin_config"),
 			),
 		}},
 	})
 }
 
 func TestAccApiTokenResource(t *testing.T) {
-	// API token CRUD requires admin JWT, not API token auth
 	testAccPreCheck(t)
 	if os.Getenv(envAPIToken) != "" {
 		t.Skip("api_token resource requires admin JWT — skipped when using api_token auth")
 	}
+	endpoint, authBlock := testAccProviderBlock()
+	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+		Steps: []resource.TestStep{{
+			Config: providerCfg + `
+resource "remnawave_api_token" "test" {
+  name            = "terraform-acceptance"
+  expires_in_days = 2
+  scopes          = ["*"]
+}
+`,
+			Check: resource.ComposeAggregateTestCheckFunc(
+				resource.TestCheckResourceAttrSet("remnawave_api_token.test", "uuid"),
+				resource.TestCheckResourceAttrSet("remnawave_api_token.test", "token"),
+				resource.TestCheckResourceAttrSet("remnawave_api_token.test", "expire_at"),
+				resource.TestCheckResourceAttr("remnawave_api_token.test", "name", "terraform-acceptance"),
+				resource.TestCheckResourceAttr("remnawave_api_token.test", "expires_in_days", "2"),
+				resource.TestCheckResourceAttr("remnawave_api_token.test", "scopes.#", "1"),
+			),
+		}},
+	})
 }
 
 func TestAccInfraProviderResource(t *testing.T) {

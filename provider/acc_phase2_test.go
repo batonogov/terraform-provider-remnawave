@@ -61,11 +61,13 @@ func TestAccSubscriptionTemplateResource(t *testing.T) {
 resource "remnawave_subscription_template" "test" {
   name          = "test-template"
   template_type = "XRAY_JSON"
+  template_json = jsonencode({ log = { loglevel = "warning" } })
 }
 `,
 			Check: resource.ComposeAggregateTestCheckFunc(
 				resource.TestCheckResourceAttr("remnawave_subscription_template.test", "name", "test-template"),
 				resource.TestCheckResourceAttr("remnawave_subscription_template.test", "template_type", "XRAY_JSON"),
+				resource.TestCheckResourceAttrSet("remnawave_subscription_template.test", "template_json"),
 				resource.TestCheckResourceAttrSet("remnawave_subscription_template.test", "uuid"),
 			),
 		}},

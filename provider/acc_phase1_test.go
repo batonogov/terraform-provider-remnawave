@@ -37,6 +37,12 @@ resource "remnawave_subscription_settings" "test" {
   support_link       = "https://t.me/new_support"
   randomize_hosts    = true
   profile_update_interval = 30
+  custom_response_headers = jsonencode({ "X-Terraform" = "acceptance" })
+  hwid_settings = jsonencode({
+    enabled             = true
+    fallbackDeviceLimit = 2
+    maxDevicesAnnounce  = null
+  })
 }
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
@@ -44,6 +50,8 @@ resource "remnawave_subscription_settings" "test" {
 					resource.TestCheckResourceAttr("remnawave_subscription_settings.test", "support_link", "https://t.me/new_support"),
 					resource.TestCheckResourceAttr("remnawave_subscription_settings.test", "randomize_hosts", "true"),
 					resource.TestCheckResourceAttr("remnawave_subscription_settings.test", "profile_update_interval", "30"),
+					resource.TestCheckResourceAttrSet("remnawave_subscription_settings.test", "custom_response_headers"),
+					resource.TestCheckResourceAttrSet("remnawave_subscription_settings.test", "hwid_settings"),
 				),
 			},
 		},

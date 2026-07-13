@@ -3,7 +3,9 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -32,10 +34,12 @@ func (r *subscriptionTemplateResource) Schema(_ context.Context, _ resource.Sche
 	resp.Schema = schema.Schema{
 		Description: "Manages a Remnawave subscription template.",
 		Attributes: map[string]schema.Attribute{
-			"uuid":                  schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
-			"name":                  schema.StringAttribute{Required: true, Description: "Template name (2-255 chars)."},
-			"template_type":         schema.StringAttribute{Required: true, Description: "Type: XRAY_JSON, XRAY_BASE64, MIHOMO, STASH, CLASH, SINGBOX."},
-			"template_json":         schema.StringAttribute{Optional: true, Computed: true, Description: "Template JSON (opaque)."},
+			"uuid": schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
+			"name": schema.StringAttribute{Required: true, Description: "Template name (2-255 chars)."},
+			"template_type": schema.StringAttribute{Required: true, PlanModifiers: []planmodifier.String{
+				stringplanmodifier.RequiresReplace(),
+			}, Description: "Type: XRAY_JSON, XRAY_BASE64, MIHOMO, STASH, CLASH, SINGBOX."},
+			"template_json":         schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Template JSON (opaque)."},
 			"encoded_template_yaml": schema.StringAttribute{Optional: true, Computed: true, Description: "Encoded template YAML."},
 		},
 	}
@@ -59,24 +63,46 @@ func (r *subscriptionTemplateResource) Create(ctx context.Context, req resource.
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	var update *SubscriptionTemplate
+	if (!plan.TemplateJSON.IsNull() && !plan.TemplateJSON.IsUnknown()) || (!plan.EncodedYaml.IsNull() && !plan.EncodedYaml.IsUnknown()) {
+		update = &SubscriptionTemplate{Name: plan.Name.ValueString()}
+		if !plan.TemplateJSON.IsNull() && !plan.TemplateJSON.IsUnknown() {
+			canonical, err := canonicalJSONString(plan.TemplateJSON.ValueString())
+			if err != nil {
+				resp.Diagnostics.AddError("Invalid template_json", err.Error())
+				return
+			}
+			plan.TemplateJSON = types.StringValue(canonical)
+			if err := json.Unmarshal([]byte(canonical), &update.TemplateJSON); err != nil {
+				resp.Diagnostics.AddError("Invalid template_json", err.Error())
+				return
+			}
+		}
+		if !plan.EncodedYaml.IsNull() && !plan.EncodedYaml.IsUnknown() {
+			update.EncodedTemplateYaml = plan.EncodedYaml.ValueString()
+		}
+	}
 	tmpl := &SubscriptionTemplate{Name: plan.Name.ValueString(), TemplateType: plan.TemplateType.ValueString()}
 	created, err := r.client.CreateSubscriptionTemplate(ctx, tmpl)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to create subscription template", err.Error())
 		return
 	}
-	plan.UUID = types.StringValue(created.UUID)
-	if created.TemplateJSON != nil {
-		if b, err := json.Marshal(created.TemplateJSON); err == nil {
-			plan.TemplateJSON = types.StringValue(string(b))
+	current := created
+	if update != nil {
+		update.UUID = created.UUID
+		current, err = r.client.UpdateSubscriptionTemplate(ctx, update)
+		if err != nil {
+			detail := err.Error()
+			if cleanupErr := r.client.DeleteSubscriptionTemplate(ctx, created.UUID); cleanupErr != nil {
+				detail += fmt.Sprintf("; additionally failed to delete partially created template %s: %v", created.UUID, cleanupErr)
+			}
+			resp.Diagnostics.AddError("Failed to set subscription template content", detail)
+			return
 		}
-	} else {
-		plan.TemplateJSON = types.StringNull()
 	}
-	if created.EncodedTemplateYaml != "" {
-		plan.EncodedYaml = types.StringValue(created.EncodedTemplateYaml)
-	} else {
-		plan.EncodedYaml = types.StringNull()
+	if !subscriptionTemplateToPlan(current, &plan, &resp.Diagnostics) {
+		return
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
@@ -97,21 +123,8 @@ func (r *subscriptionTemplateResource) Read(ctx context.Context, req resource.Re
 		resp.Diagnostics.AddError("Failed to read subscription template", err.Error())
 		return
 	}
-	state.UUID = types.StringValue(tmpl.UUID)
-	state.Name = types.StringValue(tmpl.Name)
-	if tmpl.TemplateType != "" {
-		state.TemplateType = types.StringValue(tmpl.TemplateType)
-	}
-	if tmpl.TemplateJSON != nil {
-		b, err := json.Marshal(tmpl.TemplateJSON)
-		if err != nil {
-			resp.Diagnostics.AddError("Failed to marshal template_json", err.Error())
-			return
-		}
-		state.TemplateJSON = types.StringValue(string(b))
-	}
-	if tmpl.EncodedTemplateYaml != "" {
-		state.EncodedYaml = types.StringValue(tmpl.EncodedTemplateYaml)
+	if !subscriptionTemplateToPlan(tmpl, &state, &resp.Diagnostics) {
+		return
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -139,14 +152,8 @@ func (r *subscriptionTemplateResource) Update(ctx context.Context, req resource.
 		resp.Diagnostics.AddError("Failed to update subscription template", err.Error())
 		return
 	}
-	plan.UUID = types.StringValue(updated.UUID)
-	if updated.TemplateJSON != nil {
-		if b, err := json.Marshal(updated.TemplateJSON); err == nil {
-			plan.TemplateJSON = types.StringValue(string(b))
-		}
-	}
-	if updated.EncodedTemplateYaml != "" {
-		plan.EncodedYaml = types.StringValue(updated.EncodedTemplateYaml)
+	if !subscriptionTemplateToPlan(updated, &plan, &resp.Diagnostics) {
+		return
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
@@ -164,4 +171,26 @@ func (r *subscriptionTemplateResource) Delete(ctx context.Context, req resource.
 
 func (r *subscriptionTemplateResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("uuid"), types.StringValue(req.ID))...)
+}
+
+func subscriptionTemplateToPlan(template *SubscriptionTemplate, plan *subscriptionTemplateModel, diagnostics *diag.Diagnostics) bool {
+	plan.UUID = types.StringValue(template.UUID)
+	plan.Name = types.StringValue(template.Name)
+	plan.TemplateType = types.StringValue(template.TemplateType)
+	if template.TemplateJSON != nil {
+		b, err := json.Marshal(template.TemplateJSON)
+		if err != nil {
+			diagnostics.AddError("Failed to marshal template_json", err.Error())
+			return false
+		}
+		plan.TemplateJSON = types.StringValue(string(b))
+	} else {
+		plan.TemplateJSON = types.StringNull()
+	}
+	if template.EncodedTemplateYaml != "" {
+		plan.EncodedYaml = types.StringValue(template.EncodedTemplateYaml)
+	} else {
+		plan.EncodedYaml = types.StringNull()
+	}
+	return true
 }

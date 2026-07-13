@@ -17,13 +17,17 @@ Manages Remnawave subscription settings (singleton). Delete only removes from Te
 
 ### Optional
 
+- `custom_remarks` (String) Custom user-state remarks as JSON.
+- `custom_response_headers` (String) Custom subscription response headers as JSON object.
 - `happ_announce` (String) Happ announce message (max 200 chars).
 - `happ_routing` (String) Happ routing config.
+- `hwid_settings` (String) HWID enforcement settings as JSON.
 - `is_profile_webpage_url_enabled` (Boolean) Enable profile webpage URL.
 - `is_show_custom_remarks` (Boolean) Show custom remarks for users.
 - `profile_title` (String) Subscription profile title shown in VPN clients.
 - `profile_update_interval` (Number) Subscription update interval in minutes.
 - `randomize_hosts` (Boolean) Randomize host order in subscription.
+- `response_rules` (String) Subscription response-rules configuration as JSON.
 - `serve_json_at_base_subscription` (Boolean) Serve JSON at base subscription URL.
 - `support_link` (String) Support link shown in subscription page.
 

@@ -45,8 +45,9 @@ func (r *nodeMetadataResource) Schema(_ context.Context, _ resource.SchemaReques
 				},
 			},
 			"metadata": schema.StringAttribute{
-				Required:    true,
-				Description: "Free-form metadata as a JSON object string, e.g. jsonencode({ location = \"us-east\" }).",
+				Required:      true,
+				PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}},
+				Description:   "Free-form metadata as a JSON object string, e.g. jsonencode({ location = \"us-east\" }).",
 			},
 		},
 	}

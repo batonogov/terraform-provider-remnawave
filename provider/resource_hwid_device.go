@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -217,5 +218,12 @@ func (r *hwidDeviceResource) Delete(ctx context.Context, req resource.DeleteRequ
 }
 
 func (r *hwidDeviceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	userUUID, hwid, ok := strings.Cut(req.ID, ":")
+	if !ok || userUUID == "" || hwid == "" {
+		resp.Diagnostics.AddError("Invalid import ID", "Expected import ID in user_uuid:hwid format.")
+		return
+	}
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), types.StringValue(req.ID))...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("user_uuid"), types.StringValue(userUUID))...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("hwid"), types.StringValue(hwid))...)
 }

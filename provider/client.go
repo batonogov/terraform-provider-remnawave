@@ -1060,7 +1060,7 @@ func (c *Client) CreateHwidDevice(ctx context.Context, req map[string]any) (map[
 }
 
 func (c *Client) DeleteHwidDevice(ctx context.Context, req map[string]any) error {
-	return c.doRequest(ctx, http.MethodDelete, "/api/hwid/devices/delete", req, nil)
+	return c.doRequest(ctx, http.MethodPost, "/api/hwid/devices/delete", req, nil)
 }
 
 func (c *Client) GetUserHwidDevices(ctx context.Context, userUuid string) (map[string]any, error) {

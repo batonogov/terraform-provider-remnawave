@@ -26,19 +26,31 @@ Manages a Remnawave host (connection endpoint for VPN users).
 ### Optional
 
 - `alpn` (String) ALPN value (h3, h2, http/1.1, or combinations).
+- `exclude_from_subscription_types` (Set of String) Subscription template types from which this host is excluded.
 - `excluded_internal_squads` (List of String) Internal squad UUIDs from which this host is excluded.
+- `final_mask` (String) Final mask configuration as JSON.
 - `fingerprint` (String) TLS fingerprint (e.g. chrome, firefox).
 - `host_header` (String) Host header for HTTP/WebSocket.
 - `is_disabled` (Boolean) Whether the host is disabled.
 - `is_hidden` (Boolean) Hide host from subscription.
+- `keep_sni_blank` (Boolean) Keep SNI blank instead of deriving it.
+- `mihomo_ip_version` (String) Mihomo IP version preference.
 - `mihomo_x25519` (Boolean) Enable Mihomo X25519 proxy.
+- `mux_params` (String) Mux parameters as JSON.
 - `nodes` (List of String) List of node UUIDs associated with this host.
+- `override_sni_from_address` (Boolean) Derive SNI from the host address.
 - `path` (String) WebSocket path or HTTP path.
+- `pinned_peer_cert_sha256` (String) Pinned peer certificate SHA-256 value.
 - `security_layer` (String) Security layer: DEFAULT, TLS, or NONE.
 - `server_description` (String) Short server description (max 30 chars).
 - `shuffle_host` (Boolean) Shuffle host order in subscription.
 - `sni` (String) TLS Server Name Indication.
+- `sockopt_params` (String) Socket options as JSON.
 - `tags` (List of String) List of tags (max 10, uppercase letters/numbers/underscores/colons, max 36 chars each).
+- `verify_peer_cert_by_name` (String) Peer certificate name to verify.
+- `vless_route_id` (Number) VLESS route ID (0-65535).
+- `xhttp_extra_params` (String) XHTTP extra parameters as JSON.
+- `xray_json_template_uuid` (String) Xray JSON subscription template UUID.
 
 ### Read-Only
 

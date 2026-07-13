@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -32,7 +33,7 @@ func (r *nodePluginResource) Schema(_ context.Context, _ resource.SchemaRequest,
 		Attributes: map[string]schema.Attribute{
 			"uuid":          schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 			"name":          schema.StringAttribute{Required: true, Description: "Plugin name (2-30 chars)."},
-			"plugin_config": schema.StringAttribute{Optional: true, Computed: true, Description: "Plugin config as JSON string (opaque)."},
+			"plugin_config": schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{nodePluginJSONPlanModifier{}}, Description: "Plugin config as JSON. Supported keys are sharedLists, torrentBlocker, ingressFilter, egressFilter, and connectionDrop."},
 		},
 	}
 }
@@ -55,22 +56,54 @@ func (r *nodePluginResource) Create(ctx context.Context, req resource.CreateRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	plugin := &NodePlugin{Name: plan.Name.ValueString()}
-	if !plan.PluginConfig.IsNull() && plan.PluginConfig.ValueString() != "" {
-		var cfg any
-		if err := json.Unmarshal([]byte(plan.PluginConfig.ValueString()), &cfg); err != nil {
+	var pluginConfig map[string]any
+	if !plan.PluginConfig.IsNull() && !plan.PluginConfig.IsUnknown() && plan.PluginConfig.ValueString() != "" {
+		canonical, decoded, err := canonicalNodePluginJSON(plan.PluginConfig.ValueString())
+		if err != nil {
 			resp.Diagnostics.AddError("Invalid plugin_config JSON", err.Error())
 			return
 		}
-		plugin.PluginConfig = cfg
+		plan.PluginConfig = types.StringValue(canonical)
+		pluginConfig = decoded
 	}
-	created, err := r.client.CreateNodePlugin(ctx, plugin)
+	created, err := r.client.CreateNodePlugin(ctx, &NodePlugin{Name: plan.Name.ValueString()})
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to create node plugin", err.Error())
 		return
 	}
 	plan.UUID = types.StringValue(created.UUID)
-	plan.PluginConfig = types.StringNull()
+	rollback := func(summary string, cause error) {
+		detail := cause.Error()
+		if cleanupErr := r.client.DeleteNodePlugin(ctx, created.UUID); cleanupErr != nil {
+			detail += fmt.Sprintf("; additionally failed to delete partially created plugin %s: %v", created.UUID, cleanupErr)
+		}
+		resp.Diagnostics.AddError(summary, detail)
+	}
+	switch {
+	case pluginConfig != nil:
+		updated, err := r.client.UpdateNodePlugin(ctx, &NodePlugin{UUID: created.UUID, Name: plan.Name.ValueString(), PluginConfig: pluginConfig})
+		if err != nil {
+			rollback("Failed to set plugin config", err)
+			return
+		}
+		if updated.PluginConfig != nil {
+			b, err := json.Marshal(updated.PluginConfig)
+			if err != nil {
+				rollback("Failed to marshal plugin_config", err)
+				return
+			}
+			plan.PluginConfig = types.StringValue(string(b))
+		}
+	case created.PluginConfig != nil:
+		b, err := json.Marshal(created.PluginConfig)
+		if err != nil {
+			rollback("Failed to marshal plugin_config", err)
+			return
+		}
+		plan.PluginConfig = types.StringValue(string(b))
+	default:
+		plan.PluginConfig = types.StringNull()
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -99,6 +132,8 @@ func (r *nodePluginResource) Read(ctx context.Context, req resource.ReadRequest,
 			return
 		}
 		state.PluginConfig = types.StringValue(string(b))
+	} else {
+		state.PluginConfig = types.StringNull()
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -111,17 +146,28 @@ func (r *nodePluginResource) Update(ctx context.Context, req resource.UpdateRequ
 	}
 	plugin := &NodePlugin{UUID: plan.UUID.ValueString(), Name: plan.Name.ValueString()}
 	if !plan.PluginConfig.IsNull() && plan.PluginConfig.ValueString() != "" {
-		var cfg any
-		if err := json.Unmarshal([]byte(plan.PluginConfig.ValueString()), &cfg); err != nil {
+		canonical, cfg, err := canonicalNodePluginJSON(plan.PluginConfig.ValueString())
+		if err != nil {
 			resp.Diagnostics.AddError("Invalid plugin_config JSON", err.Error())
 			return
 		}
+		plan.PluginConfig = types.StringValue(canonical)
 		plugin.PluginConfig = cfg
 	}
-	_, err := r.client.UpdateNodePlugin(ctx, plugin)
+	updated, err := r.client.UpdateNodePlugin(ctx, plugin)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to update node plugin", err.Error())
 		return
+	}
+	if updated.PluginConfig != nil {
+		b, err := json.Marshal(updated.PluginConfig)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to marshal plugin_config", err.Error())
+			return
+		}
+		plan.PluginConfig = types.StringValue(string(b))
+	} else {
+		plan.PluginConfig = types.StringNull()
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }

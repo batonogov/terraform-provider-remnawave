@@ -47,9 +47,10 @@ func (r *subpageConfigResource) Schema(_ context.Context, _ resource.SchemaReque
 				Description: "Name of the subscription page config (2-30 chars, letters/numbers/underscores/dashes/spaces).",
 			},
 			"config": schema.StringAttribute{
-				Optional:    true,
-				Computed:    true,
-				Description: "Subscription page config as a JSON string. Opaque to the provider — the panel manages the structure.",
+				Optional:      true,
+				Computed:      true,
+				PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}},
+				Description:   "Subscription page config as a JSON string. Opaque to the provider — the panel manages the structure.",
 			},
 		},
 	}
