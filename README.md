@@ -1,7 +1,10 @@
 # Terraform Provider for Remnawave
 
 [![CI](https://github.com/batonogov/terraform-provider-remnawave/actions/workflows/ci.yml/badge.svg)](https://github.com/batonogov/terraform-provider-remnawave/actions/workflows/ci.yml)
+[![Terraform Registry](https://img.shields.io/badge/Terraform%20Registry-batonogov%2Fremnawave-844FBA?logo=terraform)](https://registry.terraform.io/providers/batonogov/remnawave/latest)
+[![Latest Release](https://img.shields.io/github/v/release/batonogov/terraform-provider-remnawave)](https://github.com/batonogov/terraform-provider-remnawave/releases/latest)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/batonogov/terraform-provider-remnawave)](go.mod)
+[![Context7 MCP](https://img.shields.io/badge/Context7%20MCP-Indexed-blue)](https://context7.com/batonogov/terraform-provider-remnawave)
 
 A Terraform provider for [Remnawave](https://docs.rw) — a proxy management panel built on top of Xray-core. Manage VPN users, nodes, hosts, squads, billing, subscription pages, and more as infrastructure-as-code.
 
@@ -73,15 +76,19 @@ terraform {
   required_providers {
     remnawave = {
       source  = "batonogov/remnawave"
-      version = "~> 0.1"
+      version = "~> 0.2.0"
     }
   }
 }
 
 provider "remnawave" {
-  endpoint = "https://panel.example.com"
-  username = "admin"
-  password = var.remnawave_password
+  endpoint  = "https://panel.example.com"
+  api_token = var.remnawave_api_token
+}
+
+variable "remnawave_api_token" {
+  type      = string
+  sensitive = true
 }
 
 # Create a VPN user
@@ -131,6 +138,10 @@ values take precedence over environment variables.
 Terraform Registry documentation is generated from provider schemas and the
 examples under `examples/`. See [`docs/index.md`](docs/index.md) for the provider
 schema, with dedicated pages under `docs/resources/` and `docs/data-sources/`.
+The documentation is also indexed by
+[Context7](https://context7.com/batonogov/terraform-provider-remnawave) for use
+from AI coding assistants and is available as
+[`llms.txt`](https://context7.com/batonogov/terraform-provider-remnawave/llms.txt).
 
 ```bash
 # Regenerate docs after changing schemas or examples

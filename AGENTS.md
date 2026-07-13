@@ -221,6 +221,11 @@ tag or publish manually.**
 - **Never modify, re-tag, or replace a released version** — it breaks the
   published checksums for existing users. Ship a new version instead.
 - A tag must not share its name with a branch.
+- Copyable `required_providers` examples use a pessimistic patch-line
+  constraint (`~> X.Y.0`). When a release changes the minor or major line,
+  update the constraint in `README.md`, `examples/provider.tf`, and
+  `examples/provider/provider.tf`, then run `task docs` to regenerate
+  `docs/index.md`. Patch releases within the same minor line need no update.
 
 ### Required repository secrets
 
