@@ -161,3 +161,58 @@ Imperative mood, concise subjects.
 - API token auth preferred over username/password (avoids login on every plan).
 - Panel env: `IS_DOCS_ENABLED=true` enables Swagger at `/docs` for API exploration.
 - Panel env: `NODE_ENV=development` disables ProxyCheckMiddleware for direct access.
+
+## Releases
+
+Releases are fully automated via `.github/workflows/release-please.yml` — **never
+tag or publish manually.**
+
+### Flow
+
+1. A push to `main` runs `release-please`, which groups Conventional Commits
+   since the last release into a release PR titled `chore(main): release X.Y.Z`.
+2. Merging that PR creates the `vX.Y.Z` tag, a GitHub Release, and updates
+   `.release-please-manifest.json` (source of truth for the next version) and
+   `CHANGELOG.md`.
+3. `release_created == true` triggers the `goreleaser` job, which builds the
+   provider for every supported platform, attaches archives + `SHA256SUMS` + a
+   GPG-detached `SHA256SUMS.sig` to the release, and the Terraform Registry
+   picks the release up automatically.
+
+### Versioning
+
+- Tags are strict Semantic Versioning with a `v` prefix (`v1.2.3`). The
+  Registry resolves, sorts, and constraints versions by SemVer. Prereleases
+  use a hyphen (`v1.2.3-pre`) and are never selected automatically.
+- Bump level is driven by commit type: `feat:` → minor, `fix:` → patch,
+  `feat!:` / `BREAKING CHANGE:` → major. `docs:`, `test:`, `ci:`, and `chore:`
+  commits are excluded from the changelog and do not on their own cut a release.
+- **Never modify, re-tag, or replace a released version** — it breaks the
+  published checksums for existing users. Ship a new version instead.
+- A tag must not share its name with a branch.
+
+### Required repository secrets
+
+The goreleaser job fails without these secrets:
+
+- `GPG_PRIVATE_KEY` — keypair used to detach-sign `SHA256SUMS` (binary
+  signature, not ASCII-armored).
+- `GPG_PASSPHRASE` — passphrase for the key (cached before signing;
+  goreleaser itself cannot prompt interactively).
+
+### Build contract
+
+- `terraform-registry-manifest.json` declares `protocol_versions: ["6.0"]`
+  (Plugin Framework default; matches `providerserver.Serve` in `main.go`).
+- `main.version` (`main.go`) is injected at build time via goreleaser ldflags
+  (`-X main.version`); locally built binaries report `dev`.
+- Builds are reproducible: `-trimpath` + `mod_timestamp`. Multi-platform matrix:
+  linux/darwin/windows/freebsd × amd64/arm64/arm/386.
+- `compat-versions.json` records the supported Remnawave backend versions. Keep
+  it in sync with the **Compatibility** note in `## Project` when bumping the
+  target line; it is advisory (not yet enforced by CI).
+
+### Pre-release gate
+
+Before merging a release PR, confirm CI on `main` is green — the acceptance
+suite (`task test:acc`) must pass against the pinned backend image.
