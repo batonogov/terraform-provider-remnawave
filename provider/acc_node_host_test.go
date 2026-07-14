@@ -28,9 +28,7 @@ resource "remnawave_node" "test" {
   traffic_reset_day           = 15
   notify_percent              = 80
   consumption_multiplier      = 1.2
-  node_consumption_multiplier = 1.3
   tags                        = ["ACC_NODE"]
-  note                        = "created by acceptance test"
   config_profile_uuid         = remnawave_config_profile.profile.uuid
   config_profile_inbounds     = [remnawave_config_profile.profile.inbounds[0].uuid]
 }
@@ -52,9 +50,7 @@ resource "remnawave_node" "test" {
   country_code                = "DE"
   is_traffic_tracking_active  = true
   consumption_multiplier      = 2.0
-  node_consumption_multiplier = 2.1
   tags                        = ["ACC_NODE", "UPDATED"]
-  note                        = "updated by acceptance test"
   config_profile_uuid         = remnawave_config_profile.profile.uuid
   config_profile_inbounds     = [remnawave_config_profile.profile.inbounds[0].uuid]
 }
@@ -63,7 +59,6 @@ resource "remnawave_node" "test" {
 					resource.TestCheckResourceAttr("remnawave_node.test", "name", "terraform-node-updated"),
 					resource.TestCheckResourceAttr("remnawave_node.test", "country_code", "DE"),
 					resource.TestCheckResourceAttr("remnawave_node.test", "tags.#", "2"),
-					resource.TestCheckResourceAttr("remnawave_node.test", "note", "updated by acceptance test"),
 				),
 			},
 			{
@@ -96,8 +91,6 @@ resource "remnawave_host" "test" {
   security_layer              = "TLS"
   override_sni_from_address   = true
   keep_sni_blank              = false
-  pinned_peer_cert_sha256     = "acceptance-sha256"
-  verify_peer_cert_by_name    = "host.example.com"
   vless_route_id              = 7
   xhttp_extra_params          = jsonencode({ mode = "auto" })
   mux_params                  = jsonencode({ enabled = true })
@@ -137,8 +130,6 @@ resource "remnawave_host" "test" {
   is_hidden                   = true
   override_sni_from_address   = true
   keep_sni_blank              = false
-  pinned_peer_cert_sha256     = "acceptance-sha256-updated"
-  verify_peer_cert_by_name    = "updated.example.com"
   vless_route_id              = 8
   xhttp_extra_params          = jsonencode({ mode = "packet-up" })
   mux_params                  = jsonencode({ enabled = false })

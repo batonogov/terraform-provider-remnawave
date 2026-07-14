@@ -18,9 +18,18 @@ func TestAccBillingNodeResource(t *testing.T) {
 resource "remnawave_infra_provider" "test" {
   name = "billing-test"
 }
+resource "remnawave_config_profile" "billing" {
+  name = "billing-profile"
+}
+resource "remnawave_node" "billing" {
+  name                = "billing-node"
+  address             = "10.20.30.40"
+  port                = 5555
+  config_profile_uuid = remnawave_config_profile.billing.uuid
+}
 resource "remnawave_billing_node" "test" {
   provider_uuid   = remnawave_infra_provider.test.uuid
-  name            = "billing-node-test"
+  node_uuid       = remnawave_node.billing.uuid
   next_billing_at = "2026-08-01T00:00:00.000Z"
 }
 `,
