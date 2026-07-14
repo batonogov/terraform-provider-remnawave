@@ -154,7 +154,7 @@ jobs:
             -H "X-Forwarded-For: 127.0.0.1" \
             -H "X-Forwarded-Proto: https" \
             -H "X-Remnawave-Client-Type: browser" \
-            -H "Authorization: Bearer ***" \
+            -H "Authorization: Bearer $ADMIN_JWT" \
             -X POST http://localhost:3000/api/tokens \
             -d '${{ matrix.token_payload }}')
           token_http_code=$(echo "$token_response" | tail -1)
