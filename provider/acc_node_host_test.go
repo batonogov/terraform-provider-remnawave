@@ -96,7 +96,6 @@ resource "remnawave_host" "test" {
   mux_params                  = jsonencode({ enabled = true })
   sockopt_params              = jsonencode({ tcpFastOpen = true })
   final_mask                  = jsonencode({ enabled = false })
-  mihomo_ip_version           = "ipv4"
   xray_json_template_uuid     = remnawave_subscription_template.host.uuid
   exclude_from_subscription_types = ["MIHOMO", "SINGBOX"]
   tags                        = ["ACC_HOST"]
@@ -115,7 +114,6 @@ resource "remnawave_subscription_template" "host" {
 					resource.TestCheckResourceAttr("remnawave_host.test", "address", "host.example.com"),
 					resource.TestCheckResourceAttr("remnawave_host.test", "tags.#", "1"),
 					resource.TestCheckResourceAttr("remnawave_host.test", "vless_route_id", "7"),
-					resource.TestCheckResourceAttr("remnawave_host.test", "mihomo_ip_version", "ipv4"),
 					resource.TestCheckResourceAttr("remnawave_host.test", "exclude_from_subscription_types.#", "2"),
 				),
 			},
@@ -135,7 +133,6 @@ resource "remnawave_host" "test" {
   mux_params                  = jsonencode({ enabled = false })
   sockopt_params              = jsonencode({ tcpFastOpen = false })
   final_mask                  = jsonencode({ enabled = true })
-  mihomo_ip_version           = "dual"
   xray_json_template_uuid     = remnawave_subscription_template.host.uuid
   exclude_from_subscription_types = ["CLASH"]
   tags                        = ["ACC_HOST", "UPDATED"]
@@ -154,7 +151,6 @@ resource "remnawave_subscription_template" "host" {
 					resource.TestCheckResourceAttr("remnawave_host.test", "is_hidden", "true"),
 					resource.TestCheckResourceAttr("remnawave_host.test", "tags.#", "2"),
 					resource.TestCheckResourceAttr("remnawave_host.test", "vless_route_id", "8"),
-					resource.TestCheckResourceAttr("remnawave_host.test", "mihomo_ip_version", "dual"),
 					resource.TestCheckResourceAttr("remnawave_host.test", "exclude_from_subscription_types.#", "1"),
 				),
 			},
