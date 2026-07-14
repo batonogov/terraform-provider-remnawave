@@ -29,6 +29,12 @@ type Client struct {
 	password    string
 
 	proxyHeaders bool
+
+	// serverVersion is the major.minor of the Remnawave backend (e.g. "2.7",
+	// "2.8"), detected lazily on the first request via /api/system/metadata.
+	// A value of "" means detection has not yet been attempted.
+	versionMu     sync.Mutex
+	serverVersion string
 }
 
 // ClientConfig holds the parameters for creating a new Client.
@@ -345,6 +351,62 @@ func (c *Client) setProxyHeaders(req *http.Request) {
 		req.Header.Set("X-Forwarded-For", "127.0.0.1")
 		req.Header.Set("X-Forwarded-Proto", "https")
 	}
+}
+
+// ─── Version detection ───
+
+// detectVersion queries /api/system/metadata and caches the server's
+// major.minor version (e.g. "2.7", "2.8"). It is called lazily on the
+// first API-token operation and is safe to call concurrently.
+func (c *Client) detectVersion(ctx context.Context) error {
+	c.versionMu.Lock()
+	defer c.versionMu.Unlock()
+	if c.serverVersion != "" {
+		return nil
+	}
+
+	var resp struct {
+		Version string `json:"version"`
+	}
+	if err := c.doRequest(ctx, http.MethodGet, "/api/system/metadata", nil, &resp); err != nil {
+		return fmt.Errorf("failed to detect server version: %w", err)
+	}
+
+	minor := parseMajorMinor(resp.Version)
+	if minor == "" {
+		return fmt.Errorf("unexpected version format from server: %q", resp.Version)
+	}
+	c.serverVersion = minor
+	return nil
+}
+
+// serverMinorVersion returns the cached major.minor, detecting if needed.
+func (c *Client) serverMinorVersion(ctx context.Context) string {
+	c.versionMu.Lock()
+	v := c.serverVersion
+	c.versionMu.Unlock()
+	if v != "" {
+		return v
+	}
+	_ = c.detectVersion(ctx)
+	c.versionMu.Lock()
+	defer c.versionMu.Unlock()
+	return c.serverVersion
+}
+
+// isVersion2_7 returns true if the connected backend reports version 2.7.x.
+func (c *Client) isVersion2_7(ctx context.Context) bool {
+	return c.serverMinorVersion(ctx) == "2.7"
+}
+
+// parseMajorMinor extracts "major.minor" from a semver-like string.
+// e.g. "2.7.4" → "2.7", "2.8.0" → "2.8", "garbage" → "".
+func parseMajorMinor(version string) string {
+	parts := strings.SplitN(version, ".", 3)
+	if len(parts) < 2 {
+		return ""
+	}
+	return parts[0] + "." + parts[1]
 }
 
 // ─── User API ───
@@ -721,11 +783,38 @@ func (c *Client) DeleteNodePlugin(ctx context.Context, uuid string) error {
 // ─── API Token API ───
 
 func (c *Client) CreateApiToken(ctx context.Context, t *ApiToken) (*ApiToken, error) {
+	if c.isVersion2_7(ctx) {
+		return c.createApiTokenV27(ctx, t)
+	}
 	var out ApiToken
 	if err := c.doRequest(ctx, http.MethodPost, "/api/tokens", t, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
+}
+
+// createApiTokenV27 creates a token on Remnawave 2.7.x, which uses a
+// different request field (tokenName instead of name, no expiresInDays
+// or scopes) and a different response shape.
+func (c *Client) createApiTokenV27(ctx context.Context, t *ApiToken) (*ApiToken, error) {
+	payload := map[string]string{
+		"tokenName": t.Name,
+	}
+	var resp struct {
+		UUID      string `json:"uuid"`
+		Token     string `json:"token"`
+		TokenName string `json:"tokenName"`
+	}
+	if err := c.doRequest(ctx, http.MethodPost, "/api/tokens", payload, &resp); err != nil {
+		return nil, err
+	}
+	return &ApiToken{
+		UUID:  resp.UUID,
+		Name:  resp.TokenName,
+		Token: resp.Token,
+		// 2.7.x does not return expireAt or scopes.
+		Scopes: []string{"*"},
+	}, nil
 }
 
 func (c *Client) DeleteApiToken(ctx context.Context, uuid string) error {
@@ -736,12 +825,42 @@ type apiTokensListResponse struct {
 	Tokens []ApiToken `json:"tokens"`
 }
 
+// apiKeysListResponse is the 2.7.x variant: the array is named "apiKeys"
+// and each item uses "tokenName" instead of "name", with no expireAt/scopes.
+type apiKeysListResponse struct {
+	APIKeys []apiKeyItem `json:"apiKeys"`
+}
+
+type apiKeyItem struct {
+	UUID      string `json:"uuid"`
+	TokenName string `json:"tokenName"`
+}
+
 func (c *Client) GetAllApiTokens(ctx context.Context) ([]ApiToken, error) {
+	if c.isVersion2_7(ctx) {
+		return c.getAllApiTokensV27(ctx)
+	}
 	var out apiTokensListResponse
 	if err := c.doRequest(ctx, http.MethodGet, "/api/tokens", nil, &out); err != nil {
 		return nil, err
 	}
 	return out.Tokens, nil
+}
+
+func (c *Client) getAllApiTokensV27(ctx context.Context) ([]ApiToken, error) {
+	var out apiKeysListResponse
+	if err := c.doRequest(ctx, http.MethodGet, "/api/tokens", nil, &out); err != nil {
+		return nil, err
+	}
+	tokens := make([]ApiToken, len(out.APIKeys))
+	for i, k := range out.APIKeys {
+		tokens[i] = ApiToken{
+			UUID:   k.UUID,
+			Name:   k.TokenName,
+			Scopes: []string{"*"},
+		}
+	}
+	return tokens, nil
 }
 
 func (c *Client) GetSystemStats(ctx context.Context, tz string) (map[string]any, error) {

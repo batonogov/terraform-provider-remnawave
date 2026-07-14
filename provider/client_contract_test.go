@@ -152,6 +152,12 @@ func TestClientAPIContracts(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Version detection probe — respond and skip contract assertion.
+				if r.URL.Path == "/api/system/metadata" {
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = io.WriteString(w, `{"response":{"version":"2.8.0"}}`)
+					return
+				}
 				if r.Method != tt.method {
 					t.Errorf("method = %s, want %s", r.Method, tt.method)
 				}

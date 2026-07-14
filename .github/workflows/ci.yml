@@ -81,12 +81,26 @@ jobs:
         run: git diff --exit-code -- docs
 
   test-acc:
-    name: Acceptance Tests
+    name: Acceptance Tests (${{ matrix.label }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: "2.8.0"
+            version: "2.8.0"
+            digest: "sha256:cbc6d2ea0a84d8414dec565bb9ce299a3318b9e5297496baf8efcff2a1e66c65"
+            token_payload: '{"name":"acceptance-tests","expiresInDays":1,"scopes":["*"]}'
+          - label: "2.7.4"
+            version: "2.7.4"
+            digest: "sha256:a0e9a3d52e898b894965baed38ee45245b2cdb59ba19e198ab6371319e2968fc"
+            token_payload: '{"tokenName":"acceptance-tests"}'
     env:
       REMNAWAVE_ADMIN_USERNAME: admin
       REMNAWAVE_ADMIN_PASSWORD: TestAdminPassword1234567
+      REMNAWAVE_VERSION: ${{ matrix.version }}
+      REMNAWAVE_DIGEST: ${{ matrix.digest }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
@@ -134,15 +148,15 @@ jobs:
           ADMIN_JWT=$(echo "$body" | jq -r '.response.accessToken')
           echo "Admin JWT obtained"
 
-          # Create API token for acceptance tests
+          # Create API token for acceptance tests (payload format varies by version)
           token_response=$(curl -s -w "\n%{http_code}" \
             -H "Content-Type: application/json" \
             -H "X-Forwarded-For: 127.0.0.1" \
             -H "X-Forwarded-Proto: https" \
             -H "X-Remnawave-Client-Type: browser" \
-            -H "Authorization: Bearer $ADMIN_JWT" \
+            -H "Authorization: Bearer ***" \
             -X POST http://localhost:3000/api/tokens \
-            -d '{"name":"acceptance-tests","expiresInDays":1,"scopes":["*"]}')
+            -d '${{ matrix.token_payload }}')
           token_http_code=$(echo "$token_response" | tail -1)
           token_body=$(echo "$token_response" | sed '$d')
           echo "Token creation: HTTP $token_http_code"

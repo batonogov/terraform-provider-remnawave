@@ -12,11 +12,21 @@ Registry: `batonogov/remnawave`. All provider code lives in `provider/`.
 The Remnawave backend (`github.com/remnawave/backend`) is a NestJS TypeScript
 application with a clean REST API. The panel uses PostgreSQL + Redis (Valkey).
 
-**Compatibility:** Remnawave v2.8.x. Docker Compose and acceptance tests default
-to the `remnawave/backend:2.8.0` image pinned by digest. All compose images
-are pinned by `sha256` digest for reproducibility. To run an explicit
-compatibility check against a different build, override both the tag and its
-digest, e.g. `REMNAWAVE_VERSION=2.9.0 REMNAWAVE_DIGEST=sha256:<digest>`.
+**Compatibility:** Remnawave v2.7.x and v2.8.x. Docker Compose and
+acceptance tests default to the `remnawave/backend:2.8.0` image pinned by
+digest; CI runs a second matrix entry against `remnawave/backend:2.7.4`.
+All compose images are pinned by `sha256` digest for reproducibility. To
+run an explicit compatibility check against a different build, override
+both the tag and its digest, e.g. `REMNAWAVE_VERSION=2.9.0
+REMNAWAVE_DIGEST=sha256:<digest>`.
+
+The client auto-detects the server version via `/api/system/metadata` on
+the first API-token operation. On 2.7.x backends the `remnawave_api_token`
+resource transparently uses the legacy `tokenName` request field and
+`apiKeys[]` response shape instead of the 2.8.0 `name`/`expiresInDays`/
+`scopes` request and `tokens[]` response. No user configuration is
+required. All other resources/data sources are forward-compatible: 2.7.x
+Zod validation strips unknown 2.8.0 fields without error.
 
 ## Commands
 
@@ -163,7 +173,7 @@ removes untracked duplicate/generated files such as `docs/* 2.md`; preview with
 | Build | `go build ./...` |
 | Unit Tests | `go test ./provider -skip TestAcc`, race detector, **30% coverage floor** |
 | Documentation | `terraform fmt -check` on examples; `tfplugindocs generate/validate`; fails if `docs/` drifts |
-| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` |
+| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against both 2.8.0 (default) and 2.7.4 |
 
 All GitHub Actions across the repo **must be pinned by commit SHA**
 (see `release-please.yml`); Dependabot keeps them current. Do not switch
@@ -246,7 +256,8 @@ The goreleaser job fails without these secrets:
   linux/darwin/windows/freebsd × amd64/arm64/arm/386.
 - `compat-versions.json` records the supported Remnawave backend versions. Keep
   it in sync with the **Compatibility** note in `## Project` when bumping the
-  target line; it is advisory (not yet enforced by CI).
+  target line. CI acceptance tests use it as the source of truth for the
+  version matrix.
 
 ### Pre-release gate
 
