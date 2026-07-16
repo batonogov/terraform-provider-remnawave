@@ -3,24 +3,12 @@
 page_title: "remnawave_drop_connections Resource - terraform-provider-remnawave"
 subcategory: ""
 description: |-
-  Drops all active connections for a user via the Remnawave IP Control module.
+  Drops all active connections for a user via the Remnawave IP Control module. This is an imperative action resource: applying it sends a drop-connections request to the panel. Use the optional triggers map to force re-execution when its values change.
 ---
 
 # remnawave_drop_connections (Resource)
 
 Drops all active connections for a user via the Remnawave IP Control module. This is an imperative action resource: applying it sends a drop-connections request to the panel. Use the optional triggers map to force re-execution when its values change.
-
-## Example Usage
-
-```terraform
-resource "remnawave_drop_connections" "example" {
-  user_uuid = "550e8400-e29b-41d4-a716-446655440000"
-
-  triggers = {
-    timestamp = "2024-01-01T00:00:00Z"
-  }
-}
-```
 
 
 

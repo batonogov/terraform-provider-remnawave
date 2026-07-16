@@ -11,12 +11,14 @@ import (
 )
 
 type clientContractCase struct {
-	name     string
-	method   string
-	path     string
-	query    map[string]string
-	args     []any
-	wantJSON map[string]any
+	name         string
+	method       string
+	path         string
+	query        map[string]string
+	args         []any
+	wantJSON     map[string]any
+	noBody       bool
+	mockResponse string
 }
 
 // TestClientAPIContracts exercises every exported API operation against a
@@ -136,6 +138,8 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "GetUserHwidDevices", method: http.MethodGet, path: "/api/hwid/devices/item-id", args: []any{"item-id"}},
 		{name: "GetHwidStats", method: http.MethodGet, path: "/api/hwid/devices/stats"},
 		{name: "GetHwidTopUsers", method: http.MethodGet, path: "/api/hwid/devices/top-users"},
+		{name: "FetchUserIPs", method: http.MethodPost, path: "/api/ip-control/fetch-ips/item-id", args: []any{"item-id"}, noBody: true, mockResponse: `{"response":{"jobId":"job-1","status":"completed","ips":[]}}`},
+		{name: "DropConnections", method: http.MethodPost, path: "/api/ip-control/drop-connections", args: []any{"item-id"}, wantJSON: map[string]any{"userUuid": "item-id"}},
 	}
 	coveredMethods := make(map[string]struct{}, len(tests))
 	for _, tt := range tests {
@@ -156,6 +160,11 @@ func TestClientAPIContracts(t *testing.T) {
 				if r.URL.Path == "/api/system/metadata" {
 					w.Header().Set("Content-Type", "application/json")
 					_, _ = io.WriteString(w, `{"response":{"version":"2.8.0"}}`)
+					return
+				}
+				// For async methods that poll, serve the poll response without assertions.
+				if tt.mockResponse != "" && r.URL.Path != tt.path {
+					_, _ = io.WriteString(w, `{"response":{"status":"completed","ips":[]}}`)
 					return
 				}
 				if r.Method != tt.method {
@@ -183,7 +192,7 @@ func TestClientAPIContracts(t *testing.T) {
 				if err != nil {
 					t.Errorf("read body: %v", err)
 				}
-				wantBody := tt.method == http.MethodPost || tt.method == http.MethodPatch || tt.method == http.MethodPut || tt.wantJSON != nil
+				wantBody := !tt.noBody && (tt.method == http.MethodPost || tt.method == http.MethodPatch || tt.method == http.MethodPut || tt.wantJSON != nil)
 				if wantBody && len(body) == 0 {
 					t.Errorf("request body is empty")
 				}
@@ -204,7 +213,17 @@ func TestClientAPIContracts(t *testing.T) {
 				if tt.name == "GetAllNodes" || tt.name == "GetAllHosts" {
 					response = `[]`
 				}
-				_, _ = io.WriteString(w, `{"response":`+response+`}`)
+				if tt.mockResponse != "" {
+					// For async methods that poll (FetchUserIPs), serve mockResponse
+					// for the initial request and a completed result for the poll.
+					if r.URL.Path != tt.path {
+						_, _ = io.WriteString(w, `{"response":{"status":"completed","ips":[]}}`)
+					} else {
+						_, _ = io.WriteString(w, tt.mockResponse)
+					}
+				} else {
+					_, _ = io.WriteString(w, `{"response":`+response+`}`)
+				}
 			}))
 			defer server.Close()
 
