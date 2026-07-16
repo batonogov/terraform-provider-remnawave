@@ -15,17 +15,34 @@ func TestAccSnippetResource(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
-		Steps: []resource.TestStep{{
-			Config: providerCfg + `
+		Steps: []resource.TestStep{
+			{
+				Config: providerCfg + `
 resource "remnawave_snippet" "test" {
   name    = "test-snippet-2"
   snippet = jsonencode([{ "type" = "field", "domain" = ["geosite:category-ads"] }])
 }
 `,
-			Check: resource.ComposeAggregateTestCheckFunc(
-				resource.TestCheckResourceAttr("remnawave_snippet.test", "name", "test-snippet-2"),
-			),
-		}},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_snippet.test", "name", "test-snippet-2"),
+					resource.TestCheckResourceAttrSet("remnawave_snippet.test", "snippet"),
+					resource.TestCheckResourceAttrSet("remnawave_snippet.test", "uuid"),
+				),
+			},
+			{
+				Config: providerCfg + `
+resource "remnawave_snippet" "test" {
+  name    = "test-snippet-updated"
+  snippet = jsonencode([{ "type" = "field", "domain" = ["geosite:google"] }])
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_snippet.test", "name", "test-snippet-updated"),
+					resource.TestCheckResourceAttrSet("remnawave_snippet.test", "snippet"),
+					resource.TestCheckResourceAttrSet("remnawave_snippet.test", "uuid"),
+				),
+			},
+		},
 	})
 }
 
@@ -36,8 +53,9 @@ func TestAccNodePluginResource(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
-		Steps: []resource.TestStep{{
-			Config: providerCfg + `
+		Steps: []resource.TestStep{
+			{
+				Config: providerCfg + `
 resource "remnawave_node_plugin" "test" {
   name          = "test-plugin"
   plugin_config = jsonencode({
@@ -49,12 +67,32 @@ resource "remnawave_node_plugin" "test" {
   })
 }
 `,
-			Check: resource.ComposeAggregateTestCheckFunc(
-				resource.TestCheckResourceAttr("remnawave_node_plugin.test", "name", "test-plugin"),
-				resource.TestCheckResourceAttrSet("remnawave_node_plugin.test", "uuid"),
-				resource.TestCheckResourceAttrSet("remnawave_node_plugin.test", "plugin_config"),
-			),
-		}},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_node_plugin.test", "name", "test-plugin"),
+					resource.TestCheckResourceAttrSet("remnawave_node_plugin.test", "uuid"),
+					resource.TestCheckResourceAttrSet("remnawave_node_plugin.test", "plugin_config"),
+				),
+			},
+			{
+				Config: providerCfg + `
+resource "remnawave_node_plugin" "test" {
+  name          = "test-plugin-updated"
+  plugin_config = jsonencode({
+    sharedLists = ["list-1"]
+    connectionDrop = {
+      enabled      = true
+      whitelistIps = ["10.0.0.0/8"]
+    }
+  })
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_node_plugin.test", "name", "test-plugin-updated"),
+					resource.TestCheckResourceAttrSet("remnawave_node_plugin.test", "uuid"),
+					resource.TestCheckResourceAttrSet("remnawave_node_plugin.test", "plugin_config"),
+				),
+			},
+		},
 	})
 }
 
@@ -103,17 +141,30 @@ func TestAccInfraProviderResource(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
-		Steps: []resource.TestStep{{
-			Config: providerCfg + `
+		Steps: []resource.TestStep{
+			{
+				Config: providerCfg + `
 resource "remnawave_infra_provider" "test" {
   name = "test-provider"
 }
 `,
-			Check: resource.ComposeAggregateTestCheckFunc(
-				resource.TestCheckResourceAttr("remnawave_infra_provider.test", "name", "test-provider"),
-				resource.TestCheckResourceAttrSet("remnawave_infra_provider.test", "uuid"),
-			),
-		}},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_infra_provider.test", "name", "test-provider"),
+					resource.TestCheckResourceAttrSet("remnawave_infra_provider.test", "uuid"),
+				),
+			},
+			{
+				Config: providerCfg + `
+resource "remnawave_infra_provider" "test" {
+  name = "test-provider-updated"
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_infra_provider.test", "name", "test-provider-updated"),
+					resource.TestCheckResourceAttrSet("remnawave_infra_provider.test", "uuid"),
+				),
+			},
+		},
 	})
 }
 

@@ -15,8 +15,9 @@ func TestAccUserMetadataResource(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
-		Steps: []resource.TestStep{{
-			Config: providerCfg + `
+		Steps: []resource.TestStep{
+			{
+				Config: providerCfg + `
 resource "remnawave_user" "test" {
   username            = "meta-test-user"
   expire_at           = "2027-01-01T00:00:00.000Z"
@@ -27,11 +28,29 @@ resource "remnawave_user_metadata" "test" {
   metadata  = jsonencode({ department = "engineering" })
 }
 `,
-			Check: resource.ComposeAggregateTestCheckFunc(
-				resource.TestCheckResourceAttrSet("remnawave_user_metadata.test", "uuid"),
-				resource.TestCheckResourceAttrSet("remnawave_user_metadata.test", "metadata"),
-			),
-		}},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("remnawave_user_metadata.test", "uuid"),
+					resource.TestCheckResourceAttrSet("remnawave_user_metadata.test", "metadata"),
+				),
+			},
+			{
+				Config: providerCfg + `
+resource "remnawave_user" "test" {
+  username            = "meta-test-user"
+  expire_at           = "2027-01-01T00:00:00.000Z"
+  traffic_limit_bytes = 10737418240
+}
+resource "remnawave_user_metadata" "test" {
+  user_uuid = remnawave_user.test.uuid
+  metadata  = jsonencode({ department = "marketing", role = "lead" })
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("remnawave_user_metadata.test", "uuid"),
+					resource.TestCheckResourceAttrSet("remnawave_user_metadata.test", "metadata"),
+				),
+			},
+		},
 	})
 }
 
@@ -42,8 +61,9 @@ func TestAccNodeMetadataResource(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
-		Steps: []resource.TestStep{{
-			Config: providerCfg + testAccProfileConfig("metadata-profile", "VLESS_TCP_META_ACC") + `
+		Steps: []resource.TestStep{
+			{
+				Config: providerCfg + testAccProfileConfig("metadata-profile", "VLESS_TCP_META_ACC") + `
 resource "remnawave_node" "metadata" {
   name                    = "metadata-node"
   address                 = "127.0.0.11"
@@ -57,10 +77,31 @@ resource "remnawave_node_metadata" "test" {
   metadata  = jsonencode({ environment = "acceptance" })
 }
 `,
-			Check: resource.ComposeAggregateTestCheckFunc(
-				resource.TestCheckResourceAttrSet("remnawave_node_metadata.test", "uuid"),
-				resource.TestCheckResourceAttrSet("remnawave_node_metadata.test", "metadata"),
-			),
-		}},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("remnawave_node_metadata.test", "uuid"),
+					resource.TestCheckResourceAttrSet("remnawave_node_metadata.test", "metadata"),
+				),
+			},
+			{
+				Config: providerCfg + testAccProfileConfig("metadata-profile", "VLESS_TCP_META_ACC") + `
+resource "remnawave_node" "metadata" {
+  name                    = "metadata-node"
+  address                 = "127.0.0.11"
+  port                    = 2223
+  config_profile_uuid     = remnawave_config_profile.profile.uuid
+  config_profile_inbounds = [remnawave_config_profile.profile.inbounds[0].uuid]
+}
+
+resource "remnawave_node_metadata" "test" {
+  node_uuid = remnawave_node.metadata.uuid
+  metadata  = jsonencode({ environment = "production", region = "eu-west" })
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("remnawave_node_metadata.test", "uuid"),
+					resource.TestCheckResourceAttrSet("remnawave_node_metadata.test", "metadata"),
+				),
+			},
+		},
 	})
 }

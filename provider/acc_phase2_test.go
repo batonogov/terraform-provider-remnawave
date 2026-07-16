@@ -15,15 +15,26 @@ func TestAccExternalSquadResource(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
-		Steps: []resource.TestStep{{
-			Config: providerCfg + `
+		Steps: []resource.TestStep{
+			{
+				Config: providerCfg + `
 resource "remnawave_external_squad" "test" { name = "test-ext-squad" }
 `,
-			Check: resource.ComposeAggregateTestCheckFunc(
-				resource.TestCheckResourceAttr("remnawave_external_squad.test", "name", "test-ext-squad"),
-				resource.TestCheckResourceAttrSet("remnawave_external_squad.test", "uuid"),
-			),
-		}},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_external_squad.test", "name", "test-ext-squad"),
+					resource.TestCheckResourceAttrSet("remnawave_external_squad.test", "uuid"),
+				),
+			},
+			{
+				Config: providerCfg + `
+resource "remnawave_external_squad" "test" { name = "test-ext-squad-updated" }
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_external_squad.test", "name", "test-ext-squad-updated"),
+					resource.TestCheckResourceAttrSet("remnawave_external_squad.test", "uuid"),
+				),
+			},
+		},
 	})
 }
 
@@ -34,18 +45,32 @@ func TestAccInternalSquadResource(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
-		Steps: []resource.TestStep{{
-			Config: providerCfg + `
+		Steps: []resource.TestStep{
+			{
+				Config: providerCfg + `
 resource "remnawave_internal_squad" "test" {
   name     = "test-int-squad"
   inbounds = []
 }
 `,
-			Check: resource.ComposeAggregateTestCheckFunc(
-				resource.TestCheckResourceAttr("remnawave_internal_squad.test", "name", "test-int-squad"),
-				resource.TestCheckResourceAttrSet("remnawave_internal_squad.test", "uuid"),
-			),
-		}},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_internal_squad.test", "name", "test-int-squad"),
+					resource.TestCheckResourceAttrSet("remnawave_internal_squad.test", "uuid"),
+				),
+			},
+			{
+				Config: providerCfg + `
+resource "remnawave_internal_squad" "test" {
+  name     = "test-int-squad-updated"
+  inbounds = []
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_internal_squad.test", "name", "test-int-squad-updated"),
+					resource.TestCheckResourceAttrSet("remnawave_internal_squad.test", "uuid"),
+				),
+			},
+		},
 	})
 }
 
@@ -56,21 +81,37 @@ func TestAccSubscriptionTemplateResource(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
-		Steps: []resource.TestStep{{
-			Config: providerCfg + `
+		Steps: []resource.TestStep{
+			{
+				Config: providerCfg + `
 resource "remnawave_subscription_template" "test" {
   name          = "test-template"
   template_type = "XRAY_JSON"
   template_json = jsonencode({ log = { loglevel = "warning" } })
 }
 `,
-			Check: resource.ComposeAggregateTestCheckFunc(
-				resource.TestCheckResourceAttr("remnawave_subscription_template.test", "name", "test-template"),
-				resource.TestCheckResourceAttr("remnawave_subscription_template.test", "template_type", "XRAY_JSON"),
-				resource.TestCheckResourceAttrSet("remnawave_subscription_template.test", "template_json"),
-				resource.TestCheckResourceAttrSet("remnawave_subscription_template.test", "uuid"),
-			),
-		}},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_subscription_template.test", "name", "test-template"),
+					resource.TestCheckResourceAttr("remnawave_subscription_template.test", "template_type", "XRAY_JSON"),
+					resource.TestCheckResourceAttrSet("remnawave_subscription_template.test", "template_json"),
+					resource.TestCheckResourceAttrSet("remnawave_subscription_template.test", "uuid"),
+				),
+			},
+			{
+				Config: providerCfg + `
+resource "remnawave_subscription_template" "test" {
+  name          = "test-template-updated"
+  template_type = "XRAY_JSON"
+  template_json = jsonencode({ log = { loglevel = "debug" } })
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_subscription_template.test", "name", "test-template-updated"),
+					resource.TestCheckResourceAttrSet("remnawave_subscription_template.test", "template_json"),
+					resource.TestCheckResourceAttrSet("remnawave_subscription_template.test", "uuid"),
+				),
+			},
+		},
 	})
 }
 
@@ -86,16 +127,29 @@ func TestAccPanelSettingsResource(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
-		Steps: []resource.TestStep{{
-			Config: providerCfg + `
+		Steps: []resource.TestStep{
+			{
+				Config: providerCfg + `
 resource "remnawave_panel_settings" "test" {
   branding_title = "My Panel"
 }
 `,
-			Check: resource.ComposeAggregateTestCheckFunc(
-				resource.TestCheckResourceAttr("remnawave_panel_settings.test", "id", "settings"),
-				resource.TestCheckResourceAttr("remnawave_panel_settings.test", "branding_title", "My Panel"),
-			),
-		}},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_panel_settings.test", "id", "settings"),
+					resource.TestCheckResourceAttr("remnawave_panel_settings.test", "branding_title", "My Panel"),
+				),
+			},
+			{
+				Config: providerCfg + `
+resource "remnawave_panel_settings" "test" {
+  branding_title = "My Updated Panel"
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_panel_settings.test", "id", "settings"),
+					resource.TestCheckResourceAttr("remnawave_panel_settings.test", "branding_title", "My Updated Panel"),
+				),
+			},
+		},
 	})
 }
