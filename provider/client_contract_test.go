@@ -136,6 +136,9 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "GetUserHwidDevices", method: http.MethodGet, path: "/api/hwid/devices/item-id", args: []any{"item-id"}},
 		{name: "GetHwidStats", method: http.MethodGet, path: "/api/hwid/devices/stats"},
 		{name: "GetHwidTopUsers", method: http.MethodGet, path: "/api/hwid/devices/top-users"},
+
+		{name: "GetAllPasskeys", method: http.MethodGet, path: "/api/passkeys"},
+		{name: "DeletePasskey", method: http.MethodDelete, path: "/api/passkeys/item-id", args: []any{"item-id"}},
 	}
 	coveredMethods := make(map[string]struct{}, len(tests))
 	for _, tt := range tests {
@@ -201,7 +204,7 @@ func TestClientAPIContracts(t *testing.T) {
 
 				w.Header().Set("Content-Type", "application/json")
 				response := `{}`
-				if tt.name == "GetAllNodes" || tt.name == "GetAllHosts" {
+				if tt.name == "GetAllNodes" || tt.name == "GetAllHosts" || tt.name == "GetAllPasskeys" {
 					response = `[]`
 				}
 				_, _ = io.WriteString(w, `{"response":`+response+`}`)
