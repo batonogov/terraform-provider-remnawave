@@ -97,6 +97,37 @@ resource "remnawave_node" "test" {
 	})
 }
 
+func TestAccNodeExtendedFields(t *testing.T) {
+	testAccPreCheck(t)
+	endpoint, authBlock := testAccProviderBlock()
+	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: providerCfg + testAccProfileConfig("node-ext-profile", "VLESS_TCP_NODE_EXT_ACC") + `
+resource "remnawave_node" "test" {
+  name                         = "terraform-node-ext"
+  address                      = "127.0.0.11"
+  port                         = 2223
+  proxy_url                    = "socks5://user:pass@10.0.0.1:1080"
+  node_consumption_multiplier  = 1.5
+  config_profile_uuid          = remnawave_config_profile.profile.uuid
+  config_profile_inbounds      = [remnawave_config_profile.profile.inbounds[0].uuid]
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("remnawave_node.test", "uuid"),
+					resource.TestCheckResourceAttr("remnawave_node.test", "proxy_url", "socks5://user:pass@10.0.0.1:1080"),
+					resource.TestCheckResourceAttr("remnawave_node.test", "node_consumption_multiplier", "1.5"),
+					resource.TestCheckResourceAttr("remnawave_node.test", "traffic_used_bytes", "0"),
+				),
+			},
+		},
+	})
+}
+
 func TestAccHostResource(t *testing.T) {
 	testAccPreCheck(t)
 	endpoint, authBlock := testAccProviderBlock()
