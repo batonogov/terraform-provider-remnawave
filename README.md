@@ -10,11 +10,14 @@ A Terraform provider for [Remnawave](https://docs.rw) — a proxy management pan
 
 ## Compatibility
 
-**Support policy:** the provider supports Remnawave panel **v2.8.x**. The acceptance test suite runs against this version in CI on every push to `main` and every pull request.
+**Support policy:** the provider supports Remnawave panel **v2.7.x and v2.8.x**. The acceptance test suite runs against both versions in CI on every push to `main` and every pull request.
 
 | Remnawave version | Status |
 | --- | --- |
 | v2.8.0 | ✅ Tested |
+| v2.7.4 | ✅ Tested |
+
+The client auto-detects the backend version and adapts API calls where contracts differ between versions. No configuration is required.
 
 *As Remnawave releases new versions, this table will be updated and the compatibility matrix expanded.*
 
