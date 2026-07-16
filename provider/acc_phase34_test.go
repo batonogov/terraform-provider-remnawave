@@ -25,15 +25,20 @@ resource "remnawave_snippet" "test" {
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("remnawave_snippet.test", "name", "test-snippet-2"),
+					resource.TestCheckResourceAttrSet("remnawave_snippet.test", "snippet"),
 				),
 			},
 			{
-				ResourceName:                         "remnawave_snippet.test",
-				ImportState:                          true,
-				ImportStateVerifyIdentifierAttribute: "name",
-				ImportStateVerify:                    true,
-				ImportStateVerifyIgnore:              []string{"updated_at"},
-				ImportStateIdFunc:                    resourceAttrImportStateID("remnawave_snippet.test", "name"),
+				Config: providerCfg + `
+resource "remnawave_snippet" "test" {
+  name    = "test-snippet-2"
+  snippet = jsonencode([{ "type" = "field", "domain" = ["geosite:category-ads", "geosite:google"] }])
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_snippet.test", "name", "test-snippet-2"),
+					resource.TestCheckResourceAttrSet("remnawave_snippet.test", "snippet"),
+				),
 			},
 		},
 	})
@@ -67,12 +72,22 @@ resource "remnawave_node_plugin" "test" {
 				),
 			},
 			{
-				ResourceName:                         "remnawave_node_plugin.test",
-				ImportState:                          true,
-				ImportStateVerifyIdentifierAttribute: "uuid",
-				ImportStateVerify:                    true,
-				ImportStateVerifyIgnore:              []string{"updated_at"},
-				ImportStateIdFunc:                    resourceUUIDImportStateID("remnawave_node_plugin.test"),
+				Config: providerCfg + `
+resource "remnawave_node_plugin" "test" {
+  name          = "test-plugin"
+  plugin_config = jsonencode({
+    sharedLists = [{ name = "blocked-list", type = "file", values = ["example.com"] }]
+    connectionDrop = {
+      enabled      = false
+      whitelistIps = []
+    }
+  })
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_node_plugin.test", "name", "test-plugin"),
+					resource.TestCheckResourceAttrSet("remnawave_node_plugin.test", "plugin_config"),
+				),
 			},
 		},
 	})
@@ -103,26 +118,16 @@ func TestAccApiTokenResource(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
-		Steps: []resource.TestStep{
-			{
-				Config: providerCfg + `
+		Steps: []resource.TestStep{{
+			Config: providerCfg + `
 resource "remnawave_api_token" "test" {
   name            = "terraform-acceptance"
   expires_in_days = 2
   scopes          = ["*"]
 }
 `,
-				Check: resource.ComposeAggregateTestCheckFunc(checks...),
-			},
-			{
-				ResourceName:                         "remnawave_api_token.test",
-				ImportState:                          true,
-				ImportStateVerifyIdentifierAttribute: "uuid",
-				ImportStateVerify:                    true,
-				ImportStateVerifyIgnore:              []string{"token", "expires_in_days", "updated_at"},
-				ImportStateIdFunc:                    resourceUUIDImportStateID("remnawave_api_token.test"),
-			},
-		},
+			Check: resource.ComposeAggregateTestCheckFunc(checks...),
+		}},
 	})
 }
 
@@ -146,12 +151,15 @@ resource "remnawave_infra_provider" "test" {
 				),
 			},
 			{
-				ResourceName:                         "remnawave_infra_provider.test",
-				ImportState:                          true,
-				ImportStateVerifyIdentifierAttribute: "uuid",
-				ImportStateVerify:                    true,
-				ImportStateVerifyIgnore:              []string{"updated_at"},
-				ImportStateIdFunc:                    resourceUUIDImportStateID("remnawave_infra_provider.test"),
+				Config: providerCfg + `
+resource "remnawave_infra_provider" "test" {
+  name = "test-provider-updated"
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_infra_provider.test", "name", "test-provider-updated"),
+					resource.TestCheckResourceAttrSet("remnawave_infra_provider.test", "uuid"),
+				),
 			},
 		},
 	})

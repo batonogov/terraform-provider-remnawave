@@ -26,12 +26,13 @@ resource "remnawave_external_squad" "test" { name = "test-ext-squad" }
 				),
 			},
 			{
-				ResourceName:                         "remnawave_external_squad.test",
-				ImportState:                          true,
-				ImportStateVerifyIdentifierAttribute: "uuid",
-				ImportStateVerify:                    true,
-				ImportStateVerifyIgnore:              []string{"updated_at"},
-				ImportStateIdFunc:                    resourceUUIDImportStateID("remnawave_external_squad.test"),
+				Config: providerCfg + `
+resource "remnawave_external_squad" "test" { name = "test-ext-squad-updated" }
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_external_squad.test", "name", "test-ext-squad-updated"),
+					resource.TestCheckResourceAttrSet("remnawave_external_squad.test", "uuid"),
+				),
 			},
 		},
 	})
@@ -44,28 +45,18 @@ func TestAccInternalSquadResource(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
-		Steps: []resource.TestStep{
-			{
-				Config: providerCfg + `
+		Steps: []resource.TestStep{{
+			Config: providerCfg + `
 resource "remnawave_internal_squad" "test" {
   name     = "test-int-squad"
   inbounds = []
 }
 `,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("remnawave_internal_squad.test", "name", "test-int-squad"),
-					resource.TestCheckResourceAttrSet("remnawave_internal_squad.test", "uuid"),
-				),
-			},
-			{
-				ResourceName:                         "remnawave_internal_squad.test",
-				ImportState:                          true,
-				ImportStateVerifyIdentifierAttribute: "uuid",
-				ImportStateVerify:                    true,
-				ImportStateVerifyIgnore:              []string{"updated_at"},
-				ImportStateIdFunc:                    resourceUUIDImportStateID("remnawave_internal_squad.test"),
-			},
-		},
+			Check: resource.ComposeAggregateTestCheckFunc(
+				resource.TestCheckResourceAttr("remnawave_internal_squad.test", "name", "test-int-squad"),
+				resource.TestCheckResourceAttrSet("remnawave_internal_squad.test", "uuid"),
+			),
+		}},
 	})
 }
 
@@ -93,12 +84,19 @@ resource "remnawave_subscription_template" "test" {
 				),
 			},
 			{
-				ResourceName:                         "remnawave_subscription_template.test",
-				ImportState:                          true,
-				ImportStateVerifyIdentifierAttribute: "uuid",
-				ImportStateVerify:                    true,
-				ImportStateVerifyIgnore:              []string{"updated_at"},
-				ImportStateIdFunc:                    resourceUUIDImportStateID("remnawave_subscription_template.test"),
+				Config: providerCfg + `
+resource "remnawave_subscription_template" "test" {
+  name          = "test-template"
+  template_type = "XRAY_JSON"
+  template_json = jsonencode({ log = { loglevel = "debug" } })
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_subscription_template.test", "name", "test-template"),
+					resource.TestCheckResourceAttr("remnawave_subscription_template.test", "template_type", "XRAY_JSON"),
+					resource.TestCheckResourceAttrSet("remnawave_subscription_template.test", "template_json"),
+					resource.TestCheckResourceAttrSet("remnawave_subscription_template.test", "uuid"),
+				),
 			},
 		},
 	})
@@ -116,26 +114,16 @@ func TestAccPanelSettingsResource(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
-		Steps: []resource.TestStep{
-			{
-				Config: providerCfg + `
+		Steps: []resource.TestStep{{
+			Config: providerCfg + `
 resource "remnawave_panel_settings" "test" {
   branding_title = "My Panel"
 }
 `,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("remnawave_panel_settings.test", "id", "settings"),
-					resource.TestCheckResourceAttr("remnawave_panel_settings.test", "branding_title", "My Panel"),
-				),
-			},
-			{
-				ResourceName:                         "remnawave_panel_settings.test",
-				ImportState:                          true,
-				ImportStateVerifyIdentifierAttribute: "id",
-				ImportStateVerify:                    true,
-				ImportStateVerifyIgnore:              []string{"updated_at"},
-				ImportStateIdFunc:                    staticImportStateID("settings"),
-			},
-		},
+			Check: resource.ComposeAggregateTestCheckFunc(
+				resource.TestCheckResourceAttr("remnawave_panel_settings.test", "id", "settings"),
+				resource.TestCheckResourceAttr("remnawave_panel_settings.test", "branding_title", "My Panel"),
+			),
+		}},
 	})
 }

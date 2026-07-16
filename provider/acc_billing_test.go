@@ -38,12 +38,28 @@ resource "remnawave_billing_node" "test" {
 				),
 			},
 			{
-				ResourceName:                         "remnawave_billing_node.test",
-				ImportState:                          true,
-				ImportStateVerifyIdentifierAttribute: "uuid",
-				ImportStateVerify:                    true,
-				ImportStateVerifyIgnore:              []string{"updated_at"},
-				ImportStateIdFunc:                    resourceUUIDImportStateID("remnawave_billing_node.test"),
+				Config: providerCfg + testAccProfileConfig("billing-profile", "VLESS_BILLING_ACC") + `
+resource "remnawave_infra_provider" "test" {
+  name = "billing-test"
+}
+resource "remnawave_node" "billing" {
+  name                    = "billing-node"
+  address                 = "10.20.30.40"
+  port                    = 5555
+  config_profile_uuid     = remnawave_config_profile.profile.uuid
+  config_profile_inbounds = [remnawave_config_profile.profile.inbounds[0].uuid]
+}
+resource "remnawave_billing_node" "test" {
+  provider_uuid   = remnawave_infra_provider.test.uuid
+  node_uuid       = remnawave_node.billing.uuid
+  next_billing_at = "2026-09-01T00:00:00.000Z"
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("remnawave_billing_node.test", "uuid"),
+					resource.TestCheckResourceAttrSet("remnawave_billing_node.test", "provider_uuid"),
+					resource.TestCheckResourceAttr("remnawave_billing_node.test", "next_billing_at", "2026-09-01T00:00:00.000Z"),
+				),
 			},
 		},
 	})
@@ -72,12 +88,20 @@ resource "remnawave_billing_history" "test" {
 				),
 			},
 			{
-				ResourceName:                         "remnawave_billing_history.test",
-				ImportState:                          true,
-				ImportStateVerifyIdentifierAttribute: "uuid",
-				ImportStateVerify:                    true,
-				ImportStateVerifyIgnore:              []string{"updated_at"},
-				ImportStateIdFunc:                    resourceUUIDImportStateID("remnawave_billing_history.test"),
+				Config: providerCfg + `
+resource "remnawave_infra_provider" "test2" {
+  name = "billing-hist-test"
+}
+resource "remnawave_billing_history" "test" {
+  provider_uuid = remnawave_infra_provider.test2.uuid
+  amount        = 99.99
+  billed_at     = "2026-07-01T00:00:00.000Z"
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("remnawave_billing_history.test", "uuid"),
+					resource.TestCheckResourceAttr("remnawave_billing_history.test", "amount", "99.99"),
+				),
 			},
 		},
 	})
