@@ -119,7 +119,7 @@ resource "remnawave_api_token" "test" {
 				ImportState:                          true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 				ImportStateVerify:                    true,
-				ImportStateVerifyIgnore:              []string{"token", "updated_at"},
+				ImportStateVerifyIgnore:              []string{"token", "expires_in_days", "updated_at"},
 				ImportStateIdFunc:                    resourceUUIDImportStateID("remnawave_api_token.test"),
 			},
 		},
