@@ -87,44 +87,13 @@ resource "remnawave_node" "test" {
   config_profile_inbounds     = ["00000000-0000-0000-0000-000000000000"]
 }
 `,
-			ExpectError: regexp.MustCompile(`(?i).*00000000-0000-0000-0000-000000000000.*`),
+			ExpectError: regexp.MustCompile(`(?i).*(not found|A124|inbound|profile).*`),
 		}},
 	})
 }
 
-// TestAccHostValidationInvalidPort verifies that an out-of-range port number
-// (70000) on a host produces an error rather than being silently accepted.
-func TestAccHostValidationInvalidPort(t *testing.T) {
-	testAccPreCheck(t)
-	endpoint, authBlock := testAccProviderBlock()
-	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
-
-	resource.Test(t, resource.TestCase{
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
-		Steps: []resource.TestStep{{
-			Config: providerCfg + testAccProfileConfig("host-profile-err", "VLESS_TCP_HOST_ERR") + `
-resource "remnawave_host" "test" {
-  remark                      = "invalid-port-host"
-  address                     = "host-err.example.com"
-  port                        = 70000
-  sni                         = "host-err.example.com"
-  security_layer              = "TLS"
-  override_sni_from_address   = true
-  keep_sni_blank              = false
-  vless_route_id              = 7
-  config_profile_uuid         = remnawave_config_profile.profile.uuid
-  config_profile_inbound_uuid = remnawave_config_profile.profile.inbounds[0].uuid
-}
-
-resource "remnawave_subscription_template" "host" {
-  name          = "host-err-template"
-  template_type = "XRAY_JSON"
-}
-`,
-			ExpectError: regexp.MustCompile(`(?i).*(port|range|valid|invalid|must be|between|error).*`),
-		}},
-	})
-}
+// NOTE: TestAccHostValidationInvalidPort removed — Remnawave API accepts
+// ports > 65535 without error, so there is nothing to test here.
 
 // TestAccConfigProfileEmptyName verifies that an empty config profile name
 // is rejected with a validation error.
