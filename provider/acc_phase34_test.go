@@ -30,7 +30,7 @@ resource "remnawave_snippet" "test" {
 			{
 				ResourceName:                         "remnawave_snippet.test",
 				ImportState:                          true,
-				ImportStateVerifyIdentifierAttribute: "uuid",
+				ImportStateVerifyIdentifierAttribute: "name",
 				ImportStateVerify:                    true,
 				ImportStateVerifyIgnore:              []string{"updated_at"},
 				ImportStateIdFunc:                    resourceAttrImportStateID("remnawave_snippet.test", "name"),
