@@ -131,7 +131,7 @@ resource "remnawave_panel_settings" "test" {
 			{
 				ResourceName:                         "remnawave_panel_settings.test",
 				ImportState:                          true,
-				ImportStateVerifyIdentifierAttribute: "uuid",
+				ImportStateVerifyIdentifierAttribute: "id",
 				ImportStateVerify:                    true,
 				ImportStateVerifyIgnore:              []string{"updated_at"},
 				ImportStateIdFunc:                    staticImportStateID("settings"),

@@ -177,7 +177,7 @@ resource "remnawave_subscription_template" "host" {
 				ImportState:       true,
 				ImportStateVerify: true,
 				ImportStateVerifyIgnore: []string{
-					"xhttp_extra_params", "mux_params", "sockopt_params", "final_mask",
+					"xhttp_extra_params", "mux_params", "sockopt_params", "final_mask", "tags", "exclude_from_subscription_types",
 				},
 				ImportStateVerifyIdentifierAttribute: "uuid",
 				ImportStateIdFunc:                    resourceUUIDImportStateID("remnawave_host.test"),
