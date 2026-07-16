@@ -17,6 +17,7 @@ type clientContractCase struct {
 	query    map[string]string
 	args     []any
 	wantJSON map[string]any
+	noBody   bool
 }
 
 // TestClientAPIContracts exercises every exported API operation against a
@@ -36,6 +37,10 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "GetNodeByUUID", method: http.MethodGet, path: "/api/nodes/item-id", args: []any{"item-id"}},
 		{name: "UpdateNode", method: http.MethodPatch, path: "/api/nodes", args: []any{&Node{UUID: "item-id", Name: "node", Address: "127.0.0.1"}}},
 		{name: "DeleteNode", method: http.MethodDelete, path: "/api/nodes/item-id", args: []any{"item-id"}},
+		{name: "EnableNode", method: http.MethodPost, path: "/api/nodes/actions/item-id/enable", args: []any{"item-id"}, noBody: true},
+		{name: "DisableNode", method: http.MethodPost, path: "/api/nodes/actions/item-id/disable", args: []any{"item-id"}, noBody: true},
+		{name: "RestartNode", method: http.MethodPost, path: "/api/nodes/actions/item-id/restart", args: []any{"item-id", true}, wantJSON: map[string]any{"forceRestart": true}},
+		{name: "ResetNodeTraffic", method: http.MethodPost, path: "/api/nodes/actions/item-id/reset-traffic", args: []any{"item-id"}, noBody: true},
 
 		{name: "CreateHost", method: http.MethodPost, path: "/api/hosts", args: []any{&Host{Remark: "host", Address: "host.example.com", Port: 443}}},
 		{name: "GetAllHosts", method: http.MethodGet, path: "/api/hosts"},
@@ -183,7 +188,7 @@ func TestClientAPIContracts(t *testing.T) {
 				if err != nil {
 					t.Errorf("read body: %v", err)
 				}
-				wantBody := tt.method == http.MethodPost || tt.method == http.MethodPatch || tt.method == http.MethodPut || tt.wantJSON != nil
+				wantBody := !tt.noBody && (tt.method == http.MethodPost || tt.method == http.MethodPatch || tt.method == http.MethodPut || tt.wantJSON != nil)
 				if wantBody && len(body) == 0 {
 					t.Errorf("request body is empty")
 				}
