@@ -15,8 +15,9 @@ func TestAccUserMetadataResource(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
-		Steps: []resource.TestStep{{
-			Config: providerCfg + `
+		Steps: []resource.TestStep{
+			{
+				Config: providerCfg + `
 resource "remnawave_user" "test" {
   username            = "meta-test-user"
   expire_at           = "2027-01-01T00:00:00.000Z"
@@ -27,11 +28,19 @@ resource "remnawave_user_metadata" "test" {
   metadata  = jsonencode({ department = "engineering" })
 }
 `,
-			Check: resource.ComposeAggregateTestCheckFunc(
-				resource.TestCheckResourceAttrSet("remnawave_user_metadata.test", "uuid"),
-				resource.TestCheckResourceAttrSet("remnawave_user_metadata.test", "metadata"),
-			),
-		}},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("remnawave_user_metadata.test", "uuid"),
+					resource.TestCheckResourceAttrSet("remnawave_user_metadata.test", "metadata"),
+				),
+			},
+			{
+				ResourceName:            "remnawave_user_metadata.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"updated_at"},
+				ImportStateIdFunc:       resourceAttrImportStateID("remnawave_user_metadata.test", "user_uuid"),
+			},
+		},
 	})
 }
 
@@ -42,8 +51,9 @@ func TestAccNodeMetadataResource(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
-		Steps: []resource.TestStep{{
-			Config: providerCfg + testAccProfileConfig("metadata-profile", "VLESS_TCP_META_ACC") + `
+		Steps: []resource.TestStep{
+			{
+				Config: providerCfg + testAccProfileConfig("metadata-profile", "VLESS_TCP_META_ACC") + `
 resource "remnawave_node" "metadata" {
   name                    = "metadata-node"
   address                 = "127.0.0.11"
@@ -57,10 +67,18 @@ resource "remnawave_node_metadata" "test" {
   metadata  = jsonencode({ environment = "acceptance" })
 }
 `,
-			Check: resource.ComposeAggregateTestCheckFunc(
-				resource.TestCheckResourceAttrSet("remnawave_node_metadata.test", "uuid"),
-				resource.TestCheckResourceAttrSet("remnawave_node_metadata.test", "metadata"),
-			),
-		}},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("remnawave_node_metadata.test", "uuid"),
+					resource.TestCheckResourceAttrSet("remnawave_node_metadata.test", "metadata"),
+				),
+			},
+			{
+				ResourceName:            "remnawave_node_metadata.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"updated_at"},
+				ImportStateIdFunc:       resourceAttrImportStateID("remnawave_node_metadata.test", "node_uuid"),
+			},
+		},
 	})
 }
