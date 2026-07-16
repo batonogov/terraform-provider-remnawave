@@ -34,7 +34,15 @@ resource "remnawave_hwid_device" "test" {
 				resource.TestCheckResourceAttr("remnawave_hwid_device.test", "hwid", "terraform-acceptance-device"),
 				resource.TestCheckResourceAttr("remnawave_hwid_device.test", "platform", "linux"),
 			),
-		}},
+		},
+			{
+				ResourceName:            "remnawave_hwid_device.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"updated_at", "device_model", "os_version", "platform"},
+				ImportStateIdFunc:       resourceAttrImportStateID("remnawave_hwid_device.test", "id"),
+			},
+		},
 	})
 }
 

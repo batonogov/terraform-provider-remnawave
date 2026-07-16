@@ -13,8 +13,9 @@ func TestAccBillingNodeResource(t *testing.T) {
 	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
-		Steps: []resource.TestStep{{
-			Config: providerCfg + testAccProfileConfig("billing-profile", "VLESS_BILLING_ACC") + `
+		Steps: []resource.TestStep{
+			{
+				Config: providerCfg + testAccProfileConfig("billing-profile", "VLESS_BILLING_ACC") + `
 resource "remnawave_infra_provider" "test" {
   name = "billing-test"
 }
@@ -31,11 +32,20 @@ resource "remnawave_billing_node" "test" {
   next_billing_at = "2026-08-01T00:00:00.000Z"
 }
 `,
-			Check: resource.ComposeAggregateTestCheckFunc(
-				resource.TestCheckResourceAttrSet("remnawave_billing_node.test", "uuid"),
-				resource.TestCheckResourceAttrSet("remnawave_billing_node.test", "provider_uuid"),
-			),
-		}},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("remnawave_billing_node.test", "uuid"),
+					resource.TestCheckResourceAttrSet("remnawave_billing_node.test", "provider_uuid"),
+				),
+			},
+			{
+				ResourceName:                         "remnawave_billing_node.test",
+				ImportState:                          true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
+				ImportStateVerify:                    true,
+				ImportStateVerifyIgnore:              []string{"updated_at"},
+				ImportStateIdFunc:                    resourceUUIDImportStateID("remnawave_billing_node.test"),
+			},
+		},
 	})
 }
 
@@ -45,8 +55,9 @@ func TestAccBillingHistoryResource(t *testing.T) {
 	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
-		Steps: []resource.TestStep{{
-			Config: providerCfg + `
+		Steps: []resource.TestStep{
+			{
+				Config: providerCfg + `
 resource "remnawave_infra_provider" "test2" {
   name = "billing-hist-test"
 }
@@ -56,9 +67,18 @@ resource "remnawave_billing_history" "test" {
   billed_at     = "2026-07-01T00:00:00.000Z"
 }
 `,
-			Check: resource.ComposeAggregateTestCheckFunc(
-				resource.TestCheckResourceAttrSet("remnawave_billing_history.test", "uuid"),
-			),
-		}},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("remnawave_billing_history.test", "uuid"),
+				),
+			},
+			{
+				ResourceName:                         "remnawave_billing_history.test",
+				ImportState:                          true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
+				ImportStateVerify:                    true,
+				ImportStateVerifyIgnore:              []string{"updated_at"},
+				ImportStateIdFunc:                    resourceUUIDImportStateID("remnawave_billing_history.test"),
+			},
+		},
 	})
 }

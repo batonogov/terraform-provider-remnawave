@@ -172,6 +172,16 @@ resource "remnawave_subscription_template" "host" {
 					resource.TestCheckResourceAttr("remnawave_host.test", "exclude_from_subscription_types.#", "1"),
 				),
 			},
+			{
+				ResourceName:      "remnawave_host.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateVerifyIgnore: []string{
+					"xhttp_extra_params", "mux_params", "sockopt_params", "final_mask", "tags", "exclude_from_subscription_types",
+				},
+				ImportStateVerifyIdentifierAttribute: "uuid",
+				ImportStateIdFunc:                    resourceUUIDImportStateID("remnawave_host.test"),
+			},
 		},
 	})
 }
@@ -216,4 +226,20 @@ func resourceUUIDImportStateID(resourceName string) resource.ImportStateIdFunc {
 	return func(state *terraform.State) (string, error) {
 		return state.RootModule().Resources[resourceName].Primary.Attributes["uuid"], nil
 	}
+}
+
+// resourceAttrImportStateID returns an ImportStateIdFunc that reads the given
+// attribute from the Terraform state. Useful for resources whose import key is
+// not "uuid" (e.g. remnawave_snippet uses "name", hwid_device uses "id").
+func resourceAttrImportStateID(resourceName, attr string) resource.ImportStateIdFunc {
+	return func(state *terraform.State) (string, error) {
+		return state.RootModule().Resources[resourceName].Primary.Attributes[attr], nil
+	}
+}
+
+// staticImportStateID returns an ImportStateIdFunc that always returns the
+// given ID string. Used by singleton resources (panel_settings,
+// subscription_settings) whose import ID is always "settings".
+func staticImportStateID(id string) resource.ImportStateIdFunc {
+	return func(*terraform.State) (string, error) { return id, nil }
 }

@@ -92,6 +92,14 @@ resource "remnawave_config_profile" "test" {
 `,
 				Check: resource.TestCheckResourceAttr("remnawave_config_profile.test", "name", "test-profile-renamed"),
 			},
+			{
+				ResourceName:                         "remnawave_config_profile.test",
+				ImportState:                          true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
+				ImportStateVerify:                    true,
+				ImportStateVerifyIgnore:              []string{"updated_at"},
+				ImportStateIdFunc:                    resourceUUIDImportStateID("remnawave_config_profile.test"),
+			},
 		},
 	})
 }
