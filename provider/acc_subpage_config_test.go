@@ -40,6 +40,13 @@ resource "remnawave_subpage_config" "test" {
 					resource.TestCheckResourceAttrSet("remnawave_subpage_config.test", "uuid"),
 				),
 			},
+			{
+				ResourceName:            "remnawave_subpage_config.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"updated_at"},
+				ImportStateIdFunc:       resourceUUIDImportStateID("remnawave_subpage_config.test"),
+			},
 		},
 	})
 }

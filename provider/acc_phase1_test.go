@@ -54,6 +54,13 @@ resource "remnawave_subscription_settings" "test" {
 					resource.TestCheckResourceAttrSet("remnawave_subscription_settings.test", "hwid_settings"),
 				),
 			},
+			{
+				ResourceName:            "remnawave_subscription_settings.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"updated_at"},
+				ImportStateIdFunc:       staticImportStateID("settings"),
+			},
 		},
 	})
 }

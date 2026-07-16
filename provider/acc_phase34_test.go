@@ -42,6 +42,13 @@ resource "remnawave_snippet" "test" {
 					resource.TestCheckResourceAttrSet("remnawave_snippet.test", "uuid"),
 				),
 			},
+			{
+				ResourceName:            "remnawave_snippet.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"updated_at"},
+				ImportStateIdFunc:       resourceAttrImportStateID("remnawave_snippet.test", "name"),
+			},
 		},
 	})
 }
@@ -92,6 +99,13 @@ resource "remnawave_node_plugin" "test" {
 					resource.TestCheckResourceAttrSet("remnawave_node_plugin.test", "plugin_config"),
 				),
 			},
+			{
+				ResourceName:            "remnawave_node_plugin.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"updated_at"},
+				ImportStateIdFunc:       resourceUUIDImportStateID("remnawave_node_plugin.test"),
+			},
 		},
 	})
 }
@@ -121,16 +135,25 @@ func TestAccApiTokenResource(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
-		Steps: []resource.TestStep{{
-			Config: providerCfg + `
+		Steps: []resource.TestStep{
+			{
+				Config: providerCfg + `
 resource "remnawave_api_token" "test" {
   name            = "terraform-acceptance"
   expires_in_days = 2
   scopes          = ["*"]
 }
 `,
-			Check: resource.ComposeAggregateTestCheckFunc(checks...),
-		}},
+				Check: resource.ComposeAggregateTestCheckFunc(checks...),
+			},
+			{
+				ResourceName:            "remnawave_api_token.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"token", "updated_at"},
+				ImportStateIdFunc:       resourceUUIDImportStateID("remnawave_api_token.test"),
+			},
+		},
 	})
 }
 
@@ -163,6 +186,13 @@ resource "remnawave_infra_provider" "test" {
 					resource.TestCheckResourceAttr("remnawave_infra_provider.test", "name", "test-provider-updated"),
 					resource.TestCheckResourceAttrSet("remnawave_infra_provider.test", "uuid"),
 				),
+			},
+			{
+				ResourceName:            "remnawave_infra_provider.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"updated_at"},
+				ImportStateIdFunc:       resourceUUIDImportStateID("remnawave_infra_provider.test"),
 			},
 		},
 	})

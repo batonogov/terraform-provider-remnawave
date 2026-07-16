@@ -50,6 +50,13 @@ resource "remnawave_user_metadata" "test" {
 					resource.TestCheckResourceAttrSet("remnawave_user_metadata.test", "metadata"),
 				),
 			},
+			{
+				ResourceName:            "remnawave_user_metadata.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"updated_at"},
+				ImportStateIdFunc:       resourceAttrImportStateID("remnawave_user_metadata.test", "user_uuid"),
+			},
 		},
 	})
 }
@@ -101,6 +108,13 @@ resource "remnawave_node_metadata" "test" {
 					resource.TestCheckResourceAttrSet("remnawave_node_metadata.test", "uuid"),
 					resource.TestCheckResourceAttrSet("remnawave_node_metadata.test", "metadata"),
 				),
+			},
+			{
+				ResourceName:            "remnawave_node_metadata.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"updated_at"},
+				ImportStateIdFunc:       resourceAttrImportStateID("remnawave_node_metadata.test", "node_uuid"),
 			},
 		},
 	})

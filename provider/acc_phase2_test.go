@@ -34,6 +34,13 @@ resource "remnawave_external_squad" "test" { name = "test-ext-squad-updated" }
 					resource.TestCheckResourceAttrSet("remnawave_external_squad.test", "uuid"),
 				),
 			},
+			{
+				ResourceName:            "remnawave_external_squad.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"updated_at"},
+				ImportStateIdFunc:       resourceUUIDImportStateID("remnawave_external_squad.test"),
+			},
 		},
 	})
 }
@@ -69,6 +76,13 @@ resource "remnawave_internal_squad" "test" {
 					resource.TestCheckResourceAttr("remnawave_internal_squad.test", "name", "test-int-squad-updated"),
 					resource.TestCheckResourceAttrSet("remnawave_internal_squad.test", "uuid"),
 				),
+			},
+			{
+				ResourceName:            "remnawave_internal_squad.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"updated_at"},
+				ImportStateIdFunc:       resourceUUIDImportStateID("remnawave_internal_squad.test"),
 			},
 		},
 	})
@@ -111,6 +125,13 @@ resource "remnawave_subscription_template" "test" {
 					resource.TestCheckResourceAttrSet("remnawave_subscription_template.test", "uuid"),
 				),
 			},
+			{
+				ResourceName:            "remnawave_subscription_template.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"updated_at"},
+				ImportStateIdFunc:       resourceUUIDImportStateID("remnawave_subscription_template.test"),
+			},
 		},
 	})
 }
@@ -149,6 +170,13 @@ resource "remnawave_panel_settings" "test" {
 					resource.TestCheckResourceAttr("remnawave_panel_settings.test", "id", "settings"),
 					resource.TestCheckResourceAttr("remnawave_panel_settings.test", "branding_title", "My Updated Panel"),
 				),
+			},
+			{
+				ResourceName:            "remnawave_panel_settings.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"updated_at"},
+				ImportStateIdFunc:       staticImportStateID("settings"),
 			},
 		},
 	})
