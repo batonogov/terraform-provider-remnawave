@@ -490,6 +490,49 @@ func (c *Client) DeleteNode(ctx context.Context, uuid string) error {
 	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/nodes/%s", uuid), nil, nil)
 }
 
+// ─── Node Actions API ───
+
+// EnableNode enables (un-disables) a node.
+// POST /api/nodes/actions/:uuid/enable
+func (c *Client) EnableNode(ctx context.Context, uuid string) (*Node, error) {
+	var out Node
+	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/actions/%s/enable", uuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// DisableNode administratively disables a node.
+// POST /api/nodes/actions/:uuid/disable
+func (c *Client) DisableNode(ctx context.Context, uuid string) (*Node, error) {
+	var out Node
+	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/actions/%s/disable", uuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// RestartNode restarts the Xray backend on a node.
+// POST /api/nodes/actions/:uuid/restart  (body: {"forceRestart": bool})
+func (c *Client) RestartNode(ctx context.Context, uuid string, forceRestart bool) (*Node, error) {
+	var out Node
+	body := map[string]bool{"forceRestart": forceRestart}
+	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/actions/%s/restart", uuid), body, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ResetNodeTraffic resets the traffic counter for a node.
+// POST /api/nodes/actions/:uuid/reset-traffic
+func (c *Client) ResetNodeTraffic(ctx context.Context, uuid string) (*Node, error) {
+	var out Node
+	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/actions/%s/reset-traffic", uuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // ─── Host API ───
 
 func (c *Client) CreateHost(ctx context.Context, host *Host) (*Host, error) {
