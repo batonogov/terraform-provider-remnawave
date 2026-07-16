@@ -66,6 +66,21 @@ func TestAccApiTokenResource(t *testing.T) {
 	endpoint, authBlock := testAccProviderBlock()
 	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
 
+	checks := []resource.TestCheckFunc{
+		resource.TestCheckResourceAttrSet("remnawave_api_token.test", "uuid"),
+		resource.TestCheckResourceAttrSet("remnawave_api_token.test", "token"),
+		resource.TestCheckResourceAttr("remnawave_api_token.test", "name", "terraform-acceptance"),
+	}
+	// expire_at, expires_in_days, and scopes are 2.8.x-only — 2.7.x does not
+	// return them in the token response.
+	if !isBackend2_7() {
+		checks = append(checks,
+			resource.TestCheckResourceAttrSet("remnawave_api_token.test", "expire_at"),
+			resource.TestCheckResourceAttr("remnawave_api_token.test", "expires_in_days", "2"),
+			resource.TestCheckResourceAttr("remnawave_api_token.test", "scopes.#", "1"),
+		)
+	}
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
 		Steps: []resource.TestStep{{
@@ -76,14 +91,7 @@ resource "remnawave_api_token" "test" {
   scopes          = ["*"]
 }
 `,
-			Check: resource.ComposeAggregateTestCheckFunc(
-				resource.TestCheckResourceAttrSet("remnawave_api_token.test", "uuid"),
-				resource.TestCheckResourceAttrSet("remnawave_api_token.test", "token"),
-				resource.TestCheckResourceAttrSet("remnawave_api_token.test", "expire_at"),
-				resource.TestCheckResourceAttr("remnawave_api_token.test", "name", "terraform-acceptance"),
-				resource.TestCheckResourceAttr("remnawave_api_token.test", "expires_in_days", "2"),
-				resource.TestCheckResourceAttr("remnawave_api_token.test", "scopes.#", "1"),
-			),
+			Check: resource.ComposeAggregateTestCheckFunc(checks...),
 		}},
 	})
 }
