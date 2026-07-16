@@ -184,7 +184,7 @@ func (p *RemnawaveProvider) Resources(_ context.Context) []func() resource.Resou
 		NewUserMetadataResource,
 		NewNodeMetadataResource,
 		NewHwidDeviceResource,
-		NewNodeActionResource,
+		NewUserActionResource,
 	}
 }
 
