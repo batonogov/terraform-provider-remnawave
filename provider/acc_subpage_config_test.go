@@ -41,11 +41,12 @@ resource "remnawave_subpage_config" "test" {
 				),
 			},
 			{
-				ResourceName:            "remnawave_subpage_config.test",
-				ImportState:             true,
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"updated_at"},
-				ImportStateIdFunc:       resourceUUIDImportStateID("remnawave_subpage_config.test"),
+				ResourceName:                         "remnawave_subpage_config.test",
+				ImportState:                          true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
+				ImportStateVerify:                    true,
+				ImportStateVerifyIgnore:              []string{"updated_at"},
+				ImportStateIdFunc:                    resourceUUIDImportStateID("remnawave_subpage_config.test"),
 			},
 		},
 	})

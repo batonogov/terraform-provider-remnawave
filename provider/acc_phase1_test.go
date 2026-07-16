@@ -55,11 +55,12 @@ resource "remnawave_subscription_settings" "test" {
 				),
 			},
 			{
-				ResourceName:            "remnawave_subscription_settings.test",
-				ImportState:             true,
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"updated_at"},
-				ImportStateIdFunc:       staticImportStateID("settings"),
+				ResourceName:                         "remnawave_subscription_settings.test",
+				ImportState:                          true,
+				ImportStateVerifyIdentifierAttribute: "uuid",
+				ImportStateVerify:                    true,
+				ImportStateVerifyIgnore:              []string{"updated_at"},
+				ImportStateIdFunc:                    staticImportStateID("settings"),
 			},
 		},
 	})
