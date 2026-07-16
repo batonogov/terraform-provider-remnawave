@@ -76,10 +76,10 @@ resource "remnawave_node_plugin" "test" {
 resource "remnawave_node_plugin" "test" {
   name          = "test-plugin"
   plugin_config = jsonencode({
-    sharedLists = [{ name = "blocked-list", type = "file", values = ["example.com"] }]
+    sharedLists = []
     connectionDrop = {
-      enabled      = false
-      whitelistIps = []
+      enabled      = true
+      whitelistIps = ["10.0.0.0/8"]
     }
   })
 }
