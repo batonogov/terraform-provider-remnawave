@@ -19,10 +19,11 @@ resource "remnawave_infra_provider" "test" {
   name = "billing-test"
 }
 resource "remnawave_node" "billing" {
-  name                = "billing-node"
-  address             = "10.20.30.40"
-  port                = 5555
-  config_profile_uuid = remnawave_config_profile.profile.uuid
+  name                    = "billing-node"
+  address                 = "10.20.30.40"
+  port                    = 5555
+  config_profile_uuid     = remnawave_config_profile.profile.uuid
+  config_profile_inbounds = [remnawave_config_profile.profile.inbounds[0].uuid]
 }
 resource "remnawave_billing_node" "test" {
   provider_uuid   = remnawave_infra_provider.test.uuid
