@@ -104,13 +104,15 @@ func TestAccNodeExtendedFields(t *testing.T) {
 
 	checks := []resource.TestCheckFunc{
 		resource.TestCheckResourceAttrSet("remnawave_node.test", "uuid"),
-		resource.TestCheckResourceAttr("remnawave_node.test", "node_consumption_multiplier", "1.5"),
+
 		resource.TestCheckResourceAttr("remnawave_node.test", "traffic_used_bytes", "0"),
 	}
-	// proxy_url is 2.8.x-only — 2.7.x strips it silently and returns null.
+	// proxy_url and node_consumption_multiplier are 2.8.x-only — 2.7.x strips
+	// them silently and returns null.
 	if !isBackend2_7() {
 		checks = append(checks,
 			resource.TestCheckResourceAttr("remnawave_node.test", "proxy_url", "socks5://user:pass@10.0.0.1:1080"),
+			resource.TestCheckResourceAttr("remnawave_node.test", "node_consumption_multiplier", "1.5"),
 		)
 	}
 
