@@ -102,6 +102,18 @@ func TestAccNodeExtendedFields(t *testing.T) {
 	endpoint, authBlock := testAccProviderBlock()
 	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
 
+	checks := []resource.TestCheckFunc{
+		resource.TestCheckResourceAttrSet("remnawave_node.test", "uuid"),
+		resource.TestCheckResourceAttr("remnawave_node.test", "node_consumption_multiplier", "1.5"),
+		resource.TestCheckResourceAttr("remnawave_node.test", "traffic_used_bytes", "0"),
+	}
+	// proxy_url is 2.8.x-only — 2.7.x strips it silently and returns null.
+	if !isBackend2_7() {
+		checks = append(checks,
+			resource.TestCheckResourceAttr("remnawave_node.test", "proxy_url", "socks5://user:pass@10.0.0.1:1080"),
+		)
+	}
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
 		Steps: []resource.TestStep{
@@ -117,12 +129,7 @@ resource "remnawave_node" "test" {
   config_profile_inbounds      = [remnawave_config_profile.profile.inbounds[0].uuid]
 }
 `,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("remnawave_node.test", "uuid"),
-					resource.TestCheckResourceAttr("remnawave_node.test", "proxy_url", "socks5://user:pass@10.0.0.1:1080"),
-					resource.TestCheckResourceAttr("remnawave_node.test", "node_consumption_multiplier", "1.5"),
-					resource.TestCheckResourceAttr("remnawave_node.test", "traffic_used_bytes", "0"),
-				),
+				Check: resource.ComposeAggregateTestCheckFunc(checks...),
 			},
 		},
 	})
