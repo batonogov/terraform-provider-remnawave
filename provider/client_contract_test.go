@@ -242,3 +242,231 @@ func clientContractMethodName(caseName string) string {
 		return caseName
 	}
 }
+
+// captureRequestServer returns a test server that records every request body
+// it receives on the given path/method, so callers can inspect the exact JSON
+// field names the provider serializes.
+func captureRequestServer(t *testing.T, method, path string, captured *[]byte) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/system/metadata" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"response":{"version":"2.8.0"}}`)
+			return
+		}
+		if r.Method != method {
+			t.Errorf("method = %s, want %s", r.Method, method)
+		}
+		if r.URL.Path != path {
+			t.Errorf("path = %q, want %q", r.URL.Path, path)
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read body: %v", err)
+		}
+		*captured = body
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"response":{}}`)
+	}))
+}
+
+// TestNodeCreateContract verifies the JSON field names sent to POST /api/nodes.
+// Drift in any of: name, address, port, configProfile.activeConfigProfileUuid,
+// configProfile.activeInbounds[] would break node creation.
+func TestNodeCreateContract(t *testing.T) {
+	var captured []byte
+	server := captureRequestServer(t, http.MethodPost, "/api/nodes", &captured)
+	defer server.Close()
+
+	client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "contract-token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	port := 443
+	_, err = client.CreateNode(context.Background(), &Node{
+		Name:    "test-node",
+		Address: "10.0.0.1",
+		Port:    &port,
+		ConfigProfile: &NodeConfigProfile{
+			ActiveConfigProfileUUID: "profile-uuid-123",
+			ActiveInbounds:          []NodeConfigProfileInbound{{UUID: "inbound-uuid-1"}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateNode() error = %v", err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(captured, &got); err != nil {
+		t.Fatalf("decode request JSON: %v\nbody: %s", err, captured)
+	}
+
+	// Verify top-level fields the API requires.
+	for _, k := range []string{"name", "address", "port", "configProfile"} {
+		if _, ok := got[k]; !ok {
+			t.Errorf("expected top-level JSON key %q in node create body, got: %s", k, captured)
+		}
+	}
+
+	// Verify nested configProfile fields.
+	cp, ok := got["configProfile"].(map[string]any)
+	if !ok {
+		t.Fatalf("configProfile is not an object, got: %s", captured)
+	}
+	for _, k := range []string{"activeConfigProfileUuid", "activeInbounds"} {
+		if _, ok := cp[k]; !ok {
+			t.Errorf("expected configProfile.%s in node create body, got: %s", k, captured)
+		}
+	}
+
+	// Verify activeInbounds is an array (elements serialize to UUID strings).
+	inbounds, ok := cp["activeInbounds"].([]any)
+	if !ok {
+		t.Fatalf("activeInbounds is not an array, got: %s", captured)
+	}
+	if len(inbounds) != 1 {
+		t.Errorf("expected 1 inbound, got %d", len(inbounds))
+	}
+	if v, ok := inbounds[0].(string); !ok || v != "inbound-uuid-1" {
+		t.Errorf("expected activeInbounds[0] = \"inbound-uuid-1\", got: %v", inbounds[0])
+	}
+}
+
+// TestHostCreateContract verifies the JSON field names sent to POST /api/hosts.
+// Drift in: remark, address, port, securityLayer, inbound.configProfileUuid
+// would break host creation.
+func TestHostCreateContract(t *testing.T) {
+	var captured []byte
+	server := captureRequestServer(t, http.MethodPost, "/api/hosts", &captured)
+	defer server.Close()
+
+	client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "contract-token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = client.CreateHost(context.Background(), &Host{
+		Remark:        "test-host",
+		Address:       "host.example.com",
+		Port:          443,
+		SecurityLayer: "tls",
+		Inbound: &HostInbound{
+			ConfigProfileUUID:        "profile-uuid-456",
+			ConfigProfileInboundUUID: "inbound-uuid-2",
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateHost() error = %v", err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(captured, &got); err != nil {
+		t.Fatalf("decode request JSON: %v\nbody: %s", err, captured)
+	}
+
+	// Verify top-level fields the API requires.
+	for _, k := range []string{"remark", "address", "port", "securityLayer", "inbound"} {
+		if _, ok := got[k]; !ok {
+			t.Errorf("expected top-level JSON key %q in host create body, got: %s", k, captured)
+		}
+	}
+
+	// Verify nested inbound fields.
+	inb, ok := got["inbound"].(map[string]any)
+	if !ok {
+		t.Fatalf("inbound is not an object, got: %s", captured)
+	}
+	for _, k := range []string{"configProfileUuid", "configProfileInboundUuid"} {
+		if _, ok := inb[k]; !ok {
+			t.Errorf("expected inbound.%s in host create body, got: %s", k, captured)
+		}
+	}
+}
+
+// TestUserCreateContract verifies the JSON field names sent to POST /api/users.
+// Drift in: username, expireAt, trafficLimitBytes would break user creation.
+func TestUserCreateContract(t *testing.T) {
+	var captured []byte
+	server := captureRequestServer(t, http.MethodPost, "/api/users", &captured)
+	defer server.Close()
+
+	client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "contract-token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = client.CreateUser(context.Background(), &User{
+		Username:          "testuser",
+		ExpireAt:          "2027-01-01T00:00:00Z",
+		TrafficLimitBytes: 10737418240,
+	})
+	if err != nil {
+		t.Fatalf("CreateUser() error = %v", err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(captured, &got); err != nil {
+		t.Fatalf("decode request JSON: %v\nbody: %s", err, captured)
+	}
+
+	// Verify the exact field names the API expects.
+	for _, k := range []string{"username", "expireAt", "trafficLimitBytes"} {
+		if _, ok := got[k]; !ok {
+			t.Errorf("expected JSON key %q in user create body, got: %s", k, captured)
+		}
+	}
+
+	// Spot-check values to ensure correct serialization.
+	if v, ok := got["username"].(string); !ok || v != "testuser" {
+		t.Errorf("username = %v, want \"testuser\"", got["username"])
+	}
+	if v, ok := got["expireAt"].(string); !ok || v != "2027-01-01T00:00:00Z" {
+		t.Errorf("expireAt = %v, want \"2027-01-01T00:00:00Z\"", got["expireAt"])
+	}
+}
+
+// TestSubscriptionSettingsUpdateContract verifies the JSON field names sent to
+// PATCH /api/subscription-settings. Drift in: profileTitle, supportLink would
+// break subscription settings updates.
+func TestSubscriptionSettingsUpdateContract(t *testing.T) {
+	var captured []byte
+	server := captureRequestServer(t, http.MethodPatch, "/api/subscription-settings", &captured)
+	defer server.Close()
+
+	client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "contract-token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	profileTitle := "My Subscription"
+	supportLink := "https://t.me/support"
+	_, err = client.UpdateSubscriptionSettings(context.Background(), &SubscriptionSettings{
+		UUID:         "settings-uuid",
+		ProfileTitle: &profileTitle,
+		SupportLink:  &supportLink,
+	})
+	if err != nil {
+		t.Fatalf("UpdateSubscriptionSettings() error = %v", err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(captured, &got); err != nil {
+		t.Fatalf("decode request JSON: %v\nbody: %s", err, captured)
+	}
+
+	// Verify the exact field names the API expects.
+	for _, k := range []string{"profileTitle", "supportLink"} {
+		if _, ok := got[k]; !ok {
+			t.Errorf("expected JSON key %q in subscription settings update body, got: %s", k, captured)
+		}
+	}
+
+	// Spot-check values.
+	if v, ok := got["profileTitle"].(string); !ok || v != "My Subscription" {
+		t.Errorf("profileTitle = %v, want \"My Subscription\"", got["profileTitle"])
+	}
+	if v, ok := got["supportLink"].(string); !ok || v != "https://t.me/support" {
+		t.Errorf("supportLink = %v, want \"https://t.me/support\"", got["supportLink"])
+	}
+}
