@@ -85,7 +85,7 @@ resource "remnawave_node_plugin" "test" {
 }
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("remnawave_node_plugin.test", "name", "test-plugin"),
+					resource.TestCheckResourceAttr("remnawave_node_plugin.test", "name", "test-plugin-updated"),
 					resource.TestCheckResourceAttrSet("remnawave_node_plugin.test", "plugin_config"),
 				),
 			},
