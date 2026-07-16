@@ -117,12 +117,16 @@ func TestAccPanelSettingsResource(t *testing.T) {
 		Steps: []resource.TestStep{{
 			Config: providerCfg + `
 resource "remnawave_panel_settings" "test" {
-  branding_title = "My Panel"
+  branding_title     = "My Panel"
+  branding_logo_url  = "https://example.com/logo.png"
+  password_auth_enabled = true
 }
 `,
 			Check: resource.ComposeAggregateTestCheckFunc(
 				resource.TestCheckResourceAttr("remnawave_panel_settings.test", "id", "settings"),
 				resource.TestCheckResourceAttr("remnawave_panel_settings.test", "branding_title", "My Panel"),
+				resource.TestCheckResourceAttr("remnawave_panel_settings.test", "branding_logo_url", "https://example.com/logo.png"),
+				resource.TestCheckResourceAttr("remnawave_panel_settings.test", "password_auth_enabled", "true"),
 			),
 		}},
 	})
