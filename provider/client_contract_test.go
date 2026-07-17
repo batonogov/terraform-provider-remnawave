@@ -137,7 +137,7 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "GetUserHwidDevices", method: http.MethodGet, path: "/api/hwid/devices/item-id", args: []any{"item-id"}},
 		{name: "GetHwidStats", method: http.MethodGet, path: "/api/hwid/devices/stats"},
 		{name: "GetHwidTopUsers", method: http.MethodGet, path: "/api/hwid/devices/top-users"},
-		{name: "UserAction", method: http.MethodPost, path: "/api/users/actions/item-id/reset-traffic", args: []any{"item-id", "reset_traffic"}, noBody: true},
+		{name: "UserAction", method: http.MethodPost, path: "/api/users/item-id/actions/reset-traffic", args: []any{"item-id", "reset_traffic"}, noBody: true},
 		{name: "EnableNode", method: http.MethodPost, path: "/api/nodes/actions/item-id/enable", args: []any{"item-id"}, noBody: true},
 		{name: "DisableNode", method: http.MethodPost, path: "/api/nodes/actions/item-id/disable", args: []any{"item-id"}, noBody: true},
 		{name: "RestartNode", method: http.MethodPost, path: "/api/nodes/actions/item-id/restart", args: []any{"item-id", true}, wantJSON: map[string]any{"forceRestart": true}},

@@ -456,20 +456,20 @@ func (c *Client) GetAllUsers(ctx context.Context) ([]User, error) {
 
 // userActionEndpoint maps a user action string to its REST endpoint suffix.
 var userActionEndpoint = map[string]string{
-	"enable":               "enable",
-	"disable":              "disable",
-	"reset_traffic":        "reset-traffic",
-	"revoke_subscription":  "revoke-subscription",
+	"enable":              "enable",
+	"disable":             "disable",
+	"reset_traffic":       "reset-traffic",
+	"revoke_subscription": "revoke",
 }
 
 // UserAction performs an imperative action (enable, disable, reset_traffic,
-// revoke_subscription) on a user via POST /api/users/actions/:uuid/:action.
+// revoke_subscription) on a user via POST /api/users/:uuid/actions/:action.
 func (c *Client) UserAction(ctx context.Context, userUUID, action string) error {
 	suffix, ok := userActionEndpoint[action]
 	if !ok {
 		return fmt.Errorf("unknown user action %q: must be one of enable, disable, reset_traffic, revoke_subscription", action)
 	}
-	path := fmt.Sprintf("/api/users/actions/%s/%s", userUUID, suffix)
+	path := fmt.Sprintf("/api/users/%s/actions/%s", userUUID, suffix)
 	return c.doRequest(ctx, http.MethodPost, path, nil, nil)
 }
 
