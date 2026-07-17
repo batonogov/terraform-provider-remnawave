@@ -140,6 +140,9 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "GetHwidTopUsers", method: http.MethodGet, path: "/api/hwid/devices/top-users"},
 		{name: "FetchUserIPs", method: http.MethodPost, path: "/api/ip-control/fetch-ips/item-id", args: []any{"item-id"}, noBody: true, mockResponse: `{"response":{"jobId":"job-1","status":"completed","ips":[]}}`},
 		{name: "DropConnections", method: http.MethodPost, path: "/api/ip-control/drop-connections", args: []any{"item-id"}, wantJSON: map[string]any{"userUuid": "item-id"}},
+
+		{name: "GetAllPasskeys", method: http.MethodGet, path: "/api/passkeys"},
+		{name: "DeletePasskey", method: http.MethodDelete, path: "/api/passkeys/item-id", args: []any{"item-id"}},
 	}
 	coveredMethods := make(map[string]struct{}, len(tests))
 	for _, tt := range tests {
@@ -210,7 +213,7 @@ func TestClientAPIContracts(t *testing.T) {
 
 				w.Header().Set("Content-Type", "application/json")
 				response := `{}`
-				if tt.name == "GetAllNodes" || tt.name == "GetAllHosts" {
+				if tt.name == "GetAllNodes" || tt.name == "GetAllHosts" || tt.name == "GetAllPasskeys" {
 					response = `[]`
 				}
 				if tt.mockResponse != "" {
