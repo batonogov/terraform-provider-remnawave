@@ -147,6 +147,8 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "FetchNodeUsersIPs", method: http.MethodPost, path: "/api/ip-control/fetch-users-ips/item-id", args: []any{"item-id"}, noBody: true},
 		{name: "FetchNodeUsersIPsResult", method: http.MethodGet, path: "/api/ip-control/fetch-users-ips-result/job-1", args: []any{"job-1"}},
 		{name: "DropUserConnections", method: http.MethodPost, path: "/api/ip-control/drop-connections", args: []any{"item-id"}, wantJSON: map[string]any{"userUuid": "item-id"}},
+		{name: "GetAllPasskeys", method: http.MethodGet, path: "/api/passkeys"},
+		{name: "DeletePasskey", method: http.MethodDelete, path: "/api/passkeys/item-id", args: []any{"item-id"}},
 	}
 	coveredMethods := make(map[string]struct{}, len(tests))
 	for _, tt := range tests {
@@ -212,7 +214,7 @@ func TestClientAPIContracts(t *testing.T) {
 
 				w.Header().Set("Content-Type", "application/json")
 				response := `{}`
-				if tt.name == "GetAllNodes" || tt.name == "GetAllHosts" {
+				if tt.name == "GetAllNodes" || tt.name == "GetAllHosts" || tt.name == "GetAllPasskeys" {
 					response = `[]`
 				}
 				_, _ = io.WriteString(w, `{"response":`+response+`}`)
