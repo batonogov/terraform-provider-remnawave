@@ -493,41 +493,41 @@ func (c *Client) DeleteNode(ctx context.Context, uuid string) error {
 // ─── Node Actions API ───
 
 // EnableNode enables (un-disables) a node.
-// POST /api/nodes/actions/:uuid/enable
+// POST /api/nodes/:uuid/actions/enable
 func (c *Client) EnableNode(ctx context.Context, uuid string) (*Node, error) {
 	var out Node
-	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/actions/%s/enable", uuid), nil, &out); err != nil {
+	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/%s/actions/enable", uuid), nil, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
 }
 
 // DisableNode administratively disables a node.
-// POST /api/nodes/actions/:uuid/disable
+// POST /api/nodes/:uuid/actions/disable
 func (c *Client) DisableNode(ctx context.Context, uuid string) (*Node, error) {
 	var out Node
-	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/actions/%s/disable", uuid), nil, &out); err != nil {
+	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/%s/actions/disable", uuid), nil, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
 }
 
 // RestartNode restarts the Xray backend on a node.
-// POST /api/nodes/actions/:uuid/restart  (body: {"forceRestart": bool})
+// POST /api/nodes/:uuid/actions/restart  (body: {"forceRestart": bool})
 func (c *Client) RestartNode(ctx context.Context, uuid string, forceRestart bool) (*Node, error) {
 	var out Node
 	body := map[string]bool{"forceRestart": forceRestart}
-	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/actions/%s/restart", uuid), body, &out); err != nil {
+	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/%s/actions/restart", uuid), body, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
 }
 
 // ResetNodeTraffic resets the traffic counter for a node.
-// POST /api/nodes/actions/:uuid/reset-traffic
+// POST /api/nodes/:uuid/actions/reset-traffic
 func (c *Client) ResetNodeTraffic(ctx context.Context, uuid string) (*Node, error) {
 	var out Node
-	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/actions/%s/reset-traffic", uuid), nil, &out); err != nil {
+	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/%s/actions/reset-traffic", uuid), nil, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
