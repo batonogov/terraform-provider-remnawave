@@ -511,29 +511,47 @@ func (c *Client) DeleteNode(ctx context.Context, uuid string) error {
 	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/nodes/%s", uuid), nil, nil)
 }
 
-// ─── Node Action API ───
+// ─── Node Actions API ───
 
-// EnableNode enables a node via POST /api/nodes/actions/:uuid/enable.
-func (c *Client) EnableNode(ctx context.Context, uuid string) error {
-	return c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/actions/%s/enable", uuid), nil, nil)
+// EnableNode enables (un-disables) a node.
+// POST /api/nodes/:uuid/actions/enable
+func (c *Client) EnableNode(ctx context.Context, uuid string) (*Node, error) {
+	var out Node
+	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/%s/actions/enable", uuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
-// DisableNode disables a node via POST /api/nodes/actions/:uuid/disable.
-func (c *Client) DisableNode(ctx context.Context, uuid string) error {
-	return c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/actions/%s/disable", uuid), nil, nil)
+// DisableNode administratively disables a node.
+// POST /api/nodes/:uuid/actions/disable
+func (c *Client) DisableNode(ctx context.Context, uuid string) (*Node, error) {
+	var out Node
+	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/%s/actions/disable", uuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
-// RestartNode restarts a node via POST /api/nodes/actions/:uuid/restart.
-// The forceRestart flag forces the restart even when the node is healthy.
-func (c *Client) RestartNode(ctx context.Context, uuid string, forceRestart bool) error {
+// RestartNode restarts the Xray backend on a node.
+// POST /api/nodes/:uuid/actions/restart  (body: {"forceRestart": bool})
+func (c *Client) RestartNode(ctx context.Context, uuid string, forceRestart bool) (*Node, error) {
+	var out Node
 	body := map[string]bool{"forceRestart": forceRestart}
-	return c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/actions/%s/restart", uuid), body, nil)
+	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/%s/actions/restart", uuid), body, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
-// ResetNodeTraffic resets traffic counters for a node via
-// POST /api/nodes/actions/:uuid/reset-traffic.
-func (c *Client) ResetNodeTraffic(ctx context.Context, uuid string) error {
-	return c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/actions/%s/reset-traffic", uuid), nil, nil)
+// ResetNodeTraffic resets the traffic counter for a node.
+// POST /api/nodes/:uuid/actions/reset-traffic
+func (c *Client) ResetNodeTraffic(ctx context.Context, uuid string) (*Node, error) {
+	var out Node
+	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/%s/actions/reset-traffic", uuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // ─── Host API ───
