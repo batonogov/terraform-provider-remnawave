@@ -25,7 +25,13 @@ output "passkey_count" {
 
 ### Read-Only
 
-- `passkeys` (List of Object) List of passkeys.
-  - `uuid` (String) Passkey UUID.
-  - `name` (String) Human-readable passkey name.
-  - `created_at` (String) Creation timestamp.
+- `passkeys` (Attributes List) (see [below for nested schema](#nestedatt--passkeys))
+
+<a id="nestedatt--passkeys"></a>
+### Nested Schema for `passkeys`
+
+Read-Only:
+
+- `created_at` (String) Creation timestamp.
+- `name` (String) Human-readable passkey name.
+- `uuid` (String) Passkey UUID.
