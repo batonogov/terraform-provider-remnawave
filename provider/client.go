@@ -452,6 +452,27 @@ func (c *Client) GetAllUsers(ctx context.Context) ([]User, error) {
 	return out.Users, nil
 }
 
+// ─── User Actions API ───
+
+// userActionEndpoint maps a user action string to its REST endpoint suffix.
+var userActionEndpoint = map[string]string{
+	"enable":              "enable",
+	"disable":             "disable",
+	"reset_traffic":       "reset-traffic",
+	"revoke_subscription": "revoke",
+}
+
+// UserAction performs an imperative action (enable, disable, reset_traffic,
+// revoke_subscription) on a user via POST /api/users/:uuid/actions/:action.
+func (c *Client) UserAction(ctx context.Context, userUUID, action string) error {
+	suffix, ok := userActionEndpoint[action]
+	if !ok {
+		return fmt.Errorf("unknown user action %q: must be one of enable, disable, reset_traffic, revoke_subscription", action)
+	}
+	path := fmt.Sprintf("/api/users/%s/actions/%s", userUUID, suffix)
+	return c.doRequest(ctx, http.MethodPost, path, nil, nil)
+}
+
 // ─── Node API ───
 
 func (c *Client) CreateNode(ctx context.Context, node *Node) (*Node, error) {
@@ -1258,6 +1279,56 @@ func (c *Client) GetHwidStats(ctx context.Context) (map[string]any, error) {
 func (c *Client) GetHwidTopUsers(ctx context.Context) (map[string]any, error) {
 	var out map[string]any
 	if err := c.doRequest(ctx, http.MethodGet, "/api/hwid/devices/top-users", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ─── IP Control API ───
+
+// FetchUserIPs starts an async job to fetch active IPs for a user.
+// Returns the job response (contains a jobId for polling the result).
+func (c *Client) FetchUserIPs(ctx context.Context, userUuid string) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/ip-control/fetch-ips/%s", userUuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// FetchUserIPsResult retrieves the result of a fetch-ips job.
+func (c *Client) FetchUserIPsResult(ctx context.Context, jobId string) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/ip-control/fetch-ips-result/%s", jobId), nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// DropUserConnections drops all active connections for a user.
+func (c *Client) DropUserConnections(ctx context.Context, userUuid string) (map[string]any, error) {
+	body := map[string]string{"userUuid": userUuid}
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodPost, "/api/ip-control/drop-connections", body, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// FetchNodeUsersIPs starts an async job to fetch active IPs for all users on a node.
+// Returns the job response (contains a jobId for polling the result).
+func (c *Client) FetchNodeUsersIPs(ctx context.Context, nodeUuid string) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/ip-control/fetch-users-ips/%s", nodeUuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// FetchNodeUsersIPsResult retrieves the result of a fetch-users-ips job.
+func (c *Client) FetchNodeUsersIPsResult(ctx context.Context, jobId string) (map[string]any, error) {
+	var out map[string]any
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/ip-control/fetch-users-ips-result/%s", jobId), nil, &out); err != nil {
 		return nil, err
 	}
 	return out, nil

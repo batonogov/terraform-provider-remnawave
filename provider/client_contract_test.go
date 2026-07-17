@@ -141,7 +141,12 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "GetUserHwidDevices", method: http.MethodGet, path: "/api/hwid/devices/item-id", args: []any{"item-id"}},
 		{name: "GetHwidStats", method: http.MethodGet, path: "/api/hwid/devices/stats"},
 		{name: "GetHwidTopUsers", method: http.MethodGet, path: "/api/hwid/devices/top-users"},
-
+		{name: "UserAction", method: http.MethodPost, path: "/api/users/item-id/actions/reset-traffic", args: []any{"item-id", "reset_traffic"}, noBody: true},
+		{name: "FetchUserIPs", method: http.MethodPost, path: "/api/ip-control/fetch-ips/item-id", args: []any{"item-id"}, noBody: true},
+		{name: "FetchUserIPsResult", method: http.MethodGet, path: "/api/ip-control/fetch-ips-result/job-1", args: []any{"job-1"}},
+		{name: "FetchNodeUsersIPs", method: http.MethodPost, path: "/api/ip-control/fetch-users-ips/item-id", args: []any{"item-id"}, noBody: true},
+		{name: "FetchNodeUsersIPsResult", method: http.MethodGet, path: "/api/ip-control/fetch-users-ips-result/job-1", args: []any{"job-1"}},
+		{name: "DropUserConnections", method: http.MethodPost, path: "/api/ip-control/drop-connections", args: []any{"item-id"}, wantJSON: map[string]any{"userUuid": "item-id"}},
 		{name: "GetAllPasskeys", method: http.MethodGet, path: "/api/passkeys"},
 		{name: "DeletePasskey", method: http.MethodDelete, path: "/api/passkeys/item-id", args: []any{"item-id"}},
 	}
