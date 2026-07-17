@@ -17,6 +17,7 @@ type clientContractCase struct {
 	query    map[string]string
 	args     []any
 	wantJSON map[string]any
+	noBody   bool
 }
 
 // TestClientAPIContracts exercises every exported API operation against a
@@ -140,7 +141,16 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "GetUserHwidDevices", method: http.MethodGet, path: "/api/hwid/devices/item-id", args: []any{"item-id"}},
 		{name: "GetHwidStats", method: http.MethodGet, path: "/api/hwid/devices/stats"},
 		{name: "GetHwidTopUsers", method: http.MethodGet, path: "/api/hwid/devices/top-users"},
-
+		{name: "UserAction", method: http.MethodPost, path: "/api/users/item-id/actions/reset-traffic", args: []any{"item-id", "reset_traffic"}, noBody: true},
+		{name: "EnableNode", method: http.MethodPost, path: "/api/nodes/actions/item-id/enable", args: []any{"item-id"}, noBody: true},
+		{name: "DisableNode", method: http.MethodPost, path: "/api/nodes/actions/item-id/disable", args: []any{"item-id"}, noBody: true},
+		{name: "RestartNode", method: http.MethodPost, path: "/api/nodes/actions/item-id/restart", args: []any{"item-id", true}, wantJSON: map[string]any{"forceRestart": true}},
+		{name: "ResetNodeTraffic", method: http.MethodPost, path: "/api/nodes/actions/item-id/reset-traffic", args: []any{"item-id"}, noBody: true},
+		{name: "FetchUserIPs", method: http.MethodPost, path: "/api/ip-control/fetch-ips/item-id", args: []any{"item-id"}, noBody: true},
+		{name: "FetchUserIPsResult", method: http.MethodGet, path: "/api/ip-control/fetch-ips-result/job-1", args: []any{"job-1"}},
+		{name: "FetchNodeUsersIPs", method: http.MethodPost, path: "/api/ip-control/fetch-users-ips/item-id", args: []any{"item-id"}, noBody: true},
+		{name: "FetchNodeUsersIPsResult", method: http.MethodGet, path: "/api/ip-control/fetch-users-ips-result/job-1", args: []any{"job-1"}},
+		{name: "DropUserConnections", method: http.MethodPost, path: "/api/ip-control/drop-connections", args: []any{"item-id"}, wantJSON: map[string]any{"userUuid": "item-id"}},
 		{name: "GetAllPasskeys", method: http.MethodGet, path: "/api/passkeys"},
 		{name: "DeletePasskey", method: http.MethodDelete, path: "/api/passkeys/item-id", args: []any{"item-id"}},
 	}
@@ -190,7 +200,7 @@ func TestClientAPIContracts(t *testing.T) {
 				if err != nil {
 					t.Errorf("read body: %v", err)
 				}
-				wantBody := tt.method == http.MethodPost || tt.method == http.MethodPatch || tt.method == http.MethodPut || tt.wantJSON != nil
+				wantBody := !tt.noBody && (tt.method == http.MethodPost || tt.method == http.MethodPatch || tt.method == http.MethodPut || tt.wantJSON != nil)
 				if wantBody && len(body) == 0 {
 					t.Errorf("request body is empty")
 				}
