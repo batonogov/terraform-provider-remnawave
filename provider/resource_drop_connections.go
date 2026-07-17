@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -136,7 +135,7 @@ func computeDropConnectionsID(m *dropConnectionsModel) string {
 		// Triggers is a map; the framework ensures deterministic encoding via
 		// Elements() iteration but we just need stability, so write the raw
 		// string representation.
-		h.Write([]byte(fmt.Sprintf("%v", m.Triggers.String())))
+		h.Write([]byte(m.Triggers.String()))
 	}
 	return hex.EncodeToString(h.Sum(nil))[:16]
 }
