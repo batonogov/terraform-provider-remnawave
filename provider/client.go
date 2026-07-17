@@ -1292,50 +1292,65 @@ func (c *Client) GetHwidTopUsers(ctx context.Context) (map[string]any, error) {
 
 // ─── IP Control API ───
 
-// FetchUserIPs starts an async job to fetch active IPs for a user.
-// Returns the job response (contains a jobId for polling the result).
-func (c *Client) FetchUserIPs(ctx context.Context, userUuid string) (map[string]any, error) {
-	var out map[string]any
-	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/ip-control/fetch-ips/%s", userUuid), nil, &out); err != nil {
-		return nil, err
-	}
-	return out, nil
+// ipControlJobResponse is the response from POST /api/ip-control/fetch-ips/:uuid.
+type ipControlJobResponse struct {
+	JobID string `json:"jobId"`
 }
 
-// FetchUserIPsResult retrieves the result of a fetch-ips job.
-func (c *Client) FetchUserIPsResult(ctx context.Context, jobId string) (map[string]any, error) {
-	var out map[string]any
-	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/ip-control/fetch-ips-result/%s", jobId), nil, &out); err != nil {
-		return nil, err
-	}
-	return out, nil
+// ipControlJobResult is the response from GET /api/ip-control/fetch-ips-result/:jobId.
+// The status field transitions through "pending"/"processing" to "completed".
+// When completed, ips contains the list of IPs the user is connected from.
+type ipControlJobResult struct {
+	Status string   `json:"status"`
+	IPs    []string `json:"ips"`
 }
 
-// DropUserConnections drops all active connections for a user.
-func (c *Client) DropUserConnections(ctx context.Context, userUuid string) (map[string]any, error) {
-	body := map[string]string{"userUuid": userUuid}
-	var out map[string]any
-	if err := c.doRequest(ctx, http.MethodPost, "/api/ip-control/drop-connections", body, &out); err != nil {
-		return nil, err
+// FetchUserIPs initiates an async job to fetch the IPs a user is connected
+// from, then polls for the result until it completes or the context is
+// cancelled. It returns the list of IPs.
+func (c *Client) FetchUserIPs(ctx context.Context, userUUID string) ([]string, error) {
+	// 1. Start the job
+	var jobResp ipControlJobResponse
+	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/ip-control/fetch-ips/%s", userUUID), nil, &jobResp); err != nil {
+		return nil, fmt.Errorf("failed to start fetch-ips job: %w", err)
 	}
-	return out, nil
+	if jobResp.JobID == "" {
+		return nil, errors.New("fetch-ips job started but no jobId returned")
+	}
+
+	// 2. Poll for the result
+	const (
+		pollInterval = 2 * time.Second
+		pollTimeout  = 120 * time.Second
+	)
+	deadline := time.Now().Add(pollTimeout)
+	for {
+		var result ipControlJobResult
+		if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/ip-control/fetch-ips-result/%s", jobResp.JobID), nil, &result); err != nil {
+			return nil, fmt.Errorf("failed to fetch-ips-result for jobId %s: %w", jobResp.JobID, err)
+		}
+
+		// Check completion: status is "completed" (or absent with ips present).
+		status := strings.ToLower(result.Status)
+		if status == "completed" || status == "done" || status == "success" || (status == "" && result.IPs != nil) {
+			return result.IPs, nil
+		}
+
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf("timed out waiting for fetch-ips job %s after %s", jobResp.JobID, pollTimeout)
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(pollInterval):
+		}
+	}
 }
 
-// FetchNodeUsersIPs starts an async job to fetch active IPs for all users on a node.
-// Returns the job response (contains a jobId for polling the result).
-func (c *Client) FetchNodeUsersIPs(ctx context.Context, nodeUuid string) (map[string]any, error) {
-	var out map[string]any
-	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/ip-control/fetch-users-ips/%s", nodeUuid), nil, &out); err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// FetchNodeUsersIPsResult retrieves the result of a fetch-users-ips job.
-func (c *Client) FetchNodeUsersIPsResult(ctx context.Context, jobId string) (map[string]any, error) {
-	var out map[string]any
-	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/ip-control/fetch-users-ips-result/%s", jobId), nil, &out); err != nil {
-		return nil, err
-	}
-	return out, nil
+// DropConnections drops all active connections for the given user UUID.
+// This is an imperative action endpoint.
+func (c *Client) DropConnections(ctx context.Context, userUUID string) error {
+	body := map[string]string{"userUuid": userUUID}
+	return c.doRequest(ctx, http.MethodPost, "/api/ip-control/drop-connections", body, nil)
 }
