@@ -3,14 +3,12 @@
 page_title: "remnawave_host_bulk_action Resource - terraform-provider-remnawave"
 subcategory: ""
 description: |-
-  Performs a bulk operation (enable, disable, or delete) on one or more hosts.
+  Performs a bulk operation (enable, disable, or delete) on one or more hosts. This is an imperative resource: each apply triggers the action. Use triggers to force re-execution when external data changes.
 ---
 
 # remnawave_host_bulk_action (Resource)
 
-Performs a bulk operation (enable, disable, or delete) on one or more hosts.
-This is an imperative resource: each apply triggers the action.
-Use `triggers` to force re-execution when external data changes.
+Performs a bulk operation (enable, disable, or delete) on one or more hosts. This is an imperative resource: each apply triggers the action. Use `triggers` to force re-execution when external data changes.
 
 ## Example Usage
 
