@@ -863,6 +863,20 @@ func (c *Client) getAllApiTokensV27(ctx context.Context) ([]ApiToken, error) {
 	return tokens, nil
 }
 
+// ─── Passkey API ───
+
+func (c *Client) GetAllPasskeys(ctx context.Context) ([]Passkey, error) {
+	var out []Passkey
+	if err := c.doRequest(ctx, http.MethodGet, "/api/passkeys", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) DeletePasskey(ctx context.Context, uuid string) error {
+	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/passkeys/%s", uuid), nil, nil)
+}
+
 func (c *Client) GetSystemStats(ctx context.Context, tz string) (map[string]any, error) {
 	path := "/api/system/stats"
 	if tz != "" {
