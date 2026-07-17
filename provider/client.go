@@ -452,6 +452,27 @@ func (c *Client) GetAllUsers(ctx context.Context) ([]User, error) {
 	return out.Users, nil
 }
 
+// ─── User Actions API ───
+
+// userActionEndpoint maps a user action string to its REST endpoint suffix.
+var userActionEndpoint = map[string]string{
+	"enable":              "enable",
+	"disable":             "disable",
+	"reset_traffic":       "reset-traffic",
+	"revoke_subscription": "revoke",
+}
+
+// UserAction performs an imperative action (enable, disable, reset_traffic,
+// revoke_subscription) on a user via POST /api/users/:uuid/actions/:action.
+func (c *Client) UserAction(ctx context.Context, userUUID, action string) error {
+	suffix, ok := userActionEndpoint[action]
+	if !ok {
+		return fmt.Errorf("unknown user action %q: must be one of enable, disable, reset_traffic, revoke_subscription", action)
+	}
+	path := fmt.Sprintf("/api/users/%s/actions/%s", userUUID, suffix)
+	return c.doRequest(ctx, http.MethodPost, path, nil, nil)
+}
+
 // ─── Node API ───
 
 func (c *Client) CreateNode(ctx context.Context, node *Node) (*Node, error) {
@@ -488,6 +509,31 @@ func (c *Client) UpdateNode(ctx context.Context, node *Node) (*Node, error) {
 
 func (c *Client) DeleteNode(ctx context.Context, uuid string) error {
 	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/nodes/%s", uuid), nil, nil)
+}
+
+// ─── Node Action API ───
+
+// EnableNode enables a node via POST /api/nodes/actions/:uuid/enable.
+func (c *Client) EnableNode(ctx context.Context, uuid string) error {
+	return c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/actions/%s/enable", uuid), nil, nil)
+}
+
+// DisableNode disables a node via POST /api/nodes/actions/:uuid/disable.
+func (c *Client) DisableNode(ctx context.Context, uuid string) error {
+	return c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/actions/%s/disable", uuid), nil, nil)
+}
+
+// RestartNode restarts a node via POST /api/nodes/actions/:uuid/restart.
+// The forceRestart flag forces the restart even when the node is healthy.
+func (c *Client) RestartNode(ctx context.Context, uuid string, forceRestart bool) error {
+	body := map[string]bool{"forceRestart": forceRestart}
+	return c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/actions/%s/restart", uuid), body, nil)
+}
+
+// ResetNodeTraffic resets traffic counters for a node via
+// POST /api/nodes/actions/:uuid/reset-traffic.
+func (c *Client) ResetNodeTraffic(ctx context.Context, uuid string) error {
+	return c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/nodes/actions/%s/reset-traffic", uuid), nil, nil)
 }
 
 // ─── Host API ───

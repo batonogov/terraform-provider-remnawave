@@ -138,9 +138,13 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "GetUserHwidDevices", method: http.MethodGet, path: "/api/hwid/devices/item-id", args: []any{"item-id"}},
 		{name: "GetHwidStats", method: http.MethodGet, path: "/api/hwid/devices/stats"},
 		{name: "GetHwidTopUsers", method: http.MethodGet, path: "/api/hwid/devices/top-users"},
+		{name: "UserAction", method: http.MethodPost, path: "/api/users/item-id/actions/reset-traffic", args: []any{"item-id", "reset_traffic"}, noBody: true},
+		{name: "EnableNode", method: http.MethodPost, path: "/api/nodes/actions/item-id/enable", args: []any{"item-id"}, noBody: true},
+		{name: "DisableNode", method: http.MethodPost, path: "/api/nodes/actions/item-id/disable", args: []any{"item-id"}, noBody: true},
+		{name: "RestartNode", method: http.MethodPost, path: "/api/nodes/actions/item-id/restart", args: []any{"item-id", true}, wantJSON: map[string]any{"forceRestart": true}},
+		{name: "ResetNodeTraffic", method: http.MethodPost, path: "/api/nodes/actions/item-id/reset-traffic", args: []any{"item-id"}, noBody: true},
 		{name: "FetchUserIPs", method: http.MethodPost, path: "/api/ip-control/fetch-ips/item-id", args: []any{"item-id"}, noBody: true, mockResponse: `{"response":{"jobId":"job-1","status":"completed","ips":[]}}`},
 		{name: "DropConnections", method: http.MethodPost, path: "/api/ip-control/drop-connections", args: []any{"item-id"}, wantJSON: map[string]any{"userUuid": "item-id"}},
-
 		{name: "GetAllPasskeys", method: http.MethodGet, path: "/api/passkeys"},
 		{name: "DeletePasskey", method: http.MethodDelete, path: "/api/passkeys/item-id", args: []any{"item-id"}},
 	}
