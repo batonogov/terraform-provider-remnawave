@@ -337,3 +337,11 @@ type SubpageConfig struct {
 	Name   string `json:"name"`
 	Config any    `json:"config,omitempty"`
 }
+
+// Passkey maps to the Remnawave Passkey model.
+// API: /api/passkeys (GET list), DELETE /api/passkeys/:id, PATCH /api/passkeys/:id
+type Passkey struct {
+	UUID      string `json:"uuid,omitempty"`
+	Name      string `json:"name,omitempty"`
+	CreatedAt string `json:"createdAt,omitempty"`
+}
