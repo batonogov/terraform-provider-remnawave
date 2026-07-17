@@ -11,13 +11,14 @@ import (
 )
 
 type clientContractCase struct {
-	name     string
-	method   string
-	path     string
-	query    map[string]string
-	args     []any
-	wantJSON map[string]any
-	noBody   bool
+	name         string
+	method       string
+	path         string
+	query        map[string]string
+	args         []any
+	wantJSON     map[string]any
+	noBody       bool
+	mockResponse string
 }
 
 // TestClientAPIContracts exercises every exported API operation against a
@@ -142,11 +143,8 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "DisableNode", method: http.MethodPost, path: "/api/nodes/actions/item-id/disable", args: []any{"item-id"}, noBody: true},
 		{name: "RestartNode", method: http.MethodPost, path: "/api/nodes/actions/item-id/restart", args: []any{"item-id", true}, wantJSON: map[string]any{"forceRestart": true}},
 		{name: "ResetNodeTraffic", method: http.MethodPost, path: "/api/nodes/actions/item-id/reset-traffic", args: []any{"item-id"}, noBody: true},
-		{name: "FetchUserIPs", method: http.MethodPost, path: "/api/ip-control/fetch-ips/item-id", args: []any{"item-id"}, noBody: true},
-		{name: "FetchUserIPsResult", method: http.MethodGet, path: "/api/ip-control/fetch-ips-result/job-1", args: []any{"job-1"}},
-		{name: "FetchNodeUsersIPs", method: http.MethodPost, path: "/api/ip-control/fetch-users-ips/item-id", args: []any{"item-id"}, noBody: true},
-		{name: "FetchNodeUsersIPsResult", method: http.MethodGet, path: "/api/ip-control/fetch-users-ips-result/job-1", args: []any{"job-1"}},
-		{name: "DropUserConnections", method: http.MethodPost, path: "/api/ip-control/drop-connections", args: []any{"item-id"}, wantJSON: map[string]any{"userUuid": "item-id"}},
+		{name: "FetchUserIPs", method: http.MethodPost, path: "/api/ip-control/fetch-ips/item-id", args: []any{"item-id"}, noBody: true, mockResponse: `{"response":{"jobId":"job-1","status":"completed","ips":[]}}`},
+		{name: "DropConnections", method: http.MethodPost, path: "/api/ip-control/drop-connections", args: []any{"item-id"}, wantJSON: map[string]any{"userUuid": "item-id"}},
 		{name: "GetAllPasskeys", method: http.MethodGet, path: "/api/passkeys"},
 		{name: "DeletePasskey", method: http.MethodDelete, path: "/api/passkeys/item-id", args: []any{"item-id"}},
 	}
@@ -169,6 +167,11 @@ func TestClientAPIContracts(t *testing.T) {
 				if r.URL.Path == "/api/system/metadata" {
 					w.Header().Set("Content-Type", "application/json")
 					_, _ = io.WriteString(w, `{"response":{"version":"2.8.0"}}`)
+					return
+				}
+				// For async methods that poll, serve the poll response without assertions.
+				if tt.mockResponse != "" && r.URL.Path != tt.path {
+					_, _ = io.WriteString(w, `{"response":{"status":"completed","ips":[]}}`)
 					return
 				}
 				if r.Method != tt.method {
@@ -217,7 +220,17 @@ func TestClientAPIContracts(t *testing.T) {
 				if tt.name == "GetAllNodes" || tt.name == "GetAllHosts" || tt.name == "GetAllPasskeys" {
 					response = `[]`
 				}
-				_, _ = io.WriteString(w, `{"response":`+response+`}`)
+				if tt.mockResponse != "" {
+					// For async methods that poll (FetchUserIPs), serve mockResponse
+					// for the initial request and a completed result for the poll.
+					if r.URL.Path != tt.path {
+						_, _ = io.WriteString(w, `{"response":{"status":"completed","ips":[]}}`)
+					} else {
+						_, _ = io.WriteString(w, tt.mockResponse)
+					}
+				} else {
+					_, _ = io.WriteString(w, `{"response":`+response+`}`)
+				}
 			}))
 			defer server.Close()
 
