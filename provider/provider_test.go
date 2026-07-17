@@ -57,8 +57,8 @@ func TestProviderRegistersUniqueResources(t *testing.T) {
 
 	p := New("test")()
 	factories := p.Resources(context.Background())
-	if len(factories) != 23 {
-		t.Fatalf("resources = %d, want 23", len(factories))
+	if len(factories) != 24 {
+		t.Fatalf("resources = %d, want 24", len(factories))
 	}
 
 	seen := make(map[string]struct{}, len(factories))
@@ -90,8 +90,8 @@ func TestProviderRegistersUniqueDataSources(t *testing.T) {
 
 	p := New("test")()
 	factories := p.DataSources(context.Background())
-	if len(factories) != 22 {
-		t.Fatalf("data sources = %d, want 22", len(factories))
+	if len(factories) != 23 {
+		t.Fatalf("data sources = %d, want 23", len(factories))
 	}
 
 	seen := make(map[string]struct{}, len(factories))

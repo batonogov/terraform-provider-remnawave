@@ -592,6 +592,30 @@ func (c *Client) DeleteHost(ctx context.Context, uuid string) error {
 	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/hosts/%s", uuid), nil, nil)
 }
 
+// GetHostTags returns all unique host tags.
+func (c *Client) GetHostTags(ctx context.Context) ([]string, error) {
+	var out []string
+	if err := c.doRequest(ctx, http.MethodGet, "/api/hosts/tags", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// BulkEnableHosts enables the hosts identified by the given UUIDs.
+func (c *Client) BulkEnableHosts(ctx context.Context, uuids []string) error {
+	return c.doRequest(ctx, http.MethodPost, "/api/hosts/bulk/enable", map[string][]string{"uuids": uuids}, nil)
+}
+
+// BulkDisableHosts disables the hosts identified by the given UUIDs.
+func (c *Client) BulkDisableHosts(ctx context.Context, uuids []string) error {
+	return c.doRequest(ctx, http.MethodPost, "/api/hosts/bulk/disable", map[string][]string{"uuids": uuids}, nil)
+}
+
+// BulkDeleteHosts deletes the hosts identified by the given UUIDs.
+func (c *Client) BulkDeleteHosts(ctx context.Context, uuids []string) error {
+	return c.doRequest(ctx, http.MethodPost, "/api/hosts/bulk/delete", map[string][]string{"uuids": uuids}, nil)
+}
+
 // ─── System API ───
 
 func (c *Client) GetSystemHealth(ctx context.Context) (map[string]any, error) {

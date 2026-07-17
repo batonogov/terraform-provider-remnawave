@@ -184,6 +184,7 @@ func (p *RemnawaveProvider) Resources(_ context.Context) []func() resource.Resou
 		NewUserMetadataResource,
 		NewNodeMetadataResource,
 		NewHwidDeviceResource,
+		NewHostBulkActionResource,
 		NewNodeActionResource,
 		NewDropConnectionsResource,
 		NewUserActionResource,
@@ -213,6 +214,7 @@ func (p *RemnawaveProvider) DataSources(_ context.Context) []func() datasource.D
 		NewConnectionKeysDataSource,
 		NewHwidStatsDataSource,
 		NewHwidTopUsersDataSource,
+		NewHostTagsDataSource,
 		NewUserIPsDataSource,
 		NewPasskeysDataSource,
 	}

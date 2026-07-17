@@ -48,6 +48,10 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "GetHostByUUID", method: http.MethodGet, path: "/api/hosts/item-id", args: []any{"item-id"}},
 		{name: "UpdateHost", method: http.MethodPatch, path: "/api/hosts", args: []any{&Host{UUID: "item-id", Remark: "host", Address: "host.example.com", Port: 443}}},
 		{name: "DeleteHost", method: http.MethodDelete, path: "/api/hosts/item-id", args: []any{"item-id"}},
+		{name: "GetHostTags", method: http.MethodGet, path: "/api/hosts/tags"},
+		{name: "BulkEnableHosts", method: http.MethodPost, path: "/api/hosts/bulk/enable", args: []any{[]string{"item-id"}}, wantJSON: map[string]any{"uuids": []any{"item-id"}}},
+		{name: "BulkDisableHosts", method: http.MethodPost, path: "/api/hosts/bulk/disable", args: []any{[]string{"item-id"}}, wantJSON: map[string]any{"uuids": []any{"item-id"}}},
+		{name: "BulkDeleteHosts", method: http.MethodPost, path: "/api/hosts/bulk/delete", args: []any{[]string{"item-id"}}, wantJSON: map[string]any{"uuids": []any{"item-id"}}},
 		{name: "GetSystemHealth", method: http.MethodGet, path: "/api/system/health"},
 
 		{name: "CreateConfigProfile", method: http.MethodPost, path: "/api/config-profiles", args: []any{&ConfigProfile{Name: "profile"}}},
@@ -217,7 +221,7 @@ func TestClientAPIContracts(t *testing.T) {
 
 				w.Header().Set("Content-Type", "application/json")
 				response := `{}`
-				if tt.name == "GetAllNodes" || tt.name == "GetAllHosts" || tt.name == "GetAllPasskeys" {
+				if tt.name == "GetAllNodes" || tt.name == "GetAllHosts" || tt.name == "GetHostTags" || tt.name == "GetAllPasskeys" {
 					response = `[]`
 				}
 				if tt.mockResponse != "" {
