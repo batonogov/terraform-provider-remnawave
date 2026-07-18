@@ -3,12 +3,12 @@
 page_title: "remnawave_drop_connections Resource - terraform-provider-remnawave"
 subcategory: ""
 description: |-
-  Drops all active connections for a user via the Remnawave IP Control module. This is an imperative action resource: applying it sends a drop-connections request to the panel. Use the optional triggers map to force re-execution when its values change.
+  Drops active connections for users or IP addresses via the Remnawave IP Control module. Supports targeting all nodes or specific nodes. This is an imperative action resource: applying it sends a drop-connections request to the panel. Use the optional triggers map to force re-execution when its values change.
 ---
 
 # remnawave_drop_connections (Resource)
 
-Drops all active connections for a user via the Remnawave IP Control module. This is an imperative action resource: applying it sends a drop-connections request to the panel. Use the optional triggers map to force re-execution when its values change.
+Drops active connections for users or IP addresses via the Remnawave IP Control module. Supports targeting all nodes or specific nodes. This is an imperative action resource: applying it sends a drop-connections request to the panel. Use the optional triggers map to force re-execution when its values change.
 
 
 
@@ -17,12 +17,17 @@ Drops all active connections for a user via the Remnawave IP Control module. Thi
 
 ### Required
 
-- `user_uuid` (String) UUID of the user whose connections should be dropped.
+- `drop_by` (String) Drop mode: either `user_uuids` or `ip_addresses`. When `user_uuids`, provide `user_uuids` list. When `ip_addresses`, provide `ip_addresses` list.
 
 ### Optional
 
+- `ip_addresses` (List of String) List of IP addresses to drop connections for. Required when drop_by = ip_addresses.
+- `node_uuids` (List of String) List of node UUIDs to target. Required when target = specific_nodes.
+- `target` (String) Node targeting: `all_nodes` (default) or `specific_nodes`. When `specific_nodes`, provide `node_uuids` list.
 - `triggers` (Map of String) A map of arbitrary string values. When any value changes, the resource is replaced and the drop-connections action is re-executed.
+- `user_uuids` (List of String) List of user UUIDs to drop connections for. Required when drop_by = user_uuids.
 
 ### Read-Only
 
-- `id` (String) Stable identifier derived from user_uuid and trigger values.
+- `event_sent` (Boolean) Whether the drop-connections event was sent successfully.
+- `id` (String) Stable identifier derived from input values and triggers.
