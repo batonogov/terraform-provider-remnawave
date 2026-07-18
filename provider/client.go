@@ -446,7 +446,7 @@ type usersListResponse struct {
 
 func (c *Client) GetAllUsers(ctx context.Context) ([]User, error) {
 	var out usersListResponse
-	if err := c.doRequest(ctx, http.MethodGet, "/api/users", nil, &out); err != nil {
+	if err := c.doRequest(ctx, http.MethodGet, "/api/users?size=1000", nil, &out); err != nil {
 		return nil, err
 	}
 	return out.Users, nil
@@ -1128,7 +1128,7 @@ func (c *Client) GetSubscriptionByShortUUID(ctx context.Context, shortUUID strin
 
 func (c *Client) GetSubscriptionRequestHistory(ctx context.Context) (map[string]any, error) {
 	var out map[string]any
-	if err := c.doRequest(ctx, http.MethodGet, "/api/subscription-request-history", nil, &out); err != nil {
+	if err := c.doRequest(ctx, http.MethodGet, "/api/subscription-request-history?size=1000", nil, &out); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -1286,7 +1286,7 @@ func (c *Client) DeleteHwidDevice(ctx context.Context, req map[string]any) error
 
 func (c *Client) GetUserHwidDevices(ctx context.Context, userUuid string) (map[string]any, error) {
 	var out map[string]any
-	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/hwid/devices/%s", userUuid), nil, &out); err != nil {
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/hwid/devices/%s?size=1000", userUuid), nil, &out); err != nil {
 		return nil, err
 	}
 	return out, nil
