@@ -36,7 +36,7 @@ func (r *panelSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 			"branding_logo_url":     schema.StringAttribute{Optional: true, Computed: true, Description: "Panel branding logo URL."},
 			"password_auth_enabled": schema.BoolAttribute{Optional: true, Computed: true, Description: "Enable password auth."},
 			"passkey_settings":      schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Passkey/WebAuthn settings as JSON string."},
-			"oauth2_settings":       schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "OAuth2 provider settings as JSON string."},
+			"oauth2_settings":       schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "OAuth2 settings as JSON string. Contains configuration for github, pocketid, yandex, keycloak, generic, telegram providers."},
 		},
 	}
 }
