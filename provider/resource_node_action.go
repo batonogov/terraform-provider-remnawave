@@ -184,9 +184,9 @@ func (r *nodeActionResource) executeAction(ctx context.Context, m *nodeActionRes
 	canonicalAction, warnAlias := normalizeNodeAction(action)
 	if warnAlias {
 		tflog.Warn(ctx, "node_action uses deprecated hyphenated form; prefer the underscore form (will keep working but may be removed in a future release)", map[string]any{
-			"action":            action,
-			"canonical_action":  canonicalAction,
-			"node_uuid":         nodeUUID,
+			"action":           action,
+			"canonical_action": canonicalAction,
+			"node_uuid":        nodeUUID,
 		})
 		action = canonicalAction
 		// NOTE: do NOT overwrite m.Action — Terraform requires state to
