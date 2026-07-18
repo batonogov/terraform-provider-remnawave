@@ -7,6 +7,6 @@ resource "remnawave_node_action" "restart" {
 
 resource "remnawave_node_action" "reset_traffic" {
   node_uuid = remnawave_node.example.uuid
-  action    = "reset-traffic"
+  action    = "reset_traffic"
   triggers  = [var.traffic_reset_trigger]
 }
