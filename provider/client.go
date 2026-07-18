@@ -1371,8 +1371,20 @@ func (c *Client) FetchUserIPs(ctx context.Context, userUUID string) ([]string, e
 }
 
 // DropConnections drops all active connections for the given user UUID.
-// This is an imperative action endpoint.
+// Deprecated: use DropConnectionsV2 for the full API schema (drop by IP, target nodes).
 func (c *Client) DropConnections(ctx context.Context, userUUID string) error {
 	body := map[string]string{"userUuid": userUUID}
 	return c.doRequest(ctx, http.MethodPost, "/api/ip-control/drop-connections", body, nil)
+}
+
+// DropConnectionsV2 drops connections using the full IP Control API schema.
+// body must match { dropBy: { by: "userUuids"|"ipAddresses", ... }, targetNodes: { target: "allNodes"|"specificNodes", ... } }.
+func (c *Client) DropConnectionsV2(ctx context.Context, body map[string]any) (bool, error) {
+	var out struct {
+		EventSent bool `json:"eventSent"`
+	}
+	if err := c.doRequest(ctx, http.MethodPost, "/api/ip-control/drop-connections", body, &out); err != nil {
+		return false, err
+	}
+	return out.EventSent, nil
 }

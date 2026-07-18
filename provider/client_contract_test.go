@@ -149,6 +149,7 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "UserAction", method: http.MethodPost, path: "/api/users/item-id/actions/reset-traffic", args: []any{"item-id", "reset_traffic"}, noBody: true},
 		{name: "FetchUserIPs", method: http.MethodPost, path: "/api/ip-control/fetch-ips/item-id", args: []any{"item-id"}, noBody: true, mockResponse: `{"response":{"jobId":"job-1","status":"completed","ips":[]}}`},
 		{name: "DropConnections", method: http.MethodPost, path: "/api/ip-control/drop-connections", args: []any{"item-id"}, wantJSON: map[string]any{"userUuid": "item-id"}},
+		{name: "DropConnectionsV2", method: http.MethodPost, path: "/api/ip-control/drop-connections", args: []any{map[string]any{"dropBy": map[string]any{"by": "userUuids", "userUuids": []any{"item-id"}}, "targetNodes": map[string]any{"target": "allNodes"}}}, wantJSON: map[string]any{"dropBy": map[string]any{"by": "userUuids", "userUuids": []any{"item-id"}}, "targetNodes": map[string]any{"target": "allNodes"}}},
 		{name: "GetAllPasskeys", method: http.MethodGet, path: "/api/passkeys"},
 		{name: "DeletePasskey", method: http.MethodDelete, path: "/api/passkeys/item-id", args: []any{"item-id"}},
 	}
