@@ -2,13 +2,17 @@ package provider
 
 import (
 	"context"
+	"regexp"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
@@ -83,10 +87,19 @@ func (r *nodeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"port": schema.Int64Attribute{
 				Optional:    true,
 				Description: "Node port for internal panel API communication.",
+				Validators: []validator.Int64{
+					int64validator.Between(1, 65535),
+				},
 			},
 			"proxy_url": schema.StringAttribute{
 				Optional:    true,
 				Description: "Optional SOCKS5 proxy URL used to reach the node.",
+				Validators: []validator.String{
+					stringvalidator.RegexMatches(
+						regexp.MustCompile(`^socks5://`),
+						"proxy_url must start with socks5://",
+					),
+				},
 			},
 			"is_traffic_tracking_active": schema.BoolAttribute{
 				Optional:    true,
@@ -106,16 +119,28 @@ func (r *nodeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Optional:    true,
 				Computed:    true,
 				Description: "Day of month (1-31) to reset traffic counter.",
+				Validators: []validator.Int64{
+					int64validator.Between(1, 31),
+				},
 			},
 			"notify_percent": schema.Int64Attribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "Notify at this traffic usage percentage (0-100).",
+				Validators: []validator.Int64{
+					int64validator.Between(0, 100),
+				},
 			},
 			"country_code": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "ISO 3166-1 alpha-2 country code (2 chars).",
+				Validators: []validator.String{
+					stringvalidator.RegexMatches(
+						regexp.MustCompile(`^[A-Z]{2}$`),
+						"country_code must be a 2-letter uppercase ISO 3166-1 alpha-2 code",
+					),
+				},
 			},
 			"consumption_multiplier": schema.Float64Attribute{
 				Optional:    true,

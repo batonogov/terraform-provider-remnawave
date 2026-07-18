@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
@@ -96,6 +98,14 @@ func (r *hostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"alpn": schema.StringAttribute{
 				Optional:    true,
 				Description: "ALPN value (h3, h2, http/1.1, or combinations).",
+				Validators: []validator.String{
+					stringvalidator.OneOf(
+						"h3", "h2", "http/1.1",
+						"h2,http/1.1",
+						"h3,h2,http/1.1",
+						"h3,h2",
+					),
+				},
 			},
 			"fingerprint": schema.StringAttribute{
 				Optional:    true,
@@ -110,6 +120,9 @@ func (r *hostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Optional:    true,
 				Computed:    true,
 				Description: "Security layer: DEFAULT, TLS, or NONE.",
+				Validators: []validator.String{
+					stringvalidator.OneOf("DEFAULT", "TLS", "NONE"),
+				},
 			},
 			"xhttp_extra_params": schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "XHTTP extra parameters as JSON."},
 			"mux_params":         schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Mux parameters as JSON."},
@@ -170,7 +183,11 @@ func (r *hostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Description: "Enable Mihomo X25519 proxy.",
 			},
 			"mihomo_ip_version": schema.StringAttribute{
-				Optional: true, Description: "Mihomo IP version preference.",
+				Optional:    true,
+				Description: "Mihomo IP version preference.",
+				Validators: []validator.String{
+					stringvalidator.OneOf("dual", "ipv4", "ipv6", "ipv4-prefer", "ipv6-prefer"),
+				},
 			},
 			"xray_json_template_uuid": schema.StringAttribute{
 				Optional: true, Description: "Xray JSON subscription template UUID.",

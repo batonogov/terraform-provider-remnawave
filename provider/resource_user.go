@@ -3,14 +3,17 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"regexp"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
@@ -85,11 +88,21 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"username": schema.StringAttribute{
 				Required:    true,
 				Description: "Unique username (3-36 chars, alphanumeric + _ -).",
+				Validators: []validator.String{
+					stringvalidator.RegexMatches(
+						regexp.MustCompile(`^[a-zA-Z0-9_-]+$`),
+						"username must contain only letters, digits, underscores or hyphens",
+					),
+					stringvalidator.LengthBetween(3, 36),
+				},
 			},
 			"status": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "User status: ACTIVE or DISABLED. LIMITED/EXPIRED are managed by the panel.",
+				Validators: []validator.String{
+					stringvalidator.OneOf("ACTIVE", "DISABLED", "LIMITED", "EXPIRED"),
+				},
 			},
 			"traffic_limit_bytes": schema.Int64Attribute{
 				Optional:    true,
@@ -100,6 +113,9 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Optional:    true,
 				Computed:    true,
 				Description: "Reset strategy: NO_RESET, DAY, WEEK, MONTH, MONTH_ROLLING.",
+				Validators: []validator.String{
+					stringvalidator.OneOf("NO_RESET", "DAY", "WEEK", "MONTH", "MONTH_ROLLING"),
+				},
 			},
 			"expire_at": schema.StringAttribute{
 				Required:    true,
@@ -129,6 +145,13 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"tag": schema.StringAttribute{
 				Optional:    true,
 				Description: "User tag (uppercase letters, numbers, underscores; max 16).",
+				Validators: []validator.String{
+					stringvalidator.RegexMatches(
+						regexp.MustCompile(`^[A-Z0-9_]+$`),
+						"tag must contain only uppercase letters, digits or underscores",
+					),
+					stringvalidator.LengthAtMost(16),
+				},
 			},
 			"telegram_id": schema.Int64Attribute{
 				Optional:    true,
