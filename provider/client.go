@@ -597,12 +597,19 @@ func (c *Client) DeleteHost(ctx context.Context, uuid string) error {
 }
 
 // GetHostTags returns all unique host tags.
+
+// hostTagsResponse is the unwrapped {tags: [...]} payload after decodeResponse
+// strips the outer {response: ...} envelope.
+type hostTagsResponse struct {
+	Tags []string `json:"tags"`
+}
+
 func (c *Client) GetHostTags(ctx context.Context) ([]string, error) {
-	var out []string
+	var out hostTagsResponse
 	if err := c.doRequest(ctx, http.MethodGet, "/api/hosts/tags", nil, &out); err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out.Tags, nil
 }
 
 // BulkEnableHosts enables the hosts identified by the given UUIDs.

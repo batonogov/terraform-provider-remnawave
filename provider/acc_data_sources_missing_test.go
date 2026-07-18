@@ -7,14 +7,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-// TestAccHostTagsDataSource verifies the host_tags data source.
-// SKIPPED: backend returns tags wrapped in {response:{tags:[...]}} envelope,
-// but GetHostTags expects a bare []string. This is a client bug tracked
-// separately — skip until the client is fixed.
+// TestAccHostTagsDataSource verifies the host_tags data source returns
+// a list of tags from the panel. We create a host with a tag first to ensure
+// the list is non-empty.
 func TestAccHostTagsDataSource(t *testing.T) {
 	testAccPreCheck(t)
-	t.Skip("client bug: GetHostTags does not unwrap response envelope; tracked separately")
-
 	endpoint, authBlock := testAccProviderBlock()
 	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
 
