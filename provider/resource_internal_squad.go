@@ -132,6 +132,19 @@ func (r *internalSquadResource) Update(ctx context.Context, req resource.UpdateR
 	}
 	plan.UUID = types.StringValue(updated.UUID)
 	plan.Name = types.StringValue(updated.Name)
+	// Refresh accessible_nodes — inbounds may have changed, which affects
+	// which nodes this squad can reach.
+	accessible, err := r.client.GetInternalSquadAccessibleNodes(ctx, updated.UUID)
+	elems := make([]attr.Value, 0)
+	if err != nil {
+		tflog.Warn(ctx, "failed to fetch accessible nodes after update", map[string]any{"uuid": updated.UUID, "err": err.Error()})
+	} else {
+		for _, n := range accessible.AccessibleNodes {
+			elems = append(elems, types.StringValue(n.UUID))
+		}
+	}
+	nodesList, _ := types.ListValue(types.StringType, elems)
+	plan.AccessibleNodes = nodesList
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
