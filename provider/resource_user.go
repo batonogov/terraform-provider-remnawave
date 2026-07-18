@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -283,7 +284,35 @@ func (r *userResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	user.VlessUUID = ""
 	user.SsPassword = ""
 
-	updated, err := r.client.UpdateUser(ctx, user)
+	// Issue #108: when the user explicitly sets external_squad_uuid or
+	// active_internal_squads to null in HCL, planToUser leaves the
+	// corresponding pointer/slice empty. User has `omitempty` on both fields
+	// (correct for Create where omitted means "panel default"). For PATCH the
+	// backend treats an *absent* field as "no change", so an explicit null must
+	// be sent as a literal JSON value. When that is needed we rebuild the
+	// request body as a map to force the keys to appear.
+	var body any = user
+	if plan.ExternalSquadUUID.IsNull() || plan.ActiveInternalSquads.IsNull() {
+		raw, err := json.Marshal(user)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to marshal user update", err.Error())
+			return
+		}
+		m := map[string]any{}
+		if err := json.Unmarshal(raw, &m); err != nil {
+			resp.Diagnostics.AddError("Failed to unmarshal user update", err.Error())
+			return
+		}
+		if plan.ExternalSquadUUID.IsNull() {
+			m["externalSquadUuid"] = nil
+		}
+		if plan.ActiveInternalSquads.IsNull() {
+			m["activeInternalSquads"] = []any{}
+		}
+		body = m
+	}
+
+	updated, err := r.client.UpdateUser(ctx, body)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to update user", err.Error())
 		return
