@@ -23,7 +23,7 @@ The client auto-detects the backend version and adapts API calls where contracts
 
 ## Features
 
-### Resources (19)
+### Resources (24)
 
 | Resource | Description |
 | --- | --- |
@@ -46,8 +46,13 @@ The client auto-detects the backend version and adapts API calls where contracts
 | `remnawave_user_metadata` | Free-form key-value metadata for a user |
 | `remnawave_node_metadata` | Free-form key-value metadata for a node |
 | `remnawave_hwid_device` | HWID (Hardware ID) device entry for device-limit enforcement |
+| `remnawave_host_bulk_action` | Imperative bulk action on hosts (enable, disable, delete) |
+| `remnawave_node_action` | Imperative per-node action (enable, disable, restart, reset_traffic) |
+| `remnawave_drop_connections` | Drop all active connections for a user (IP Control module) |
+| `remnawave_user_action` | Imperative per-user action (enable, disable, reset_traffic, revoke_subscription) |
+| `remnawave_passkey` | Import-only WebAuthn passkey (delete on destroy) |
 
-### Data Sources (20)
+### Data Sources (23)
 
 | Data Source | Description |
 | --- | --- |
@@ -71,6 +76,9 @@ The client auto-detects the backend version and adapts API calls where contracts
 | `remnawave_connection_keys` | Per-protocol connection keys for a user |
 | `remnawave_hwid_stats` | HWID device statistics |
 | `remnawave_hwid_top_users` | Top users by HWID device count |
+| `remnawave_host_tags` | All unique tags assigned to any host |
+| `remnawave_user_ips` | IPs a user is currently connected from (IP Control module) |
+| `remnawave_passkeys` | WebAuthn passkeys for the current admin user |
 
 ## Quick Start
 
