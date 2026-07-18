@@ -276,6 +276,12 @@ func (r *userResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	// These fields are accepted only by CreateUserCommand in Remnawave 2.8.
 	user.CreatedAt = ""
 	user.LastTrafficResetAt = nil
+	// Credential fields are not accepted by UpdateUserCommand — strip them
+	// from the PATCH payload to avoid sending data the backend will silently
+	// discard (and to future-proof against potential strict-mode validation).
+	user.TrojanPassword = ""
+	user.VlessUUID = ""
+	user.SsPassword = ""
 
 	updated, err := r.client.UpdateUser(ctx, user)
 	if err != nil {
