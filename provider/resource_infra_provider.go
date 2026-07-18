@@ -71,8 +71,17 @@ func (r *infraProviderResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 	plan.UUID = types.StringValue(created.UUID)
-	plan.FaviconLink = types.StringNull()
-	plan.LoginURL = types.StringNull()
+	plan.Name = types.StringValue(created.Name)
+	if created.FaviconLink != nil {
+		plan.FaviconLink = types.StringValue(*created.FaviconLink)
+	} else {
+		plan.FaviconLink = types.StringNull()
+	}
+	if created.LoginURL != nil {
+		plan.LoginURL = types.StringValue(*created.LoginURL)
+	} else {
+		plan.LoginURL = types.StringNull()
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -118,10 +127,22 @@ func (r *infraProviderResource) Update(ctx context.Context, req resource.UpdateR
 		l := plan.LoginURL.ValueString()
 		p.LoginURL = &l
 	}
-	_, err := r.client.UpdateInfraProvider(ctx, p)
+	updated, err := r.client.UpdateInfraProvider(ctx, p)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to update infra provider", err.Error())
 		return
+	}
+	plan.UUID = types.StringValue(updated.UUID)
+	plan.Name = types.StringValue(updated.Name)
+	if updated.FaviconLink != nil {
+		plan.FaviconLink = types.StringValue(*updated.FaviconLink)
+	} else {
+		plan.FaviconLink = types.StringNull()
+	}
+	if updated.LoginURL != nil {
+		plan.LoginURL = types.StringValue(*updated.LoginURL)
+	} else {
+		plan.LoginURL = types.StringNull()
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
