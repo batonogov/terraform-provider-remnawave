@@ -62,7 +62,7 @@ func (r *nodeActionResource) Metadata(_ context.Context, _ resource.MetadataRequ
 
 func (r *nodeActionResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Executes a one-time action on a Remnawave node (enable, disable, restart, or reset_traffic). Use `triggers` to force re-execution when values change. `reset-traffic` is accepted as a backward-compatible alias for `reset_traffic` (prefer the underscore form).",
+		Description: "Executes a one-time action on a Remnawave node (enable, disable, restart, or reset_traffic). Use triggers to force re-execution when values change. reset-traffic is accepted as a backward-compatible alias for reset_traffic (prefer the underscore form).",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed: true,
@@ -77,7 +77,7 @@ func (r *nodeActionResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			},
 			"action": schema.StringAttribute{
 				Required:    true,
-				Description: "Action to perform. One of: `enable`, `disable`, `restart`, `reset_traffic`. `reset-traffic` is accepted as a backward-compatible alias for `reset_traffic`.",
+				Description: "Action to perform. One of: enable, disable, restart, reset_traffic. reset-traffic is accepted as a backward-compatible alias for reset_traffic.",
 			},
 			"force_restart": schema.BoolAttribute{
 				Optional:    true,

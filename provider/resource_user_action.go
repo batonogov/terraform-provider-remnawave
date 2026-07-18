@@ -65,8 +65,8 @@ func (r *userActionResource) Metadata(_ context.Context, _ resource.MetadataRequ
 func (r *userActionResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Performs an imperative one-shot action on a Remnawave user (enable, disable, reset_traffic, or revoke_subscription). " +
-			"The action is re-executed whenever the `triggers` list changes value, making it suitable for recurring operations such as periodic traffic resets. " +
-			"`reset-traffic` is accepted as a backward-compatible alias for `reset_traffic` (prefer the underscore form).",
+			"The action is re-executed whenever the triggers list changes value, making it suitable for recurring operations such as periodic traffic resets. " +
+			"reset-traffic is accepted as a backward-compatible alias for reset_traffic (prefer the underscore form).",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:    true,
@@ -84,7 +84,7 @@ func (r *userActionResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			},
 			"action": schema.StringAttribute{
 				Required:    true,
-				Description: "Action to perform. One of: enable, disable, reset_traffic, revoke_subscription. `reset-traffic` is accepted as a backward-compatible alias.",
+				Description: "Action to perform. One of: enable, disable, reset_traffic, revoke_subscription. reset-traffic is accepted as a backward-compatible alias.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
