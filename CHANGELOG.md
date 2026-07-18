@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.1](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.4.0...v0.4.1) (2026-07-18)
+
+
+### Bug Fixes
+
+* add RequiresReplace for billing_node immutable fields ([#107](https://github.com/batonogov/terraform-provider-remnawave/issues/107)) ([#123](https://github.com/batonogov/terraform-provider-remnawave/issues/123)) ([7894977](https://github.com/batonogov/terraform-provider-remnawave/commit/78949776d50496421f4517a766216999d8d1fda8))
+* allow clearing external_squad_uuid and active_internal_squads on user update ([#108](https://github.com/batonogov/terraform-provider-remnawave/issues/108)) ([#126](https://github.com/batonogov/terraform-provider-remnawave/issues/126)) ([e17acb8](https://github.com/batonogov/terraform-provider-remnawave/commit/e17acb84386726644e038c2d84b4a3e2334e98aa))
+* pass size=1000 to paginated endpoints ([#106](https://github.com/batonogov/terraform-provider-remnawave/issues/106)) ([#122](https://github.com/batonogov/terraform-provider-remnawave/issues/122)) ([5dd41b1](https://github.com/batonogov/terraform-provider-remnawave/commit/5dd41b1eec8ccce418300357252157f2808cb590))
+* strip credential fields from user PATCH payload ([#110](https://github.com/batonogov/terraform-provider-remnawave/issues/110)) ([#124](https://github.com/batonogov/terraform-provider-remnawave/issues/124)) ([beb7f15](https://github.com/batonogov/terraform-provider-remnawave/commit/beb7f152bab13b048a09f8bc2bfe5a85213d0efe))
+* unify action naming to underscore, keep hyphen as backward-compatible alias ([#115](https://github.com/batonogov/terraform-provider-remnawave/issues/115)) ([#127](https://github.com/batonogov/terraform-provider-remnawave/issues/127)) ([256f324](https://github.com/batonogov/terraform-provider-remnawave/commit/256f3247bb089d2884ce7dcbc0c26ea28b1e6b61))
+* use API response in infra_provider and internal_squad Update ([#109](https://github.com/batonogov/terraform-provider-remnawave/issues/109)) ([#121](https://github.com/batonogov/terraform-provider-remnawave/issues/121)) ([4bf4f7c](https://github.com/batonogov/terraform-provider-remnawave/commit/4bf4f7ce98a5c9b306a4e0ff7a5771df76fe5608))
+
 ## [0.4.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.3.0...v0.4.0) (2026-07-17)
 
 
