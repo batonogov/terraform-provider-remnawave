@@ -455,15 +455,19 @@ func (c *Client) GetAllUsers(ctx context.Context) ([]User, error) {
 // ─── User Actions API ───
 
 // userActionEndpoint maps a user action string to its REST endpoint suffix.
+// "reset-traffic" is accepted as a backward-compatible alias for the canonical
+// "reset_traffic" form (both resolve to the same backend endpoint).
 var userActionEndpoint = map[string]string{
 	"enable":              "enable",
 	"disable":             "disable",
 	"reset_traffic":       "reset-traffic",
+	"reset-traffic":       "reset-traffic", // backward-compatible alias
 	"revoke_subscription": "revoke",
 }
 
 // UserAction performs an imperative action (enable, disable, reset_traffic,
 // revoke_subscription) on a user via POST /api/users/:uuid/actions/:action.
+// The action "reset-traffic" is accepted as an alias for "reset_traffic".
 func (c *Client) UserAction(ctx context.Context, userUUID, action string) error {
 	suffix, ok := userActionEndpoint[action]
 	if !ok {

@@ -16,11 +16,31 @@ import (
 
 // nodeActionResource is an imperative (run-once) resource that triggers a
 // per-node action on the Remnawave backend: enable, disable, restart or
-// reset-traffic. Because the action is idempotent on the server, the resource
+// reset_traffic. Because the action is idempotent on the server, the resource
 // simply executes the action on Create and whenever `triggers` changes,
 // and is a no-op on Read/Delete.
+//
+// "reset-traffic" (hyphen) is accepted as a backward-compatible alias for
+// the canonical "reset_traffic" form. Using the hyphenated form emits a
+// deprecation warning via tflog.Warn.
 type nodeActionResource struct {
 	client *Client
+}
+
+// nodeActionAliases maps deprecated/alias action names to their canonical
+// (underscore) form.
+var nodeActionAliases = map[string]string{
+	"reset-traffic": "reset_traffic",
+}
+
+// normalizeNodeAction returns the canonical form of action. If action is a
+// known alias (e.g. "reset-traffic"), the canonical name is returned and
+// warned is set to true so the caller can emit a deprecation warning.
+func normalizeNodeAction(action string) (canonical string, warned bool) {
+	if c, ok := nodeActionAliases[action]; ok {
+		return c, true
+	}
+	return action, false
 }
 
 type nodeActionResourceModel struct {
@@ -42,7 +62,7 @@ func (r *nodeActionResource) Metadata(_ context.Context, _ resource.MetadataRequ
 
 func (r *nodeActionResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Executes a one-time action on a Remnawave node (enable, disable, restart, or reset-traffic). Use `triggers` to force re-execution when values change.",
+		Description: "Executes a one-time action on a Remnawave node (enable, disable, restart, or reset_traffic). Use `triggers` to force re-execution when values change. `reset-traffic` is accepted as a backward-compatible alias for `reset_traffic` (prefer the underscore form).",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed: true,
@@ -57,7 +77,7 @@ func (r *nodeActionResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			},
 			"action": schema.StringAttribute{
 				Required:    true,
-				Description: "Action to perform. One of: `enable`, `disable`, `restart`, `reset-traffic`.",
+				Description: "Action to perform. One of: `enable`, `disable`, `restart`, `reset_traffic`. `reset-traffic` is accepted as a backward-compatible alias for `reset_traffic`.",
 			},
 			"force_restart": schema.BoolAttribute{
 				Optional:    true,
@@ -159,6 +179,19 @@ func (r *nodeActionResource) executeAction(ctx context.Context, m *nodeActionRes
 	nodeUUID := m.NodeUUID.ValueString()
 	action := m.Action.ValueString()
 
+	// Normalize alias spellings (e.g. "reset-traffic" → "reset_traffic") to
+	// the canonical underscore form and warn about deprecated usage.
+	canonicalAction, warnAlias := normalizeNodeAction(action)
+	if warnAlias {
+		tflog.Warn(ctx, "node_action uses deprecated hyphenated form; prefer the underscore form (will keep working but may be removed in a future release)", map[string]any{
+			"action":           action,
+			"canonical_action": canonicalAction,
+			"node_uuid":        nodeUUID,
+		})
+		action = canonicalAction
+		m.Action = types.StringValue(canonicalAction)
+	}
+
 	switch action {
 	case "enable":
 		if _, err := r.client.EnableNode(ctx, nodeUUID); err != nil {
@@ -179,14 +212,14 @@ func (r *nodeActionResource) executeAction(ctx context.Context, m *nodeActionRes
 			diags.AddError("Failed to restart node", err.Error())
 			return diags
 		}
-	case "reset-traffic":
+	case "reset_traffic":
 		if _, err := r.client.ResetNodeTraffic(ctx, nodeUUID); err != nil {
 			diags.AddError("Failed to reset node traffic", err.Error())
 			return diags
 		}
 	default:
 		diags.AddError("Invalid action",
-			fmt.Sprintf("action must be one of: enable, disable, restart, reset-traffic; got %q", action))
+			fmt.Sprintf("action must be one of: enable, disable, restart, reset_traffic; got %q", action))
 		return diags
 	}
 
