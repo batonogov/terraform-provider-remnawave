@@ -16,11 +16,31 @@ import (
 )
 
 // validUserActions is the set of actions accepted by the resource.
+// "reset-traffic" is accepted as a backward-compatible alias for the
+// canonical "reset_traffic" form (see normalizeUserAction).
 var validUserActions = map[string]struct{}{
 	"enable":              {},
 	"disable":             {},
 	"reset_traffic":       {},
+	"reset-traffic":       {}, // alias, deprecated
 	"revoke_subscription": {},
+}
+
+// userActionAliases maps deprecated/alias action names to their canonical
+// (underscore) form. An entry that maps to itself (or is absent) needs no
+// rewriting.
+var userActionAliases = map[string]string{
+	"reset-traffic": "reset_traffic",
+}
+
+// normalizeUserAction returns the canonical form of action. If action is a
+// known alias (e.g. "reset-traffic"), the canonical name is returned and
+// warned is set to true so the caller can emit a deprecation warning.
+func normalizeUserAction(action string) (canonical string, warned bool) {
+	if c, ok := userActionAliases[action]; ok {
+		return c, true
+	}
+	return action, false
 }
 
 type userActionResource struct {
@@ -45,7 +65,8 @@ func (r *userActionResource) Metadata(_ context.Context, _ resource.MetadataRequ
 func (r *userActionResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Performs an imperative one-shot action on a Remnawave user (enable, disable, reset_traffic, or revoke_subscription). " +
-			"The action is re-executed whenever the `triggers` list changes value, making it suitable for recurring operations such as periodic traffic resets.",
+			"The action is re-executed whenever the triggers list changes value, making it suitable for recurring operations such as periodic traffic resets. " +
+			"reset-traffic is accepted as a backward-compatible alias for reset_traffic (prefer the underscore form).",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:    true,
@@ -63,7 +84,7 @@ func (r *userActionResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			},
 			"action": schema.StringAttribute{
 				Required:    true,
-				Description: "Action to perform. One of: enable, disable, reset_traffic, revoke_subscription.",
+				Description: "Action to perform. One of: enable, disable, reset_traffic, revoke_subscription. reset-traffic is accepted as a backward-compatible alias.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -108,6 +129,21 @@ func (r *userActionResource) Create(ctx context.Context, req resource.CreateRequ
 		)
 		return
 	}
+
+	// Normalize alias spellings (e.g. "reset-traffic" → "reset_traffic") to
+	// the canonical underscore form and warn about deprecated usage.
+	canonicalAction, warnAlias := normalizeUserAction(action)
+	if warnAlias {
+		tflog.Warn(ctx, "user_action uses deprecated hyphenated form; prefer the underscore form (will keep working but may be removed in a future release)", map[string]any{
+			"action":           action,
+			"canonical_action": canonicalAction,
+			"user_uuid":        plan.UserUUID.ValueString(),
+		})
+	}
+	// NOTE: do NOT overwrite plan.Action — Terraform requires state to match
+	// the config value the user supplied. The alias is preserved in state
+	// and only normalized for the API call.
+	action = canonicalAction
 
 	userUUID := plan.UserUUID.ValueString()
 	tflog.Info(ctx, "performing user action", map[string]any{
@@ -181,7 +217,16 @@ func (r *userActionResource) ImportState(ctx context.Context, req resource.Impor
 		)
 		return
 	}
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), types.StringValue(req.ID))...)
+	canonicalAction, warnAlias := normalizeUserAction(action)
+	if warnAlias {
+		tflog.Warn(ctx, "user_action import uses deprecated hyphenated form; prefer the underscore form (will keep working but may be removed in a future release)", map[string]any{
+			"action":           action,
+			"canonical_action": canonicalAction,
+			"user_uuid":        userUUID,
+		})
+		action = canonicalAction
+	}
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), types.StringValue(fmt.Sprintf("%s:%s", userUUID, action)))...)
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("user_uuid"), types.StringValue(userUUID))...)
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("action"), types.StringValue(action))...)
 }
