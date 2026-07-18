@@ -8,7 +8,8 @@ import (
 )
 
 // TestAccHostTagsDataSource verifies that the host_tags data source returns
-// a list of tags from the panel.
+// a list of tags from the panel. We create a host with a tag first to ensure
+// the list is non-empty.
 func TestAccHostTagsDataSource(t *testing.T) {
 	testAccPreCheck(t)
 	endpoint, authBlock := testAccProviderBlock()
@@ -18,52 +19,22 @@ func TestAccHostTagsDataSource(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: providerCfg + `
-data "remnawave_host_tags" "all" {}
+				Config: providerCfg + testAccProfileConfig("host-tags-ds", "VLESS_HOST_TAGS_DS") + `
+resource "remnawave_host" "tagged" {
+  remark                      = "tags-ds-test"
+  address                     = "127.0.0.4"
+  port                        = 443
+  config_profile_uuid         = remnawave_config_profile.profile.uuid
+  config_profile_inbound_uuid = remnawave_config_profile.profile.inbounds[0].uuid
+  tags                        = ["TEST_TAG_DS"]
+}
+
+data "remnawave_host_tags" "all" {
+  depends_on = [remnawave_host.tagged]
+}
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("data.remnawave_host_tags.all", "tags.#"),
-				),
-			},
-		},
-	})
-}
-
-// TestAccUserIPsDataSource verifies the user_ips data source.
-// This is an async endpoint — the polling may fail in test environment if
-// the job doesn't complete fast enough. We skip it in CI unless explicitly
-// enabled.
-func TestAccUserIPsDataSource(t *testing.T) {
-	testAccPreCheck(t)
-
-	// Skip in CI — async IP fetch requires a connected user + node.
-	t.Skip("requires connected user + node for async IP fetch; skip in CI")
-
-	_ = fmt.Sprintf(testAccProviderConfig, "", "")
-}
-
-// TestAccPasskeysDataSource verifies the passkeys data source.
-// This requires username/password auth (not API token), so we skip it
-// unless the CI environment provides those credentials.
-func TestAccPasskeysDataSource(t *testing.T) {
-	testAccPreCheck(t)
-
-	// Passkeys endpoint requires admin JWT (username/password), not API token.
-	// CI typically uses API token auth, so skip unless explicitly configured.
-	t.Skip("passkeys data source requires username/password auth; skip in API-token CI")
-
-	endpoint, authBlock := testAccProviderBlock()
-	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
-
-	resource.Test(t, resource.TestCase{
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
-		Steps: []resource.TestStep{
-			{
-				Config: providerCfg + `
-data "remnawave_passkeys" "all" {}
-`,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("data.remnawave_passkeys.all", "passkeys.#"),
 				),
 			},
 		},
