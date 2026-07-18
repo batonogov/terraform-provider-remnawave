@@ -8,7 +8,8 @@ import (
 )
 
 // TestAccDropConnectionsResource_ByUserUUID verifies the drop_connections
-// resource can drop connections for a user.
+// resource can drop connections for a user using the legacy user_uuid attribute.
+// Note: the full schema (drop_by, ip_addresses, target nodes) is tested in PR #130.
 func TestAccDropConnectionsResource_ByUserUUID(t *testing.T) {
 	testAccPreCheck(t)
 	endpoint, authBlock := testAccProviderBlock()
@@ -26,15 +27,13 @@ resource "remnawave_user" "test" {
 }
 
 resource "remnawave_drop_connections" "test" {
-  drop_by    = "user_uuids"
-  user_uuids = [remnawave_user.test.uuid]
-  triggers   = { init = "1" }
+  user_uuid = remnawave_user.test.uuid
+  triggers  = { init = "1" }
 }
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("remnawave_drop_connections.test", "id"),
-					resource.TestCheckResourceAttr("remnawave_drop_connections.test", "drop_by", "user_uuids"),
-					resource.TestCheckResourceAttrSet("remnawave_drop_connections.test", "event_sent"),
+					resource.TestCheckResourceAttrSet("remnawave_drop_connections.test", "user_uuid"),
 				),
 			},
 		},

@@ -20,14 +20,12 @@ func TestAccHostBulkActionResource_EnableDisable(t *testing.T) {
 			{
 				Config: providerCfg + testAccProfileConfig("host-bulk-enable", "VLESS_HOST_BULK_ENABLE") + `
 resource "remnawave_host" "test" {
-  remark  = "bulk-test"
-  address = "127.0.0.1"
-  port    = 443
-  inbound = {
-    config_profile_uuid         = remnawave_config_profile.profile.uuid
-    config_profile_inbound_uuid = remnawave_config_profile.profile.inbounds[0].uuid
-  }
-  is_disabled = true
+  remark                      = "bulk-test"
+  address                     = "127.0.0.1"
+  port                        = 443
+  config_profile_uuid         = remnawave_config_profile.profile.uuid
+  config_profile_inbound_uuid = remnawave_config_profile.profile.inbounds[0].uuid
+  is_disabled                 = true
 }
 
 resource "remnawave_host_bulk_action" "enable" {
@@ -57,13 +55,11 @@ func TestAccHostBulkActionResource_Delete(t *testing.T) {
 			{
 				Config: providerCfg + testAccProfileConfig("host-bulk-delete", "VLESS_HOST_BULK_DELETE") + `
 resource "remnawave_host" "test" {
-  remark  = "bulk-delete-test"
-  address = "127.0.0.2"
-  port    = 443
-  inbound = {
-    config_profile_uuid         = remnawave_config_profile.profile.uuid
-    config_profile_inbound_uuid = remnawave_config_profile.profile.inbounds[0].uuid
-  }
+  remark                      = "bulk-delete-test"
+  address                     = "127.0.0.2"
+  port                        = 443
+  config_profile_uuid         = remnawave_config_profile.profile.uuid
+  config_profile_inbound_uuid = remnawave_config_profile.profile.inbounds[0].uuid
 }
 
 resource "remnawave_host_bulk_action" "delete" {

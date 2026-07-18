@@ -35,33 +35,11 @@ data "remnawave_host_tags" "all" {}
 // enabled.
 func TestAccUserIPsDataSource(t *testing.T) {
 	testAccPreCheck(t)
-	endpoint, authBlock := testAccProviderBlock()
-	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
 
 	// Skip in CI — async IP fetch requires a connected user + node.
 	t.Skip("requires connected user + node for async IP fetch; skip in CI")
 
-	resource.Test(t, resource.TestCase{
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
-		Steps: []resource.TestStep{
-			{
-				Config: providerCfg + `
-resource "remnawave_user" "test" {
-  username            = "ips-ds-test"
-  expire_at           = "2027-01-01T00:00:00.000Z"
-  traffic_limit_bytes = 10737418240
-}
-
-data "remnawave_user_ips" "test" {
-  uuid = remnawave_user.test.uuid
-}
-`,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("data.remnawave_user_ips.test", "ips.#"),
-				),
-			},
-		},
-	})
+	_ = fmt.Sprintf(testAccProviderConfig, "", "")
 }
 
 // TestAccPasskeysDataSource verifies the passkeys data source.
