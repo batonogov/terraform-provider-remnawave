@@ -52,6 +52,14 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "BulkEnableHosts", method: http.MethodPost, path: "/api/hosts/bulk/enable", args: []any{[]string{"item-id"}}, wantJSON: map[string]any{"uuids": []any{"item-id"}}},
 		{name: "BulkDisableHosts", method: http.MethodPost, path: "/api/hosts/bulk/disable", args: []any{[]string{"item-id"}}, wantJSON: map[string]any{"uuids": []any{"item-id"}}},
 		{name: "BulkDeleteHosts", method: http.MethodPost, path: "/api/hosts/bulk/delete", args: []any{[]string{"item-id"}}, wantJSON: map[string]any{"uuids": []any{"item-id"}}},
+		{name: "BulkUserActionResetTraffic", method: http.MethodPost, path: "/api/users/bulk/reset-traffic", args: []any{"reset_traffic", []string{"item-id"}}, wantJSON: map[string]any{"uuids": []any{"item-id"}}},
+		{name: "BulkUserActionRevoke", method: http.MethodPost, path: "/api/users/bulk/revoke-subscription", args: []any{"revoke_subscription", []string{"item-id"}}, wantJSON: map[string]any{"uuids": []any{"item-id"}}},
+		{name: "BulkUserActionDelete", method: http.MethodPost, path: "/api/users/bulk/delete", args: []any{"delete", []string{"item-id"}}, wantJSON: map[string]any{"uuids": []any{"item-id"}}},
+		{name: "BulkUserExtendExpiration", method: http.MethodPost, path: "/api/users/bulk/extend-expiration-date", args: []any{[]string{"item-id"}, 7}, wantJSON: map[string]any{"uuids": []any{"item-id"}, "days": float64(7)}},
+		{name: "BulkNodeActionEnable", method: http.MethodPost, path: "/api/nodes/bulk-actions", args: []any{"enable", []string{"item-id"}}, wantJSON: map[string]any{"uuids": []any{"item-id"}, "action": "ENABLE"}},
+		{name: "BulkNodeActionDisable", method: http.MethodPost, path: "/api/nodes/bulk-actions", args: []any{"disable", []string{"item-id"}}, wantJSON: map[string]any{"uuids": []any{"item-id"}, "action": "DISABLE"}},
+		{name: "BulkNodeActionRestart", method: http.MethodPost, path: "/api/nodes/bulk-actions", args: []any{"restart", []string{"item-id"}}, wantJSON: map[string]any{"uuids": []any{"item-id"}, "action": "RESTART"}},
+		{name: "BulkNodeActionResetTraffic", method: http.MethodPost, path: "/api/nodes/bulk-actions", args: []any{"reset_traffic", []string{"item-id"}}, wantJSON: map[string]any{"uuids": []any{"item-id"}, "action": "RESET_TRAFFIC"}},
 		{name: "GetSystemHealth", method: http.MethodGet, path: "/api/system/health"},
 
 		{name: "CreateConfigProfile", method: http.MethodPost, path: "/api/config-profiles", args: []any{&ConfigProfile{Name: "profile"}}},
@@ -268,6 +276,10 @@ func clientContractMethodName(caseName string) string {
 		return "GetSystemStats"
 	case "GetBandwidthStatsNodesWithoutLimit":
 		return "GetBandwidthStatsNodes"
+	case "BulkUserActionResetTraffic", "BulkUserActionRevoke", "BulkUserActionDelete":
+		return "BulkUserAction"
+	case "BulkNodeActionEnable", "BulkNodeActionDisable", "BulkNodeActionRestart", "BulkNodeActionResetTraffic":
+		return "BulkNodeAction"
 	default:
 		return caseName
 	}
