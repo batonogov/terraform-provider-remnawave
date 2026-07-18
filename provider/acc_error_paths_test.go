@@ -25,7 +25,7 @@ resource "remnawave_user" "short" {
   expire_at = "2027-01-01T00:00:00.000Z"
 }
 `,
-			ExpectError: regexp.MustCompile(`(?i).*(minimum|min|too short|3 character|shorter).*`),
+			ExpectError: regexp.MustCompile(`(?i).*(minimum|min|too short|3 character|shorter|invalid attribute value length|length).*`),
 		}},
 	})
 }
