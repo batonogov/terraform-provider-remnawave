@@ -25,14 +25,14 @@ type dropConnectionsResource struct {
 }
 
 type dropConnectionsModel struct {
-	ID              types.String `tfsdk:"id"`
-	DropBy          types.String `tfsdk:"drop_by"`
-	UserUUIDs       types.List   `tfsdk:"user_uuids"`
-	IPAddresses     types.List   `tfsdk:"ip_addresses"`
-	Target          types.String `tfsdk:"target"`
-	NodeUUIDs       types.List   `tfsdk:"node_uuids"`
-	Triggers        types.Map    `tfsdk:"triggers"`
-	EventSent       types.Bool   `tfsdk:"event_sent"`
+	ID          types.String `tfsdk:"id"`
+	DropBy      types.String `tfsdk:"drop_by"`
+	UserUUIDs   types.List   `tfsdk:"user_uuids"`
+	IPAddresses types.List   `tfsdk:"ip_addresses"`
+	Target      types.String `tfsdk:"target"`
+	NodeUUIDs   types.List   `tfsdk:"node_uuids"`
+	Triggers    types.Map    `tfsdk:"triggers"`
+	EventSent   types.Bool   `tfsdk:"event_sent"`
 }
 
 func NewDropConnectionsResource() resource.Resource {

@@ -1371,6 +1371,7 @@ func (c *Client) FetchUserIPs(ctx context.Context, userUUID string) ([]string, e
 }
 
 // DropConnections drops all active connections for the given user UUID.
+//
 // Deprecated: use DropConnectionsV2 for the full API schema (drop by IP, target nodes).
 func (c *Client) DropConnections(ctx context.Context, userUUID string) error {
 	body := map[string]string{"userUuid": userUUID}
