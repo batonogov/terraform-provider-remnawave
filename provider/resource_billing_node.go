@@ -33,9 +33,9 @@ func (r *billingNodeResource) Schema(_ context.Context, _ resource.SchemaRequest
 		Description: "Manages a Remnawave infra billing node.",
 		Attributes: map[string]schema.Attribute{
 			"uuid":            schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
-			"provider_uuid":   schema.StringAttribute{Required: true, Description: "UUID of the infra provider."},
-			"node_uuid":       schema.StringAttribute{Optional: true, Description: "UUID of the associated node (optional)."},
-			"name":            schema.StringAttribute{Optional: true, Description: "Optional display name."},
+			"provider_uuid":   schema.StringAttribute{Required: true, Description: "UUID of the infra provider.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
+			"node_uuid":       schema.StringAttribute{Optional: true, Description: "UUID of the associated node (optional).", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
+			"name":            schema.StringAttribute{Optional: true, Description: "Optional display name.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
 			"next_billing_at": schema.StringAttribute{Required: true, Description: "Next billing date (ISO 8601 datetime)."},
 		},
 	}
