@@ -140,9 +140,9 @@ func (r *userActionResource) Create(ctx context.Context, req resource.CreateRequ
 			"user_uuid":        plan.UserUUID.ValueString(),
 		})
 	}
-	// Replace the plan with the canonical form so the rest of the flow
-	// (client call, ID, state) records the canonical action name.
-	plan.Action = types.StringValue(canonicalAction)
+	// NOTE: do NOT overwrite plan.Action — Terraform requires state to match
+	// the config value the user supplied. The alias is preserved in state
+	// and only normalized for the API call.
 	action = canonicalAction
 
 	userUUID := plan.UserUUID.ValueString()

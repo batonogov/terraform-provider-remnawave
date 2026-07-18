@@ -106,8 +106,9 @@ resource "remnawave_node_action" "test" {
 }
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					// Alias is normalized to canonical "reset_traffic" in state.
-					resource.TestCheckResourceAttr("remnawave_node_action.test", "action", "reset_traffic"),
+					// Alias is preserved as-is in state — Terraform requires state
+					// to match the config value the user supplied.
+					resource.TestCheckResourceAttr("remnawave_node_action.test", "action", "reset-traffic"),
 					resource.TestCheckResourceAttr("remnawave_node_action.test", "force_restart", "false"),
 					resource.TestCheckResourceAttrSet("remnawave_node_action.test", "id"),
 					resource.TestCheckResourceAttrSet("remnawave_node_action.test", "created_at"),
