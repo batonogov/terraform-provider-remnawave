@@ -31,7 +31,7 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "GetUserByUUID", method: http.MethodGet, path: "/api/users/item-id", args: []any{"item-id"}},
 		{name: "UpdateUser", method: http.MethodPatch, path: "/api/users", args: []any{&User{UUID: "item-id", Username: "alice", ExpireAt: "2027-01-01T00:00:00Z"}}},
 		{name: "DeleteUser", method: http.MethodDelete, path: "/api/users/item-id", args: []any{"item-id"}},
-		{name: "GetAllUsers", method: http.MethodGet, path: "/api/users"},
+		{name: "GetAllUsers", method: http.MethodGet, path: "/api/users", query: map[string]string{"size": "1000"}},
 
 		{name: "CreateNode", method: http.MethodPost, path: "/api/nodes", args: []any{&Node{Name: "node", Address: "127.0.0.1"}}},
 		{name: "GetAllNodes", method: http.MethodGet, path: "/api/nodes"},
@@ -119,7 +119,7 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "GetSubscriptionByUUID", method: http.MethodGet, path: "/api/subscriptions/by-uuid/item-id", args: []any{"item-id"}},
 		{name: "GetSubscriptionByUsername", method: http.MethodGet, path: "/api/subscriptions/by-username/alice", args: []any{"alice"}},
 		{name: "GetSubscriptionByShortUUID", method: http.MethodGet, path: "/api/subscriptions/by-short-uuid/short-id", args: []any{"short-id"}},
-		{name: "GetSubscriptionRequestHistory", method: http.MethodGet, path: "/api/subscription-request-history"},
+		{name: "GetSubscriptionRequestHistory", method: http.MethodGet, path: "/api/subscription-request-history", query: map[string]string{"size": "1000"}},
 
 		{name: "GetBandwidthStatsNodes", method: http.MethodGet, path: "/api/bandwidth-stats/nodes", args: []any{"2026-01-01T00:00:00+03:00", "2026-01-02T00:00:00+03:00", 5}, query: map[string]string{"start": "2026-01-01T00:00:00+03:00", "end": "2026-01-02T00:00:00+03:00", "topNodesLimit": "5"}},
 		{name: "GetBandwidthStatsNodesWithoutLimit", method: http.MethodGet, path: "/api/bandwidth-stats/nodes", args: []any{"start", "end", 0}, query: map[string]string{"start": "start", "end": "end"}},
@@ -143,7 +143,7 @@ func TestClientAPIContracts(t *testing.T) {
 
 		{name: "CreateHwidDevice", method: http.MethodPost, path: "/api/hwid/devices", args: []any{map[string]any{"hwid": "device-id"}}, wantJSON: map[string]any{"hwid": "device-id"}},
 		{name: "DeleteHwidDevice", method: http.MethodPost, path: "/api/hwid/devices/delete", args: []any{map[string]any{"hwid": "device-id"}}, wantJSON: map[string]any{"hwid": "device-id"}},
-		{name: "GetUserHwidDevices", method: http.MethodGet, path: "/api/hwid/devices/item-id", args: []any{"item-id"}},
+		{name: "GetUserHwidDevices", method: http.MethodGet, path: "/api/hwid/devices/item-id", args: []any{"item-id"}, query: map[string]string{"size": "1000"}},
 		{name: "GetHwidStats", method: http.MethodGet, path: "/api/hwid/devices/stats"},
 		{name: "GetHwidTopUsers", method: http.MethodGet, path: "/api/hwid/devices/top-users"},
 		{name: "UserAction", method: http.MethodPost, path: "/api/users/item-id/actions/reset-traffic", args: []any{"item-id", "reset_traffic"}, noBody: true},
