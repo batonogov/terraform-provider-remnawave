@@ -427,7 +427,7 @@ func (c *Client) GetUserByUUID(ctx context.Context, uuid string) (*User, error) 
 	return &out, nil
 }
 
-func (c *Client) UpdateUser(ctx context.Context, user *User) (*User, error) {
+func (c *Client) UpdateUser(ctx context.Context, user any) (*User, error) {
 	var out User
 	if err := c.doRequest(ctx, http.MethodPatch, "/api/users", user, &out); err != nil {
 		return nil, err
