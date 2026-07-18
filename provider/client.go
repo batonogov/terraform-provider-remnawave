@@ -620,6 +620,66 @@ func (c *Client) BulkDeleteHosts(ctx context.Context, uuids []string) error {
 	return c.doRequest(ctx, http.MethodPost, "/api/hosts/bulk/delete", map[string][]string{"uuids": uuids}, nil)
 }
 
+// ─── Bulk User Actions API ───
+
+// bulkUserActionEndpoint maps a user bulk action string to its REST endpoint
+// suffix under /api/users/bulk/.
+var bulkUserActionEndpoint = map[string]string{
+	"reset_traffic":       "reset-traffic",
+	"revoke_subscription": "revoke-subscription",
+	"delete":              "delete",
+}
+
+// BulkUserAction performs a bulk action (reset_traffic, revoke_subscription, or
+// delete) on the given user UUIDs. All three endpoints accept a POST with a
+// {"uuids": [...]} JSON body — the backend intentionally routes bulk delete via
+// POST rather than the HTTP DELETE method.
+func (c *Client) BulkUserAction(ctx context.Context, action string, uuids []string) error {
+	suffix, ok := bulkUserActionEndpoint[action]
+	if !ok {
+		return fmt.Errorf("unknown user bulk action %q: must be one of reset_traffic, revoke_subscription, delete", action)
+	}
+	path := "/api/users/bulk/" + suffix
+	return c.doRequest(ctx, http.MethodPost, path, map[string][]string{"uuids": uuids}, nil)
+}
+
+// BulkUserExtendExpiration extends the subscription expiration of the given
+// users by the specified number of days via
+// POST /api/users/bulk/extend-expiration-date with {"uuids": [...], "days": N}.
+func (c *Client) BulkUserExtendExpiration(ctx context.Context, uuids []string, days int) error {
+	body := map[string]any{
+		"uuids": uuids,
+		"days":  days,
+	}
+	return c.doRequest(ctx, http.MethodPost, "/api/users/bulk/extend-expiration-date", body, nil)
+}
+
+// ─── Bulk Node Actions API ───
+
+// bulkNodeActionEnum maps a lowercase node bulk action string to the uppercase
+// enum value expected by POST /api/nodes/bulk-actions.
+var bulkNodeActionEnum = map[string]string{
+	"enable":        "ENABLE",
+	"disable":       "DISABLE",
+	"restart":       "RESTART",
+	"reset_traffic": "RESET_TRAFFIC",
+}
+
+// BulkNodeAction performs a bulk action (enable, disable, restart, or
+// reset_traffic) on the given node UUIDs via POST /api/nodes/bulk-actions with
+// {"uuids": [...], "action": "ENABLE"|"DISABLE"|"RESTART"|"RESET_TRAFFIC"}.
+func (c *Client) BulkNodeAction(ctx context.Context, action string, uuids []string) error {
+	enum, ok := bulkNodeActionEnum[action]
+	if !ok {
+		return fmt.Errorf("unknown node bulk action %q: must be one of enable, disable, restart, reset_traffic", action)
+	}
+	body := map[string]any{
+		"uuids":  uuids,
+		"action": enum,
+	}
+	return c.doRequest(ctx, http.MethodPost, "/api/nodes/bulk-actions", body, nil)
+}
+
 // ─── System API ───
 
 func (c *Client) GetSystemHealth(ctx context.Context) (map[string]any, error) {

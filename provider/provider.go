@@ -189,6 +189,8 @@ func (p *RemnawaveProvider) Resources(_ context.Context) []func() resource.Resou
 		NewDropConnectionsResource,
 		NewUserActionResource,
 		NewPasskeyResource,
+		NewUserBulkActionResource,
+		NewNodeBulkActionResource,
 	}
 }
 
