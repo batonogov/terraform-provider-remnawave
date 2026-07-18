@@ -8,7 +8,7 @@ description: |-
 
 # remnawave_user_action (Resource)
 
-Performs an imperative one-shot action on a Remnawave user (enable, disable, reset_traffic, or revoke_subscription). The action is re-executed whenever the `triggers` list changes value, making it suitable for recurring operations such as periodic traffic resets. reset-traffic is accepted as a backward-compatible alias for reset_traffic (prefer the underscore form).
+Performs an imperative one-shot action on a Remnawave user (enable, disable, reset_traffic, or revoke_subscription). The action is re-executed whenever the triggers list changes value, making it suitable for recurring operations such as periodic traffic resets. reset-traffic is accepted as a backward-compatible alias for reset_traffic (prefer the underscore form).
 
 ## Example Usage
 

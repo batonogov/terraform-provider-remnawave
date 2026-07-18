@@ -8,7 +8,7 @@ description: |-
 
 # remnawave_node_action (Resource)
 
-Executes a one-time action on a Remnawave node (enable, disable, restart, or reset_traffic). Use `triggers` to force re-execution when values change. reset-traffic is accepted as a backward-compatible alias for reset_traffic (prefer the underscore form).
+Executes a one-time action on a Remnawave node (enable, disable, restart, or reset_traffic). Use triggers to force re-execution when values change. reset-traffic is accepted as a backward-compatible alias for reset_traffic (prefer the underscore form).
 
 ## Example Usage
 
