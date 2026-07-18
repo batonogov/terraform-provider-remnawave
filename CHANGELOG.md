@@ -7,6 +7,7 @@
 
 * add branding_logo_url and password_auth_enabled to panel_settings ([#97](https://github.com/batonogov/terraform-provider-remnawave/issues/97)) ([6144aaf](https://github.com/batonogov/terraform-provider-remnawave/commit/6144aaf59d306369c0d9d2ce191aca91891dafa1))
 * add host tags data source and host bulk action resource ([#104](https://github.com/batonogov/terraform-provider-remnawave/issues/104)) ([6d8af2f](https://github.com/batonogov/terraform-provider-remnawave/commit/6d8af2fcc4c8f995ada08cde5e358ed72ef03e4d))
+* add IP Control data sources and drop_connections resource ([#102](https://github.com/batonogov/terraform-provider-remnawave/issues/102)) ([a21e2d0](https://github.com/batonogov/terraform-provider-remnawave/commit/a21e2d03ee8191c6f6dcd8686306e167f75f408c))
 * add remnawave_node_action resource ([#103](https://github.com/batonogov/terraform-provider-remnawave/issues/103)) ([1aeebc0](https://github.com/batonogov/terraform-provider-remnawave/commit/1aeebc00bea936e64b63f78f3bc4a3703050d8d2))
 * add remnawave_passkeys data source and passkey resource ([#105](https://github.com/batonogov/terraform-provider-remnawave/issues/105)) ([c6d2789](https://github.com/batonogov/terraform-provider-remnawave/commit/c6d2789b3e69d49d2155ee4c6438692c4c5d8928))
 * add remnawave_user_action resource ([#101](https://github.com/batonogov/terraform-provider-remnawave/issues/101)) ([2808783](https://github.com/batonogov/terraform-provider-remnawave/commit/2808783a64f2d4e2d47c7f209177e2339c36957a))

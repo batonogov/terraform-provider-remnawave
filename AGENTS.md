@@ -62,7 +62,7 @@ Panel branding PATCH payloads must include both `title` and `logoUrl` keys when
 `brandingSettings` is present. Remnawave accepts `null` values, so do not add
 `omitempty` to those nested JSON fields.
 
-### Resources (19)
+### Resources (24)
 
 | Resource | File | API Base |
 | --- | --- | --- |
@@ -85,8 +85,13 @@ Panel branding PATCH payloads must include both `title` and `logoUrl` keys when
 | `remnawave_user_metadata` | `resource_user_metadata.go` | `/api/metadata/user/:uuid` |
 | `remnawave_node_metadata` | `resource_node_metadata.go` | `/api/metadata/node/:uuid` |
 | `remnawave_hwid_device` | `resource_hwid_device.go` | `/api/hwid/devices` |
+| `remnawave_host_bulk_action` | `resource_host_bulk_action.go` | `/api/hosts/bulk/{enable,disable,delete}` |
+| `remnawave_node_action` | `resource_node_action.go` | `/api/nodes/:uuid/actions/{enable,disable,restart,reset-traffic}` |
+| `remnawave_drop_connections` | `resource_drop_connections.go` | `/api/ip-control/drop-connections` |
+| `remnawave_user_action` | `resource_user_action.go` | `/api/users/:uuid/actions/{enable,disable,reset-traffic,revoke-subscription}` |
+| `remnawave_passkey` | `resource_passkey.go` | `/api/passkeys` |
 
-### Data Sources (20)
+### Data Sources (23)
 
 Data sources live in `data_sources.go` (original) and `data_source_*.go` (newer).
 
@@ -112,6 +117,9 @@ Data sources live in `data_sources.go` (original) and `data_source_*.go` (newer)
 | `remnawave_connection_keys` | `data_source_misc_stats.go` | `/api/subscriptions/connection-keys/:uuid` |
 | `remnawave_hwid_stats` | `data_source_hwid.go` | `/api/hwid/devices/stats` |
 | `remnawave_hwid_top_users` | `data_source_hwid.go` | `/api/hwid/devices/top-users` |
+| `remnawave_host_tags` | `data_source_host_tags.go` | `/api/hosts/tags` |
+| `remnawave_user_ips` | `data_source_user_ips.go` | `/api/ip-control/fetch-ips/:uuid` |
+| `remnawave_passkeys` | `data_source_passkeys.go` | `/api/passkeys` |
 
 ### Acceptance Tests
 
