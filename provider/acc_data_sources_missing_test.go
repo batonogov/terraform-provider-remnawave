@@ -10,6 +10,8 @@ import (
 // TestAccHostTagsDataSource verifies the host_tags data source returns
 // a list of tags from the panel. We create a host with a tag first to ensure
 // the list is non-empty.
+//
+// Covers #117 for remnawave_host_tags.
 func TestAccHostTagsDataSource(t *testing.T) {
 	testAccPreCheck(t)
 	endpoint, authBlock := testAccProviderBlock()
