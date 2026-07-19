@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.4.1...v0.5.0) (2026-07-19)
+
+
+### Features
+
+* add enum and format validators for all constrained fields ([#111](https://github.com/batonogov/terraform-provider-remnawave/issues/111)) ([#131](https://github.com/batonogov/terraform-provider-remnawave/issues/131)) ([7b74a1c](https://github.com/batonogov/terraform-provider-remnawave/commit/7b74a1cecdce4a30933f2f7f8b3b3ade09a2211c))
+* add OAuth2 settings to panel_settings ([#112](https://github.com/batonogov/terraform-provider-remnawave/issues/112)) ([#132](https://github.com/batonogov/terraform-provider-remnawave/issues/132)) ([80f4b16](https://github.com/batonogov/terraform-provider-remnawave/commit/80f4b1630cb2dd707c4e8188f3aa0591906fc637))
+* add user and node bulk action resources ([#114](https://github.com/batonogov/terraform-provider-remnawave/issues/114)) ([#133](https://github.com/batonogov/terraform-provider-remnawave/issues/133)) ([8d35d16](https://github.com/batonogov/terraform-provider-remnawave/commit/8d35d1613ad1545d7e96ea2b86edaee90ad6cffd))
+* extend drop_connections to full API schema ([#113](https://github.com/batonogov/terraform-provider-remnawave/issues/113)) ([#130](https://github.com/batonogov/terraform-provider-remnawave/issues/130)) ([65645c0](https://github.com/batonogov/terraform-provider-remnawave/commit/65645c0b008151b99b6450ece41301963d7ef790))
+
+
+### Bug Fixes
+
+* unwrap host tags response envelope ([#136](https://github.com/batonogov/terraform-provider-remnawave/issues/136)) ([#137](https://github.com/batonogov/terraform-provider-remnawave/issues/137)) ([24714e5](https://github.com/batonogov/terraform-provider-remnawave/commit/24714e5108404a8590214f3850143612042ac02f))
+
 ## [0.4.1](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.4.0...v0.4.1) (2026-07-18)
 
 
