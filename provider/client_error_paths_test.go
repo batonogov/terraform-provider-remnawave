@@ -57,7 +57,9 @@ func TestServer5xxReturnsError(t *testing.T) {
 func TestServer503SurfacesError(t *testing.T) {
 	t.Parallel()
 
+	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}))
 	t.Cleanup(server.Close)
@@ -77,6 +79,9 @@ func TestServer503SurfacesError(t *testing.T) {
 	}
 	if statusErr.StatusCode != http.StatusServiceUnavailable {
 		t.Errorf("status = %d, want 503", statusErr.StatusCode)
+	}
+	if got := calls.Load(); got != 1 {
+		t.Errorf("server call count = %d, want exactly 1 (no retry)", got)
 	}
 }
 

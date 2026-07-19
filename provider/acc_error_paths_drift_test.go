@@ -32,7 +32,7 @@ resource "remnawave_snippet" "second" {
   snippet = jsonencode([{ "type" = "field", "domain" = ["geosite:category-ads"] }])
 }
 `,
-				ExpectError: regexp.MustCompile(`(?i)(conflict|already exists|409|duplicate|error)`),
+				ExpectError: regexp.MustCompile(`(?i)(conflict|already exists|409|duplicate)`),
 			},
 		},
 	})
@@ -56,7 +56,7 @@ func TestAccSnippetImportNotFound(t *testing.T) {
 				ImportState:   true,
 				ResourceName:  "remnawave_snippet.ghost",
 				ImportStateId: "nonexistent-snippet-name-xyz",
-				ExpectError:   regexp.MustCompile(`(?i)(not found|404|error|failed)`),
+				ExpectError:   regexp.MustCompile(`(?i)(not found|404)`),
 			},
 		},
 	})
@@ -80,7 +80,7 @@ func TestAccHostImportNotFound(t *testing.T) {
 				ImportState:   true,
 				ResourceName:  "remnawave_host.ghost",
 				ImportStateId: "00000000-0000-0000-0000-000000000000",
-				ExpectError:   regexp.MustCompile(`(?i)(not found|404|error|failed)`),
+				ExpectError:   regexp.MustCompile(`(?i)(not found|404)`),
 			},
 		},
 	})
@@ -104,7 +104,7 @@ func TestAccNodeImportNotFound(t *testing.T) {
 				ImportState:   true,
 				ResourceName:  "remnawave_node.ghost",
 				ImportStateId: "00000000-0000-0000-0000-000000000000",
-				ExpectError:   regexp.MustCompile(`(?i)(not found|404|error|failed)`),
+				ExpectError:   regexp.MustCompile(`(?i)(not found|404)`),
 			},
 		},
 	})
@@ -128,7 +128,7 @@ func TestAccConfigProfileImportNotFound(t *testing.T) {
 				ImportState:   true,
 				ResourceName:  "remnawave_config_profile.ghost",
 				ImportStateId: "00000000-0000-0000-0000-000000000000",
-				ExpectError:   regexp.MustCompile(`(?i)(not found|404|error|failed)`),
+				ExpectError:   regexp.MustCompile(`(?i)(not found|404)`),
 			},
 		},
 	})
