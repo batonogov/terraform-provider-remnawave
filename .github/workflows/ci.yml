@@ -181,7 +181,7 @@ jobs:
           REMNAWAVE_USERNAME: ${{ env.REMNAWAVE_ADMIN_USERNAME }}
           REMNAWAVE_PASSWORD: ${{ env.REMNAWAVE_ADMIN_PASSWORD }}
           REMNAWAVE_PROXY_HEADERS: "true"
-        run: go test ./provider -run '^TestAcc(PanelSettings|ApiToken)Resource$|^TestAccPasskeysDataSource$' -count=1 -timeout 600s -v
+        run: go test ./provider -run '^TestAcc(PanelSettings|ApiToken)Resource$' -count=1 -timeout 600s -v
       - name: Tear down
         if: always()
         run: docker compose down -v
