@@ -72,7 +72,7 @@ func (d *passkeysDataSource) Read(ctx context.Context, _ datasource.ReadRequest,
 	var state passkeysDataSourceModel
 	for _, p := range passkeys {
 		item := passkeyItem{
-			UUID:      types.StringValue(p.UUID),
+			UUID:      types.StringValue(p.ID),
 			Name:      types.StringValue(p.Name),
 			CreatedAt: types.StringValue(p.CreatedAt),
 		}
