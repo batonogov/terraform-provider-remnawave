@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.1](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.5.0...v0.5.1) (2026-07-20)
+
+
+### Bug Fixes
+
+* correct fetch-ips-result endpoint path and response schema ([#141](https://github.com/batonogov/terraform-provider-remnawave/issues/141)) ([#144](https://github.com/batonogov/terraform-provider-remnawave/issues/144)) ([3b93881](https://github.com/batonogov/terraform-provider-remnawave/commit/3b93881c9263de9aa1536884cfb4001a85b3f10f))
+* unwrap passkeys response envelope ([#145](https://github.com/batonogov/terraform-provider-remnawave/issues/145)) ([aa770aa](https://github.com/batonogov/terraform-provider-remnawave/commit/aa770aa0bd616f91ff84362945e9ee39ef0bb0f1))
+
 ## [0.5.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.4.1...v0.5.0) (2026-07-19)
 
 
