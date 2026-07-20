@@ -155,7 +155,7 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "GetHwidStats", method: http.MethodGet, path: "/api/hwid/devices/stats"},
 		{name: "GetHwidTopUsers", method: http.MethodGet, path: "/api/hwid/devices/top-users"},
 		{name: "UserAction", method: http.MethodPost, path: "/api/users/item-id/actions/reset-traffic", args: []any{"item-id", "reset_traffic"}, noBody: true},
-		{name: "FetchUserIPs", method: http.MethodPost, path: "/api/ip-control/fetch-ips/item-id", args: []any{"item-id"}, noBody: true, mockResponse: `{"response":{"jobId":"job-1","status":"completed","ips":[]}}`},
+		{name: "FetchUserIPs", method: http.MethodPost, path: "/api/ip-control/fetch-ips/item-id", args: []any{"item-id"}, noBody: true, mockResponse: `{"response":{"jobId":"job-1"}}`},
 		{name: "DropConnections", method: http.MethodPost, path: "/api/ip-control/drop-connections", args: []any{"item-id"}, wantJSON: map[string]any{"userUuid": "item-id"}},
 		{name: "DropConnectionsV2", method: http.MethodPost, path: "/api/ip-control/drop-connections", args: []any{map[string]any{"dropBy": map[string]any{"by": "userUuids", "userUuids": []any{"item-id"}}, "targetNodes": map[string]any{"target": "allNodes"}}}, wantJSON: map[string]any{"dropBy": map[string]any{"by": "userUuids", "userUuids": []any{"item-id"}}, "targetNodes": map[string]any{"target": "allNodes"}}},
 		{name: "GetAllPasskeys", method: http.MethodGet, path: "/api/passkeys"},
@@ -184,7 +184,7 @@ func TestClientAPIContracts(t *testing.T) {
 				}
 				// For async methods that poll, serve the poll response without assertions.
 				if tt.mockResponse != "" && r.URL.Path != tt.path {
-					_, _ = io.WriteString(w, `{"response":{"status":"completed","ips":[]}}`)
+					_, _ = io.WriteString(w, `{"response":{"isCompleted":true,"isFailed":false,"progress":{"total":1,"completed":1,"percent":100},"result":{"success":true,"userUuid":"item-id","userId":"1","nodes":[{"nodeUuid":"node-1","nodeName":"test","countryCode":"US","ips":[]}]}}}`)
 					return
 				}
 				if r.Method != tt.method {
@@ -240,7 +240,7 @@ func TestClientAPIContracts(t *testing.T) {
 					// For async methods that poll (FetchUserIPs), serve mockResponse
 					// for the initial request and a completed result for the poll.
 					if r.URL.Path != tt.path {
-						_, _ = io.WriteString(w, `{"response":{"status":"completed","ips":[]}}`)
+						_, _ = io.WriteString(w, `{"response":{"isCompleted":true,"isFailed":false,"progress":{"total":1,"completed":1,"percent":100},"result":{"success":true,"userUuid":"item-id","userId":"1","nodes":[{"nodeUuid":"node-1","nodeName":"test","countryCode":"US","ips":[]}]}}}`)
 					} else {
 						_, _ = io.WriteString(w, tt.mockResponse)
 					}
