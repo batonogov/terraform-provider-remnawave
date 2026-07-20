@@ -1392,12 +1392,38 @@ type ipControlJobResponse struct {
 	JobID string `json:"jobId"`
 }
 
-// ipControlJobResult is the response from GET /api/ip-control/fetch-ips-result/:jobId.
-// The status field transitions through "pending"/"processing" to "completed".
-// When completed, ips contains the list of IPs the user is connected from.
+// ipControlJobResult is the response from GET /api/ip-control/fetch-ips/result/:jobId.
 type ipControlJobResult struct {
-	Status string   `json:"status"`
-	IPs    []string `json:"ips"`
+	IsCompleted bool                   `json:"isCompleted"`
+	IsFailed    bool                   `json:"isFailed"`
+	Progress    ipControlJobProgress   `json:"progress"`
+	Result      *ipControlJobResultDat `json:"result"`
+}
+
+type ipControlJobProgress struct {
+	Total     int `json:"total"`
+	Completed int `json:"completed"`
+	Percent   int `json:"percent"`
+}
+
+// ipControlJobResultDat is the nullable result payload.
+type ipControlJobResultDat struct {
+	Success  bool            `json:"success"`
+	UserUUID string          `json:"userUuid"`
+	UserID   string          `json:"userId"`
+	Nodes    []ipControlNode `json:"nodes"`
+}
+
+type ipControlNode struct {
+	NodeUUID    string        `json:"nodeUuid"`
+	NodeName    string        `json:"nodeName"`
+	CountryCode string        `json:"countryCode"`
+	IPs         []ipControlIP `json:"ips"`
+}
+
+type ipControlIP struct {
+	IP       string `json:"ip"`
+	LastSeen string `json:"lastSeen"`
 }
 
 // FetchUserIPs initiates an async job to fetch the IPs a user is connected
@@ -1421,14 +1447,22 @@ func (c *Client) FetchUserIPs(ctx context.Context, userUUID string) ([]string, e
 	deadline := time.Now().Add(pollTimeout)
 	for {
 		var result ipControlJobResult
-		if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/ip-control/fetch-ips-result/%s", jobResp.JobID), nil, &result); err != nil {
-			return nil, fmt.Errorf("failed to fetch-ips-result for jobId %s: %w", jobResp.JobID, err)
+		if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/ip-control/fetch-ips/result/%s", jobResp.JobID), nil, &result); err != nil {
+			return nil, fmt.Errorf("failed to fetch-ips result for jobId %s: %w", jobResp.JobID, err)
 		}
 
-		// Check completion: status is "completed" (or absent with ips present).
-		status := strings.ToLower(result.Status)
-		if status == "completed" || status == "done" || status == "success" || (status == "" && result.IPs != nil) {
-			return result.IPs, nil
+		if result.IsFailed {
+			return nil, fmt.Errorf("fetch-ips job %s failed", jobResp.JobID)
+		}
+		if result.IsCompleted && result.Result != nil {
+			// Flatten all IPs across all nodes.
+			var ips []string
+			for _, node := range result.Result.Nodes {
+				for _, ip := range node.IPs {
+					ips = append(ips, ip.IP)
+				}
+			}
+			return ips, nil
 		}
 
 		if time.Now().After(deadline) {
