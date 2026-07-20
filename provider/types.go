@@ -339,9 +339,12 @@ type SubpageConfig struct {
 }
 
 // Passkey maps to the Remnawave Passkey model.
-// API: /api/passkeys (GET list), DELETE /api/passkeys/:id, PATCH /api/passkeys/:id
+// API: /api/passkeys (GET list → {passkeys: [...]}), DELETE /api/passkeys/:id, PATCH /api/passkeys/:id
+// The backend uses "id" as the JSON key; the provider exposes it as "uuid"
+// in Terraform for backward compatibility.
 type Passkey struct {
-	UUID      string `json:"uuid,omitempty"`
-	Name      string `json:"name,omitempty"`
-	CreatedAt string `json:"createdAt,omitempty"`
+	ID         string `json:"id,omitempty"`
+	Name       string `json:"name,omitempty"`
+	CreatedAt  string `json:"createdAt,omitempty"`
+	LastUsedAt string `json:"lastUsedAt,omitempty"`
 }

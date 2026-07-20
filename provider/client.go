@@ -1024,12 +1024,18 @@ func (c *Client) getAllApiTokensV27(ctx context.Context) ([]ApiToken, error) {
 
 // ─── Passkey API ───
 
+// passkeysResponse is the unwrapped {passkeys: [...]} payload after decodeResponse
+// strips the outer {response: ...} envelope.
+type passkeysResponse struct {
+	Passkeys []Passkey `json:"passkeys"`
+}
+
 func (c *Client) GetAllPasskeys(ctx context.Context) ([]Passkey, error) {
-	var out []Passkey
+	var out passkeysResponse
 	if err := c.doRequest(ctx, http.MethodGet, "/api/passkeys", nil, &out); err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out.Passkeys, nil
 }
 
 func (c *Client) DeletePasskey(ctx context.Context, uuid string) error {

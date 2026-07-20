@@ -93,7 +93,7 @@ func (r *passkeyResource) Read(ctx context.Context, req resource.ReadRequest, re
 	}
 
 	for _, p := range passkeys {
-		if p.UUID != state.UUID.ValueString() {
+		if p.ID != state.UUID.ValueString() {
 			continue
 		}
 		state.Name = types.StringValue(p.Name)

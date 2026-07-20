@@ -230,11 +230,14 @@ func TestClientAPIContracts(t *testing.T) {
 
 				w.Header().Set("Content-Type", "application/json")
 				response := `{}`
-				if tt.name == "GetAllNodes" || tt.name == "GetAllHosts" || tt.name == "GetAllPasskeys" {
+				if tt.name == "GetAllNodes" || tt.name == "GetAllHosts" {
 					response = `[]`
 				}
 				if tt.name == "GetHostTags" {
 					response = `{"tags":[]}`
+				}
+				if tt.name == "GetAllPasskeys" {
+					response = `{"passkeys":[]}`
 				}
 				if tt.mockResponse != "" {
 					// For async methods that poll (FetchUserIPs), serve mockResponse
