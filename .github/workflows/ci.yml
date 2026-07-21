@@ -20,7 +20,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
       - name: Run golangci-lint
         run: golangci-lint run
 
@@ -78,24 +78,66 @@ jobs:
           go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.24.0 generate --provider-dir .
           go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.24.0 validate --provider-dir .
       - name: Ensure generated documentation is current
-        run: git diff --exit-code -- docs
+        run: ./scripts/check-docs-drift.sh
+
+  prepare-compat:
+    name: Prepare Compatibility Matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Validate compatibility configuration and build matrix
+        id: matrix
+        run: |
+          matrix=$(jq -cer '
+            def valid_version:
+              type == "string" and test("^v[0-9]+\\.[0-9]+\\.[0-9]+$");
+            def valid_digest:
+              type == "string" and test("^sha256:[0-9a-f]{64}$");
+
+            . as $config
+            | if
+                (.versions | (type == "array" and length > 0))
+                and ([.versions[]
+                  | (.version | valid_version)
+                    and (.supported | type == "boolean")
+                    and (.digest | valid_digest)
+                    and (.token_payload | (type == "object" and length > 0))
+                ] | all)
+                and ([.versions[].version] | length == (unique | length))
+                and (.default_version | valid_version)
+                and ([.versions[]
+                  | select(.version == $config.default_version and .supported)
+                ] | length == 1)
+                and (.minor_lines
+                  | (type == "array" and length > 0)
+                    and all(.[]; type == "string" and test("^[0-9]+\\.[0-9]+\\.x$")))
+              then {
+                "include": [.versions[]
+                  | select(.supported)
+                  | {
+                      label: (.version | ltrimstr("v")),
+                      version: (.version | ltrimstr("v")),
+                      digest: .digest,
+                      token_payload: .token_payload
+                    }
+                ]
+              }
+              else error("invalid compat-versions.json structure or default_version")
+              end
+          ' compat-versions.json)
+          printf 'matrix=%s\n' "$matrix" >> "$GITHUB_OUTPUT"
 
   test-acc:
     name: Acceptance Tests (${{ matrix.label }})
+    needs: prepare-compat
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - label: "2.8.0"
-            version: "2.8.0"
-            digest: "sha256:cbc6d2ea0a84d8414dec565bb9ce299a3318b9e5297496baf8efcff2a1e66c65"
-            token_payload: '{"name":"acceptance-tests","expiresInDays":1,"scopes":["*"]}'
-          - label: "2.7.4"
-            version: "2.7.4"
-            digest: "sha256:a0e9a3d52e898b894965baed38ee45245b2cdb59ba19e198ab6371319e2968fc"
-            token_payload: '{"tokenName":"acceptance-tests"}'
+      matrix: ${{ fromJSON(needs.prepare-compat.outputs.matrix) }}
     env:
       REMNAWAVE_ADMIN_USERNAME: admin
       REMNAWAVE_ADMIN_PASSWORD: TestAdminPassword1234567
@@ -131,6 +173,8 @@ jobs:
             exit 1
           fi
       - name: Register admin account
+        env:
+          REMNAWAVE_TOKEN_PAYLOAD: ${{ toJSON(matrix.token_payload) }}
         run: |
           response=$(curl -s -w "\n%{http_code}" \
             -H "Content-Type: application/json" \
@@ -156,7 +200,7 @@ jobs:
             -H "X-Remnawave-Client-Type: browser" \
             -H "Authorization: Bearer $ADMIN_JWT" \
             -X POST http://localhost:3000/api/tokens \
-            -d '${{ matrix.token_payload }}')
+            -d "$REMNAWAVE_TOKEN_PAYLOAD")
           token_http_code=$(echo "$token_response" | tail -1)
           token_body=$(echo "$token_response" | sed '$d')
           echo "Token creation: HTTP $token_http_code"
