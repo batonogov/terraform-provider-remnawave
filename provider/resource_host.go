@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -170,6 +171,9 @@ func (r *hostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Computed:    true,
 				ElementType: types.StringType,
 				Description: "List of tags (uppercase letters/numbers/underscores/colons, max 36 chars each). Remnawave 2.7.x supports at most one tag; 2.8.x supports up to 10 tags.",
+				Validators: []validator.List{
+					listvalidator.SizeAtMost(10),
+				},
 			},
 			"nodes": schema.ListAttribute{
 				Optional:    true,
@@ -476,13 +480,18 @@ func hostToPlan(h *Host, p *hostResourceModel) {
 		p.ConfigProfileUUID = types.StringValue(h.Inbound.ConfigProfileUUID)
 		p.ConfigProfileInboundUUID = types.StringValue(h.Inbound.ConfigProfileInboundUUID)
 	}
-	if h.Tags != nil {
+	switch {
+	case h.Tags != nil:
 		elems := make([]attr.Value, 0, len(h.Tags))
 		for _, t := range h.Tags {
 			elems = append(elems, types.StringValue(t))
 		}
 		tagsList, _ := types.ListValue(types.StringType, elems)
 		p.Tags = tagsList
+	case h.Tag != nil && *h.Tag != "":
+		p.Tags = types.ListValueMust(types.StringType, []attr.Value{types.StringValue(*h.Tag)})
+	default:
+		p.Tags = types.ListValueMust(types.StringType, []attr.Value{})
 	}
 	if h.Nodes != nil {
 		elems := make([]attr.Value, 0, len(h.Nodes))
@@ -491,6 +500,8 @@ func hostToPlan(h *Host, p *hostResourceModel) {
 		}
 		nodesList, _ := types.ListValue(types.StringType, elems)
 		p.Nodes = nodesList
+	} else {
+		p.Nodes = types.ListValueMust(types.StringType, []attr.Value{})
 	}
 	p.MihomoX25519 = types.BoolValue(h.MihomoX25519)
 	if h.MihomoIPVersion != nil {
@@ -510,6 +521,8 @@ func hostToPlan(h *Host, p *hostResourceModel) {
 		}
 		squadsList, _ := types.ListValue(types.StringType, elems)
 		p.ExcludedInternalSquads = squadsList
+	} else {
+		p.ExcludedInternalSquads = types.ListValueMust(types.StringType, []attr.Value{})
 	}
 	p.ExcludeFromSubscriptionTypes, _ = types.SetValueFrom(context.Background(), types.StringType, h.ExcludeFromSubscriptionTypes)
 	if h.Path != nil {

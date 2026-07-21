@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -66,10 +69,16 @@ func (r *userBulkActionResource) Schema(_ context.Context, _ resource.SchemaRequ
 				Required:    true,
 				ElementType: types.StringType,
 				Description: "List of user UUIDs to operate on.",
+				Validators: []validator.List{
+					listvalidator.SizeBetween(1, 500),
+				},
 			},
 			"days": schema.Int64Attribute{
 				Optional:    true,
 				Description: "Number of days (1-9999) to extend expiration. Required when action is `extend_expiration`; ignored otherwise.",
+				Validators: []validator.Int64{
+					int64validator.Between(1, 9999),
+				},
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.UseStateForUnknown(),
 				},
@@ -159,8 +168,18 @@ func (r *userBulkActionResource) validate(plan *userBulkActionResourceModel) err
 	if !validUserBulkActions[action] {
 		return fmt.Errorf("action must be one of: reset_traffic, revoke_subscription, delete, extend_expiration — got %q", action)
 	}
-	if action == "extend_expiration" && plan.Days.IsNull() {
-		return fmt.Errorf("days is required when action is %q", action)
+	count := len(plan.UUIDs.Elements())
+	if plan.UUIDs.IsNull() || plan.UUIDs.IsUnknown() || count < 1 || count > 500 {
+		return fmt.Errorf("uuids must contain between 1 and 500 values")
+	}
+	if action == "extend_expiration" {
+		if plan.Days.IsNull() || plan.Days.IsUnknown() {
+			return fmt.Errorf("days is required when action is %q", action)
+		}
+		days := plan.Days.ValueInt64()
+		if days < 1 || days > 9999 {
+			return fmt.Errorf("days must be between 1 and 9999")
+		}
 	}
 	return nil
 }

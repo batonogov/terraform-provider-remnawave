@@ -55,7 +55,7 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "BulkUserActionResetTraffic", method: http.MethodPost, path: "/api/users/bulk/reset-traffic", args: []any{"reset_traffic", []string{"item-id"}}, wantJSON: map[string]any{"uuids": []any{"item-id"}}},
 		{name: "BulkUserActionRevoke", method: http.MethodPost, path: "/api/users/bulk/revoke-subscription", args: []any{"revoke_subscription", []string{"item-id"}}, wantJSON: map[string]any{"uuids": []any{"item-id"}}},
 		{name: "BulkUserActionDelete", method: http.MethodPost, path: "/api/users/bulk/delete", args: []any{"delete", []string{"item-id"}}, wantJSON: map[string]any{"uuids": []any{"item-id"}}},
-		{name: "BulkUserExtendExpiration", method: http.MethodPost, path: "/api/users/bulk/extend-expiration-date", args: []any{[]string{"item-id"}, 7}, wantJSON: map[string]any{"uuids": []any{"item-id"}, "days": float64(7)}},
+		{name: "BulkUserExtendExpiration", method: http.MethodPost, path: "/api/users/bulk/extend-expiration-date", args: []any{[]string{"item-id"}, 7}, wantJSON: map[string]any{"uuids": []any{"item-id"}, "extendDays": float64(7)}},
 		{name: "BulkNodeActionEnable", method: http.MethodPost, path: "/api/nodes/bulk-actions", args: []any{"enable", []string{"item-id"}}, wantJSON: map[string]any{"uuids": []any{"item-id"}, "action": "ENABLE"}},
 		{name: "BulkNodeActionDisable", method: http.MethodPost, path: "/api/nodes/bulk-actions", args: []any{"disable", []string{"item-id"}}, wantJSON: map[string]any{"uuids": []any{"item-id"}, "action": "DISABLE"}},
 		{name: "BulkNodeActionRestart", method: http.MethodPost, path: "/api/nodes/bulk-actions", args: []any{"restart", []string{"item-id"}}, wantJSON: map[string]any{"uuids": []any{"item-id"}, "action": "RESTART"}},
