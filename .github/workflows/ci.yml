@@ -124,6 +124,7 @@ jobs:
                       token_payload: .token_payload
                     }
                 ]
+              }
               else error("invalid compat-versions.json structure or default_version")
               end
           ' compat-versions.json)
