@@ -57,7 +57,7 @@ resource "remnawave_host" "vless" {
 - `shuffle_host` (Boolean) Shuffle host order in subscription.
 - `sni` (String) TLS Server Name Indication.
 - `sockopt_params` (String) Socket options as JSON.
-- `tags` (List of String) List of tags (max 10, uppercase letters/numbers/underscores/colons, max 36 chars each).
+- `tags` (List of String) List of tags (uppercase letters/numbers/underscores/colons, max 36 chars each). Remnawave 2.7.x supports at most one tag; 2.8.x supports up to 10 tags.
 - `verify_peer_cert_by_name` (String) Peer certificate name to verify.
 - `vless_route_id` (Number) VLESS route ID (0-65535).
 - `xhttp_extra_params` (String) XHTTP extra parameters as JSON.

@@ -62,7 +62,7 @@ Panel branding PATCH payloads must include both `title` and `logoUrl` keys when
 `brandingSettings` is present. Remnawave accepts `null` values, so do not add
 `omitempty` to those nested JSON fields.
 
-### Resources (24)
+### Resources (26)
 
 | Resource | File | API Base |
 | --- | --- | --- |
@@ -86,9 +86,11 @@ Panel branding PATCH payloads must include both `title` and `logoUrl` keys when
 | `remnawave_node_metadata` | `resource_node_metadata.go` | `/api/metadata/node/:uuid` |
 | `remnawave_hwid_device` | `resource_hwid_device.go` | `/api/hwid/devices` |
 | `remnawave_host_bulk_action` | `resource_host_bulk_action.go` | `/api/hosts/bulk/{enable,disable,delete}` |
+| `remnawave_user_bulk_action` | `resource_user_bulk_action.go` | `/api/users/bulk/*` |
+| `remnawave_node_bulk_action` | `resource_node_bulk_action.go` | `/api/nodes/bulk-actions` |
 | `remnawave_node_action` | `resource_node_action.go` | `/api/nodes/:uuid/actions/{enable,disable,restart,reset-traffic}` |
 | `remnawave_drop_connections` | `resource_drop_connections.go` | `/api/ip-control/drop-connections` |
-| `remnawave_user_action` | `resource_user_action.go` | `/api/users/:uuid/actions/{enable,disable,reset-traffic,revoke-subscription}` |
+| `remnawave_user_action` | `resource_user_action.go` | `/api/users/:uuid/actions/{enable,disable,reset-traffic,revoke}` |
 | `remnawave_passkey` | `resource_passkey.go` | `/api/passkeys` |
 
 ### Data Sources (23)
@@ -260,8 +262,9 @@ The goreleaser job fails without these secrets:
   (Plugin Framework default; matches `providerserver.Serve` in `main.go`).
 - `main.version` (`main.go`) is injected at build time via goreleaser ldflags
   (`-X main.version`); locally built binaries report `dev`.
-- Builds are reproducible: `-trimpath` + `mod_timestamp`. Multi-platform matrix:
-  linux/darwin/windows/freebsd × amd64/arm64/arm/386.
+- Builds are reproducible: `-trimpath` + `mod_timestamp`. Release targets are:
+  Linux (`amd64`, `arm64`, `arm`, `386`), macOS (`amd64`, `arm64`), and Windows
+  and FreeBSD (`amd64`, `386`).
 - `compat-versions.json` records the supported Remnawave backend versions. Keep
   it in sync with the **Compatibility** note in `## Project` when bumping the
   target line. CI acceptance tests use it as the source of truth for the

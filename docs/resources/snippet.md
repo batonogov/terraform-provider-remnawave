@@ -15,13 +15,13 @@ Manages a Remnawave Xray config snippet (keyed by name).
 ```terraform
 resource "remnawave_snippet" "routing_rules" {
   name = "block-ads"
-  content = jsonencode({
-    rules = [{
+  snippet = jsonencode([
+    {
       type        = "field"
       outboundTag = "block"
       domain      = ["geosite:category-ads"]
-    }]
-  })
+    }
+  ])
 }
 ```
 

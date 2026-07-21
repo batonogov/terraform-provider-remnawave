@@ -169,7 +169,7 @@ func (r *hostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Optional:    true,
 				Computed:    true,
 				ElementType: types.StringType,
-				Description: "List of tags (max 10, uppercase letters/numbers/underscores/colons, max 36 chars each).",
+				Description: "List of tags (uppercase letters/numbers/underscores/colons, max 36 chars each). Remnawave 2.7.x supports at most one tag; 2.8.x supports up to 10 tags.",
 			},
 			"nodes": schema.ListAttribute{
 				Optional:    true,
