@@ -1,7 +1,23 @@
 {
   "versions": [
-    { "version": "v2.8.0", "supported": true },
-    { "version": "v2.7.4", "supported": true }
+    {
+      "version": "v2.8.0",
+      "supported": true,
+      "digest": "sha256:cbc6d2ea0a84d8414dec565bb9ce299a3318b9e5297496baf8efcff2a1e66c65",
+      "token_payload": {
+        "name": "acceptance-tests",
+        "expiresInDays": 1,
+        "scopes": ["*"]
+      }
+    },
+    {
+      "version": "v2.7.4",
+      "supported": true,
+      "digest": "sha256:a0e9a3d52e898b894965baed38ee45245b2cdb59ba19e198ab6371319e2968fc",
+      "token_payload": {
+        "tokenName": "acceptance-tests"
+      }
+    }
   ],
   "default_version": "v2.8.0",
   "minor_lines": ["2.8.x", "2.7.x"]

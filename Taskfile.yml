@@ -44,7 +44,7 @@ tasks:
       - terraform fmt -check -recursive examples
       - go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.24.0 generate --provider-dir .
       - go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.24.0 validate --provider-dir .
-      - git diff --exit-code -- docs
+      - ./scripts/check-docs-drift.sh
 
   test:acc:
     desc: Run acceptance tests (needs Docker)
