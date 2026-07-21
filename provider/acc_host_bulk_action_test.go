@@ -7,14 +7,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-// TestAccHostBulkActionResource_Disable verifies the host_bulk_action resource.
-// SKIPPED: bulk disable causes a refresh-plan diff because is_disabled changes
-// outside Terraform. This is expected behavior for imperative resources but
-// the test framework treats it as an error. Skip until a proper test pattern
-// for state-changing imperative actions is established.
-func TestAccHostBulkActionResource_Disable(t *testing.T) {
+// TestAccHostBulkActionResource_Enable verifies an idempotent host bulk action.
+func TestAccHostBulkActionResource_Enable(t *testing.T) {
 	testAccPreCheck(t)
-	t.Skip("bulk action changes state outside Terraform; needs proper test pattern")
 
 	endpoint, authBlock := testAccProviderBlock()
 	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
@@ -23,23 +18,25 @@ func TestAccHostBulkActionResource_Disable(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: providerCfg + testAccProfileConfig("host-bulk-disable", "VLESS_HOST_BULK_DISABLE") + `
+				Config: providerCfg + testAccProfileConfig("host-bulk-enable", "VLESS_HOST_BULK_ENABLE") + `
 resource "remnawave_host" "test" {
-  remark                      = "bulk-disable-test"
+  remark                      = "bulk-enable-test"
   address                     = "127.0.0.3"
   port                        = 443
   config_profile_uuid         = remnawave_config_profile.profile.uuid
   config_profile_inbound_uuid = remnawave_config_profile.profile.inbounds[0].uuid
 }
 
-resource "remnawave_host_bulk_action" "disable" {
-  action   = "disable"
+resource "remnawave_host_bulk_action" "enable" {
+  action   = "enable"
   uuids    = [remnawave_host.test.uuid]
   triggers = { init = "1" }
 }
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("remnawave_host_bulk_action.disable", "id"),
+					resource.TestCheckResourceAttr("remnawave_host_bulk_action.enable", "action", "enable"),
+					resource.TestCheckResourceAttr("remnawave_host_bulk_action.enable", "uuids.#", "1"),
+					resource.TestCheckResourceAttrSet("remnawave_host_bulk_action.enable", "id"),
 				),
 			},
 		},

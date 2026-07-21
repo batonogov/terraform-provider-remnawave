@@ -145,6 +145,16 @@ func TestAccHostResource(t *testing.T) {
 	testAccPreCheck(t)
 	endpoint, authBlock := testAccProviderBlock()
 	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
+	initialTags := `  tags = ["ACC_HOST"]
+`
+	updatedTags := `  tags = ["ACC_HOST", "UPDATED"]
+`
+	updatedTagCount := "2"
+	if isBackend2_7() {
+		updatedTags = `  tags = ["UPDATED"]
+`
+		updatedTagCount = "1"
+	}
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
@@ -163,7 +173,7 @@ resource "remnawave_host" "test" {
 %s
   xray_json_template_uuid     = remnawave_subscription_template.host.uuid
   exclude_from_subscription_types = ["MIHOMO", "SINGBOX"]
-  tags                        = ["ACC_HOST"]
+%s
   config_profile_uuid         = remnawave_config_profile.profile.uuid
   config_profile_inbound_uuid = remnawave_config_profile.profile.inbounds[0].uuid
 }
@@ -172,7 +182,7 @@ resource "remnawave_subscription_template" "host" {
   name          = "host-acceptance-template"
   template_type = "XRAY_JSON"
 }
-`, hostV28Fields("auto", "true", "true", "false")),
+`, hostV28Fields("auto", "true", "true", "false"), initialTags),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("remnawave_host.test", "uuid"),
 					resource.TestCheckResourceAttr("remnawave_host.test", "remark", "terraform-host"),
@@ -197,7 +207,7 @@ resource "remnawave_host" "test" {
 %s
   xray_json_template_uuid     = remnawave_subscription_template.host.uuid
   exclude_from_subscription_types = ["CLASH"]
-  tags                        = ["ACC_HOST", "UPDATED"]
+%s
   config_profile_uuid         = remnawave_config_profile.profile.uuid
   config_profile_inbound_uuid = remnawave_config_profile.profile.inbounds[0].uuid
 }
@@ -206,12 +216,12 @@ resource "remnawave_subscription_template" "host" {
   name          = "host-acceptance-template"
   template_type = "XRAY_JSON"
 }
-`, hostV28Fields("packet-up", "false", "false", "true")),
+`, hostV28Fields("packet-up", "false", "false", "true"), updatedTags),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("remnawave_host.test", "remark", "terraform-host-updated"),
 					resource.TestCheckResourceAttr("remnawave_host.test", "port", "8443"),
 					resource.TestCheckResourceAttr("remnawave_host.test", "is_hidden", "true"),
-					resource.TestCheckResourceAttr("remnawave_host.test", "tags.#", "2"),
+					resource.TestCheckResourceAttr("remnawave_host.test", "tags.#", updatedTagCount),
 					resource.TestCheckResourceAttr("remnawave_host.test", "vless_route_id", "8"),
 					resource.TestCheckResourceAttr("remnawave_host.test", "exclude_from_subscription_types.#", "1"),
 				),

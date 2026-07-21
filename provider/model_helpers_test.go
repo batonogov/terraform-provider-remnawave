@@ -501,6 +501,32 @@ func TestHostModelConversions(t *testing.T) {
 	if !state.SNI.IsNull() || !state.HostHeader.IsNull() || !state.ALPN.IsNull() || !state.Fingerprint.IsNull() || !state.ServerDescription.IsNull() {
 		t.Errorf("nil host fields were not cleared: %#v", state)
 	}
+	if state.Tags.IsNull() || state.Tags.IsUnknown() || len(state.Tags.Elements()) != 0 {
+		t.Fatalf("omitted server tags should become a known empty list, got %#v", state.Tags)
+	}
+
+	legacyTag := "LEGACY"
+	legacy := hostResourceModel{Tags: types.ListUnknown(types.StringType)}
+	hostToPlan(&Host{Remark: "legacy", Address: "host", Port: 443, Tag: &legacyTag}, &legacy)
+	if got := legacy.Tags.Elements()[0].(types.String).ValueString(); got != legacyTag {
+		t.Fatalf("legacy singular tag = %q, want %q", got, legacyTag)
+	}
+
+	minimal := hostResourceModel{
+		Tags:                   types.ListUnknown(types.StringType),
+		Nodes:                  types.ListUnknown(types.StringType),
+		ExcludedInternalSquads: types.ListUnknown(types.StringType),
+	}
+	hostToPlan(&Host{Remark: "minimal", Address: "host", Port: 443}, &minimal)
+	if minimal.Tags.IsNull() || minimal.Tags.IsUnknown() || len(minimal.Tags.Elements()) != 0 {
+		t.Fatalf("nil tags should become a known empty list, got %#v", minimal.Tags)
+	}
+	if minimal.Nodes.IsNull() || minimal.Nodes.IsUnknown() || len(minimal.Nodes.Elements()) != 0 {
+		t.Fatalf("nil nodes should become a known empty list, got %#v", minimal.Nodes)
+	}
+	if minimal.ExcludedInternalSquads.IsNull() || minimal.ExcludedInternalSquads.IsUnknown() || len(minimal.ExcludedInternalSquads.Elements()) != 0 {
+		t.Fatalf("nil excluded squads should become a known empty list, got %#v", minimal.ExcludedInternalSquads)
+	}
 }
 
 func TestSettingsModelConversions(t *testing.T) {

@@ -560,9 +560,31 @@ func (c *Client) ResetNodeTraffic(ctx context.Context, uuid string) (*Node, erro
 
 // ─── Host API ───
 
+func (c *Client) hostRequest(ctx context.Context, host *Host) (*Host, error) {
+	if !c.isVersion2_7(ctx) {
+		return host, nil
+	}
+	if len(host.Tags) > 1 {
+		return nil, fmt.Errorf("remnawave 2.7 supports at most one host tag, got %d", len(host.Tags))
+	}
+
+	legacy := *host
+	legacy.Tags = nil
+	legacy.Tag = nil
+	if len(host.Tags) == 1 {
+		tag := host.Tags[0]
+		legacy.Tag = &tag
+	}
+	return &legacy, nil
+}
+
 func (c *Client) CreateHost(ctx context.Context, host *Host) (*Host, error) {
+	payload, err := c.hostRequest(ctx, host)
+	if err != nil {
+		return nil, err
+	}
 	var out Host
-	if err := c.doRequest(ctx, http.MethodPost, "/api/hosts", host, &out); err != nil {
+	if err := c.doRequest(ctx, http.MethodPost, "/api/hosts", payload, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -585,8 +607,12 @@ func (c *Client) GetHostByUUID(ctx context.Context, uuid string) (*Host, error) 
 }
 
 func (c *Client) UpdateHost(ctx context.Context, host *Host) (*Host, error) {
+	payload, err := c.hostRequest(ctx, host)
+	if err != nil {
+		return nil, err
+	}
 	var out Host
-	if err := c.doRequest(ctx, http.MethodPatch, "/api/hosts", host, &out); err != nil {
+	if err := c.doRequest(ctx, http.MethodPatch, "/api/hosts", payload, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -652,11 +678,12 @@ func (c *Client) BulkUserAction(ctx context.Context, action string, uuids []stri
 
 // BulkUserExtendExpiration extends the subscription expiration of the given
 // users by the specified number of days via
-// POST /api/users/bulk/extend-expiration-date with {"uuids": [...], "days": N}.
-func (c *Client) BulkUserExtendExpiration(ctx context.Context, uuids []string, days int) error {
+// POST /api/users/bulk/extend-expiration-date with
+// {"uuids": [...], "extendDays": N}.
+func (c *Client) BulkUserExtendExpiration(ctx context.Context, uuids []string, extendDays int) error {
 	body := map[string]any{
-		"uuids": uuids,
-		"days":  days,
+		"uuids":      uuids,
+		"extendDays": extendDays,
 	}
 	return c.doRequest(ctx, http.MethodPost, "/api/users/bulk/extend-expiration-date", body, nil)
 }

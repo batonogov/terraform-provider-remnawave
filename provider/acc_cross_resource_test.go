@@ -11,10 +11,6 @@ import (
 // config_profile → node (with inbounds) + subscription_template → host.
 func TestAccFullNodeStack(t *testing.T) {
 	testAccPreCheck(t)
-	// Provider bug: host tags stay unknown on 2.7.x after apply.
-	if isBackend2_7() {
-		t.Skip("host tags computed field is unknown on 2.7.x — provider bug")
-	}
 	endpoint, authBlock := testAccProviderBlock()
 	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
 

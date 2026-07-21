@@ -149,6 +149,7 @@ type Host struct {
 	SockoptParams                json.RawMessage `json:"sockoptParams,omitempty"`
 	FinalMask                    json.RawMessage `json:"finalMask,omitempty"`
 	ServerDescription            *string         `json:"serverDescription,omitempty"`
+	Tag                          *string         `json:"tag,omitempty"`
 	Tags                         []string        `json:"tags,omitempty"`
 	IsHidden                     bool            `json:"isHidden,omitempty"`
 	OverrideSniFromAddress       bool            `json:"overrideSniFromAddress,omitempty"`

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -104,6 +105,54 @@ func TestVersionDetection2_8(t *testing.T) {
 
 	if client.isVersion2_7(context.Background()) {
 		t.Error("isVersion2_7() = true, want false for 2.8.0")
+	}
+}
+
+func TestHostRequestV27UsesSingularTag(t *testing.T) {
+	t.Parallel()
+
+	var hostRequests int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/api/system/metadata" {
+			_, _ = io.WriteString(w, `{"response":{"version":"2.7.4"}}`)
+			return
+		}
+		hostRequests++
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode host request: %v", err)
+		}
+		if got := body["tag"]; got != "LEGACY" {
+			t.Errorf("request tag = %v, want LEGACY", got)
+		}
+		if _, ok := body["tags"]; ok {
+			t.Error("2.7 request must not contain plural tags")
+		}
+		_, _ = io.WriteString(w, `{"response":{"uuid":"host-id","remark":"host","address":"host.example.com","port":443,"tag":"LEGACY"}}`)
+	}))
+	defer server.Close()
+
+	client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "test-token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	host, err := client.CreateHost(context.Background(), &Host{
+		Remark: "host", Address: "host.example.com", Port: 443, Tags: []string{"LEGACY"},
+	})
+	if err != nil {
+		t.Fatalf("CreateHost() error = %v", err)
+	}
+	if host.Tag == nil || *host.Tag != "LEGACY" {
+		t.Fatalf("response legacy tag = %#v", host.Tag)
+	}
+
+	_, err = client.UpdateHost(context.Background(), &Host{Tags: []string{"ONE", "TWO"}})
+	if err == nil || !strings.Contains(err.Error(), "at most one host tag") {
+		t.Fatalf("UpdateHost() multi-tag error = %v", err)
+	}
+	if hostRequests != 1 {
+		t.Fatalf("host requests = %d, want 1", hostRequests)
 	}
 }
 

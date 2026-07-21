@@ -2,18 +2,17 @@ package provider
 
 import (
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-// TestAccDropConnectionsResource_ByUserUUID verifies the drop_connections
-// resource using the V2 schema (drop_by + user_uuids).
-// SKIPPED until PR #130 (drop_connections full schema) is merged — the old
-// user_uuid attribute no longer works with Remnawave 2.8.0 backend.
+// TestAccDropConnectionsResource_ByUserUUID verifies the V2 request reaches
+// the backend and propagates its diagnostic. The compose fixture intentionally
+// has no connected Xray node, so a successful connection drop is impossible.
 func TestAccDropConnectionsResource_ByUserUUID(t *testing.T) {
 	testAccPreCheck(t)
-	t.Skip("depends on PR #130 (drop_connections V2 schema) being merged into main")
 
 	endpoint, authBlock := testAccProviderBlock()
 	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
@@ -35,9 +34,7 @@ resource "remnawave_drop_connections" "test" {
   triggers   = { init = "1" }
 }
 `,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("remnawave_drop_connections.test", "id"),
-				),
+				ExpectError: regexp.MustCompile("Connected[[:space:]]+nodes not found"),
 			},
 		},
 	})
