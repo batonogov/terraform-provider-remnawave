@@ -115,13 +115,13 @@ jobs:
                   | (type == "array" and length > 0)
                     and all(.[]; type == "string" and test("^[0-9]+\\.[0-9]+\\.x$")))
               then {
-                include: [.versions[]
+                "include": [.versions[]
                   | select(.supported)
                   | {
                       label: (.version | ltrimstr("v")),
                       version: (.version | ltrimstr("v")),
-                      digest,
-                      token_payload
+                      digest: .digest,
+                      token_payload: .token_payload
                     }
                 ]
               else error("invalid compat-versions.json structure or default_version")
