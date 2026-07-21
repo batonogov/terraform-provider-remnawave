@@ -66,7 +66,7 @@ terraform {
   required_providers {
     remnawave = {
       source  = "batonogov/remnawave"
-      version = "~> 0.4.0"
+      version = "~> 0.5.0"
     }
   }
 }
@@ -101,13 +101,11 @@ resource "remnawave_node" "de-fra-01" {
 
 # ─── Connection host ───
 resource "remnawave_host" "de-fra-01-vless" {
-  remark                  = "🇩🇪 Frankfurt"
-  address                 = "vpn.example.com"
-  port                    = 443
-  inbound = {
-    config_profile_uuid         = remnawave_config_profile.default.uuid
-    config_profile_inbound_uuid = remnawave_config_profile.default.inbounds[0].uuid
-  }
+  remark                      = "🇩🇪 Frankfurt"
+  address                     = "vpn.example.com"
+  port                        = 443
+  config_profile_uuid         = remnawave_config_profile.default.uuid
+  config_profile_inbound_uuid = remnawave_config_profile.default.inbounds[0].uuid
 }
 
 # ─── Monitor system health ───
@@ -149,7 +147,7 @@ provider "remnawave" {
 ```
 
 > **Note:** Username/password auth requires setting `proxy_headers = true` or
-> `NODE_ENV=dev` on the backend — Remnawave's `ProxyCheckMiddleware` requires
+> `NODE_ENV=development` on the backend — Remnawave's `ProxyCheckMiddleware` requires
 > `X-Forwarded-For`/`X-Forwarded-Proto` headers for browser-originated requests.
 
 ## Provider Configuration
@@ -170,7 +168,7 @@ values take precedence over environment variables.
 
 ## Resources
 
-The provider exposes **24 resources** across 6 functional areas:
+The provider exposes **26 resources** across 7 functional areas:
 
 ### Core VPN Management
 
@@ -232,7 +230,9 @@ These resources trigger one-shot operations on `terraform apply`. Use the
 | [`remnawave_node_action`](docs/resources/node_action.md) | Enable / disable / restart / reset traffic on a node |
 | [`remnawave_user_action`](docs/resources/user_action.md) | Enable / disable / reset traffic / revoke subscription on a user |
 | [`remnawave_host_bulk_action`](docs/resources/host_bulk_action.md) | Bulk enable / disable / delete hosts |
-| [`remnawave_drop_connections`](docs/resources/drop_connections.md) | Drop active connections for a user |
+| [`remnawave_user_bulk_action`](docs/resources/user_bulk_action.md) | Bulk reset traffic / revoke subscriptions / delete users / extend expiration |
+| [`remnawave_node_bulk_action`](docs/resources/node_bulk_action.md) | Bulk enable / disable / restart / reset traffic on nodes |
+| [`remnawave_drop_connections`](docs/resources/drop_connections.md) | Drop active connections by user UUID or IP address on all or selected nodes |
 
 ## Data Sources
 
@@ -288,8 +288,9 @@ These resources trigger one-shot operations on `terraform apply`. Use the
 
 ## Examples
 
-Browse the [`examples/`](examples/) directory for complete, copy-paste-ready
-configurations:
+Browse the [`examples/`](examples/) directory for focused configuration
+examples. Some snippets reference resources or variables supplied by the
+surrounding configuration:
 
 ```bash
 examples/
@@ -297,6 +298,8 @@ examples/
 │   ├── remnawave_user/            # User with traffic limit + tag
 │   ├── remnawave_node_action/     # Periodic traffic reset via triggers
 │   ├── remnawave_host_bulk_action/# Bulk enable/disable/delete
+│   ├── remnawave_user_bulk_action/# Bulk user operations
+│   ├── remnawave_node_bulk_action/# Bulk node operations
 │   ├── remnawave_user_action/     # Enable/disable/reset/revoke
 │   └── remnawave_passkey/         # Import + manage existing passkeys
 └── data-sources/
@@ -325,7 +328,9 @@ terraform import remnawave_node.de-fra-01 550e8400-e29b-41d4-a716-446655440001
 terraform import remnawave_passkey.admin 550e8400-e29b-41d4-a716-446655440002
 ```
 
-All resources that support import accept the UUID as the import ID.
+Import IDs are resource-specific. Most stateful resources use a UUID, snippets
+use their name, and resources with compound identities document their required
+format on the corresponding resource page.
 
 ## Versioning & Upgrades
 
@@ -349,7 +354,7 @@ terraform {
   required_providers {
     remnawave = {
       source  = "batonogov/remnawave"
-      version = "~> 0.4" # Allow 0.4.x patches
+      version = "~> 0.5.0" # Allow 0.5.x patch releases
     }
   }
 }
@@ -361,7 +366,7 @@ terraform {
 
 | Tool | Version |
 | --- | --- |
-| [Go](https://go.dev/dl/) | 1.24+ (see [`go.mod`](go.mod)) |
+| [Go](https://go.dev/dl/) | 1.26.4+ (see [`go.mod`](go.mod)) |
 | [Terraform CLI](https://developer.hashicorp.com/terraform/install) | 1.12+ |
 | [Task](https://taskfile.dev) | Latest (optional, for `task` commands) |
 | [Docker](https://www.docker.com/) | Required for acceptance tests |

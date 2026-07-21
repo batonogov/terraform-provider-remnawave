@@ -44,8 +44,9 @@ func (r *nodeBulkActionResource) Metadata(_ context.Context, _ resource.Metadata
 func (r *nodeBulkActionResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Performs a bulk operation (enable, disable, restart, or reset_traffic) on " +
-			"one or more nodes. This is an imperative resource: each apply triggers the action. " +
-			"Use `triggers` to force re-execution when external data changes.",
+			"one or more nodes. This is an imperative resource: the action runs when the resource " +
+			"is created and whenever its arguments change; an apply with no changes does not " +
+			"repeat it. Change `triggers` to force re-execution without changing the operation inputs.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed: true,

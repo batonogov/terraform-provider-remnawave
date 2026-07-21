@@ -43,8 +43,9 @@ func (r *hostBulkActionResource) Metadata(_ context.Context, _ resource.Metadata
 func (r *hostBulkActionResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Performs a bulk operation (enable, disable, or delete) on one or more hosts. " +
-			"This is an imperative resource: each apply triggers the action. " +
-			"Use `triggers` to force re-execution when external data changes.",
+			"This is an imperative resource: the action runs when the resource is created and " +
+			"whenever its arguments change; an apply with no changes does not repeat it. " +
+			"Change `triggers` to force re-execution without changing the operation inputs.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed: true,

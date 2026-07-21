@@ -46,8 +46,10 @@ func (r *userBulkActionResource) Metadata(_ context.Context, _ resource.Metadata
 func (r *userBulkActionResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Performs a bulk operation (reset_traffic, revoke_subscription, delete, or " +
-			"extend_expiration) on one or more users. This is an imperative resource: each apply " +
-			"triggers the action. Use `triggers` to force re-execution when external data changes.",
+			"extend_expiration) on one or more users. This is an imperative resource: the action " +
+			"runs when the resource is created and whenever its arguments change; an apply with no " +
+			"changes does not repeat it. Change `triggers` to force re-execution without changing " +
+			"the operation inputs.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed: true,
@@ -67,7 +69,7 @@ func (r *userBulkActionResource) Schema(_ context.Context, _ resource.SchemaRequ
 			},
 			"days": schema.Int64Attribute{
 				Optional:    true,
-				Description: "Number of days to extend expiration. Required when action is `extend_expiration`; ignored otherwise.",
+				Description: "Number of days (1-9999) to extend expiration. Required when action is `extend_expiration`; ignored otherwise.",
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.UseStateForUnknown(),
 				},
