@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -284,83 +283,130 @@ func TestCustomHeadersVersionDetection(t *testing.T) {
 	}
 }
 
-func TestCustomHeaderValuesAreRedacted(t *testing.T) {
+func TestCustomHeaderHTTPErrorBodyIsOmitted(t *testing.T) {
 	t.Parallel()
 
-	longSecret := strings.Repeat("s", 1100)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusBadGateway)
-		_, _ = fmt.Fprintf(w, `{"reflected":%q,"overlap":%q,"short":%q}`,
-			r.Header.Get("X-Long-Secret"),
-			r.Header.Get("X-Overlap-Secret"),
-			r.Header.Get("X-Short-Secret"),
-		)
-	}))
-	t.Cleanup(server.Close)
-
-	client, err := NewClient(ClientConfig{
-		Endpoint: server.URL,
-		APIToken: "static-token",
-		CustomHeaders: map[string]string{
-			"X-Long-Secret":    longSecret,
-			"X-Overlap-Secret": "prefix-secret",
-			"X-Short-Secret":   "prefix",
-			"X-Empty":          "",
+	const secret = "gateway=a b/c"
+	tests := []struct {
+		name string
+		body string
+	}{
+		{
+			name: "arbitrary proxy details",
+			body: `{"message":"upstream gateway rejected the request","request_id":"public-id"}`,
 		},
-	})
-	if err != nil {
-		t.Fatal(err)
+		{
+			name: "URL-encoded complete header value",
+			body: "gateway%3Da+b%2Fc",
+		},
+		{
+			name: "cookie value without name",
+			body: "a b/c",
+		},
 	}
-	_, err = client.GetSystemHealth(context.Background())
-	var statusErr *HTTPStatusError
-	if !errors.As(err, &statusErr) {
-		t.Fatalf("error = %v, want *HTTPStatusError", err)
-	}
-	for _, secret := range []string{longSecret, "prefix-secret", "prefix"} {
-		if strings.Contains(statusErr.Body, secret) || strings.Contains(err.Error(), secret) {
-			t.Fatalf("error disclosed configured header value")
-		}
-	}
-	if got := strings.Count(statusErr.Body, "[REDACTED]"); got != 3 {
-		t.Errorf("redacted body = %q, want 3 replacements", statusErr.Body)
-	}
-	if strings.Contains(statusErr.Body, "...(truncated)") {
-		t.Errorf("body was truncated before its long secret was redacted: %q", statusErr.Body)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusBadGateway)
+				_, _ = io.WriteString(w, tt.body)
+			}))
+			t.Cleanup(server.Close)
+
+			client, err := NewClient(ClientConfig{
+				Endpoint:      server.URL,
+				APIToken:      "static-token",
+				CustomHeaders: map[string]string{"Cookie": secret},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = client.GetSystemHealth(context.Background())
+			var statusErr *HTTPStatusError
+			if !errors.As(err, &statusErr) {
+				t.Fatalf("error = %v, want *HTTPStatusError", err)
+			}
+			if statusErr.StatusCode != http.StatusBadGateway {
+				t.Errorf("status = %d, want %d", statusErr.StatusCode, http.StatusBadGateway)
+			}
+			if statusErr.Body != "" {
+				t.Errorf("HTTPStatusError.Body = %q, want empty", statusErr.Body)
+			}
+			if got := statusErr.Error(); got != "request failed: status 502" {
+				t.Errorf("HTTPStatusError.Error() = %q", got)
+			}
+			if strings.Contains(err.Error(), tt.body) {
+				t.Fatalf("error disclosed untrusted response body: %v", err)
+			}
+		})
 	}
 }
 
-func TestCustomHeaderJSONEncodedValueIsRedacted(t *testing.T) {
+func TestCustomHeaderResponseBodyReadErrorIsOpaque(t *testing.T) {
 	t.Parallel()
 
-	const secret = "quote\"backslash\\tab\t<html>&"
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusBadGateway)
-		_ = json.NewEncoder(w).Encode(map[string]string{
-			"reflected": r.Header.Get("X-JSON-Secret"),
-		})
-	}))
-	t.Cleanup(server.Close)
-
+	const secret = "gateway=a b/c"
+	readErr := errors.New("body read failed: gateway%3Da+b%2Fc")
 	client, err := NewClient(ClientConfig{
-		Endpoint:      server.URL,
+		Endpoint:      "http://example.test",
 		APIToken:      "static-token",
-		CustomHeaders: map[string]string{"X-JSON-Secret": secret},
+		CustomHeaders: map[string]string{"Cookie": secret},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
+	client.httpClient.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       failingReadCloser{err: readErr},
+			Request:    req,
+		}, nil
+	})
+
+	_, err = client.GetSystemHealth(context.Background())
+	if !errors.Is(err, errCustomHeaderResponseBodyRead) {
+		t.Fatalf("error = %v, want fixed response-body read error", err)
+	}
+	if errors.Is(err, readErr) {
+		t.Fatal("response-body read error retained the secret-bearing cause")
+	}
+	if strings.Contains(err.Error(), secret) || strings.Contains(err.Error(), "gateway%3Da+b%2Fc") {
+		t.Fatalf("response-body read error disclosed a header value: %v", err)
+	}
+}
+
+func TestCustomHeaderHTTPErrorBodyIsNotRead(t *testing.T) {
+	t.Parallel()
+
+	const encodedSecret = "gateway%3Da+b%2Fc"
+	readErr := errors.New("body read failed: " + encodedSecret)
+	client, err := NewClient(ClientConfig{
+		Endpoint:      "http://example.test",
+		APIToken:      "static-token",
+		CustomHeaders: map[string]string{"Cookie": "gateway=a b/c"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client.httpClient.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusBadGateway,
+			Header:     make(http.Header),
+			Body:       failingReadCloser{err: readErr},
+			Request:    req,
+		}, nil
+	})
+
 	_, err = client.GetSystemHealth(context.Background())
 	var statusErr *HTTPStatusError
-	if !errors.As(err, &statusErr) {
-		t.Fatalf("error = %v, want *HTTPStatusError", err)
+	if !errors.As(err, &statusErr) || statusErr.StatusCode != http.StatusBadGateway || statusErr.Body != "" {
+		t.Fatalf("error = %#v, want status-only HTTP 502 error", err)
 	}
-	encoded, _ := json.Marshal(secret)
-	escapedSecret := string(encoded[1 : len(encoded)-1])
-	if strings.Contains(statusErr.Body, secret) || strings.Contains(statusErr.Body, escapedSecret) {
-		t.Fatalf("JSON error body disclosed a raw or encoded header value: %q", statusErr.Body)
-	}
-	if !strings.Contains(statusErr.Body, "[REDACTED]") {
-		t.Errorf("redacted body = %q, want redaction marker", statusErr.Body)
+	if errors.Is(err, readErr) || strings.Contains(err.Error(), encodedSecret) {
+		t.Fatalf("HTTP error attempted to expose its response body: %v", err)
 	}
 }
 

@@ -312,6 +312,21 @@ func TestProviderConfigure(t *testing.T) {
 				value:     `{"Cookie":{"secret":"nested-secret"}}`,
 				forbidden: []string{`{"Cookie":{"secret":"nested-secret"}}`, "nested-secret"},
 			},
+			{
+				name:      "exact duplicate name",
+				value:     `{"Cookie":"exact-first-secret","Cookie":"exact-second-secret"}`,
+				forbidden: []string{"exact-first-secret", "exact-second-secret"},
+			},
+			{
+				name:      "case-insensitive duplicate name",
+				value:     `{"Cookie":"case-first-secret","cookie":"case-second-secret"}`,
+				forbidden: []string{"case-first-secret", "case-second-secret"},
+			},
+			{
+				name:      "trailing JSON value",
+				value:     `{"Cookie":"trailing-secret"} {"X-Other":"other-secret"}`,
+				forbidden: []string{"trailing-secret", "other-secret"},
+			},
 		}
 
 		for _, tt := range tests {

@@ -66,7 +66,7 @@ terraform {
   required_providers {
     remnawave = {
       source  = "batonogov/remnawave"
-      version = "~> 0.5.0"
+      version = "~> 0.6.0"
     }
   }
 }
@@ -157,6 +157,12 @@ pass them with the sensitive `custom_headers` map. For example, `Cookie` must
 contain the complete cookie pair:
 
 ```hcl
+variable "remnawave_gateway_cookie" {
+  type        = string
+  description = "Complete cookie pair required by the outer reverse proxy, for example cookie_name=cookie_value."
+  sensitive   = true
+}
+
 provider "remnawave" {
   endpoint  = "https://panel.example.com"
   api_token = var.remnawave_api_token
@@ -383,7 +389,7 @@ terraform {
   required_providers {
     remnawave = {
       source  = "batonogov/remnawave"
-      version = "~> 0.5.0" # Allow 0.5.x patch releases
+      version = "~> 0.6.0" # Allow 0.6.x patch releases
     }
   }
 }

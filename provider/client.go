@@ -83,6 +83,7 @@ var (
 	errCrossOriginCustomHeaderRedirect = errors.New("refusing to redirect custom headers to a different origin")
 	errCustomHeaderRedirectLimit       = errors.New("stopped after 10 redirects")
 	errInvalidRedirectLocation         = errors.New("redirect response contained an invalid Location header")
+	errCustomHeaderResponseBodyRead    = errors.New("failed to read HTTP response body")
 )
 
 // NewClient creates a new Remnawave API client.
@@ -458,13 +459,27 @@ func (c *Client) decodeResponse(resp *http.Response, out any) error {
 		_ = resp.Body.Close()
 	}()
 
+	// Error response bodies are untrusted and can reflect a custom header in
+	// encodings that cannot be exhaustively redacted. Do not read or expose the
+	// body when custom headers (which are commonly secrets) are configured.
+	if resp.StatusCode >= 400 && len(c.customHeaders) > 0 {
+		return &HTTPStatusError{StatusCode: resp.StatusCode}
+	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		// A response body is controlled by the remote server or an intermediary.
+		// Its Read error can therefore reflect a custom header in an arbitrary,
+		// reversibly encoded form. Do not expose or wrap that error when custom
+		// headers (which are commonly secrets) are configured.
+		if len(c.customHeaders) > 0 {
+			return errCustomHeaderResponseBodyRead
+		}
 		return err
 	}
 
 	if resp.StatusCode >= 400 {
-		msg := c.redactCustomHeaderValues(string(body))
+		msg := string(body)
 		msg = strings.TrimSpace(msg)
 		if len(msg) > 1024 {
 			msg = msg[:1024] + "...(truncated)"

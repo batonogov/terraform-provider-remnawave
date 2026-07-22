@@ -2,7 +2,7 @@ terraform {
   required_providers {
     remnawave = {
       source  = "batonogov/remnawave"
-      version = "~> 0.5.0"
+      version = "~> 0.6.0"
     }
   }
 }
@@ -28,6 +28,13 @@ provider "remnawave" {
 variable "remnawave_api_token" {
   type      = string
   sensitive = true
+}
+
+variable "remnawave_gateway_cookie" {
+  type        = string
+  description = "Complete cookie pair required by an optional outer reverse-proxy gate, for example cookie_name=cookie_value."
+  sensitive   = true
+  default     = null
 }
 
 # Create a VPN user

@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -257,22 +259,48 @@ func (p *RemnawaveProvider) DataSources(_ context.Context) []func() datasource.D
 }
 
 func parseCustomHeadersEnv(raw string) (map[string]string, error) {
-	var encodedHeaders map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(raw), &encodedHeaders); err != nil || encodedHeaders == nil {
+	decoder := json.NewDecoder(strings.NewReader(raw))
+
+	root, err := decoder.Token()
+	if err != nil || root != json.Delim('{') {
 		return nil, fmt.Errorf("expected a non-null JSON object")
 	}
 
-	headers := make(map[string]string, len(encodedHeaders))
-	for name, encodedValue := range encodedHeaders {
-		var value any
-		if err := json.Unmarshal(encodedValue, &value); err != nil {
+	headers := make(map[string]string)
+	seen := make(map[string]struct{})
+	for decoder.More() {
+		nameToken, err := decoder.Token()
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON object")
+		}
+		name, ok := nameToken.(string)
+		if !ok {
+			return nil, fmt.Errorf("expected a string header name")
+		}
+
+		foldedName := strings.ToLower(name)
+		if _, duplicate := seen[foldedName]; duplicate {
+			return nil, fmt.Errorf("duplicate header name")
+		}
+		seen[foldedName] = struct{}{}
+
+		valueToken, err := decoder.Token()
+		if err != nil {
 			return nil, fmt.Errorf("invalid value for header %q", name)
 		}
-		stringValue, ok := value.(string)
+		value, ok := valueToken.(string)
 		if !ok {
 			return nil, fmt.Errorf("header %q must have a non-null string value", name)
 		}
-		headers[name] = stringValue
+		headers[name] = value
+	}
+
+	closing, err := decoder.Token()
+	if err != nil || closing != json.Delim('}') {
+		return nil, fmt.Errorf("invalid JSON object")
+	}
+	if _, err := decoder.Token(); err != io.EOF {
+		return nil, fmt.Errorf("unexpected data after JSON object")
 	}
 
 	return headers, nil
