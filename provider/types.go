@@ -222,11 +222,31 @@ type SubscriptionSettings struct {
 	HwidSettings                json.RawMessage `json:"hwidSettings,omitempty"`
 }
 
+// InternalSquadInboundRef accepts the full inbound object returned by internal
+// squad reads while encoding only its UUID for create/update requests.
+type InternalSquadInboundRef struct {
+	UUID string `json:"uuid"`
+}
+
+func (r *InternalSquadInboundRef) UnmarshalJSON(data []byte) error {
+	var uuid string
+	if err := json.Unmarshal(data, &uuid); err == nil {
+		r.UUID = uuid
+		return nil
+	}
+	type alias InternalSquadInboundRef
+	return json.Unmarshal(data, (*alias)(r))
+}
+
+func (r InternalSquadInboundRef) MarshalJSON() ([]byte, error) {
+	return json.Marshal(r.UUID)
+}
+
 // InternalSquad maps to the Remnawave InternalSquad model.
 type InternalSquad struct {
-	UUID     string   `json:"uuid,omitempty"`
-	Name     string   `json:"name"`
-	Inbounds []string `json:"inbounds"`
+	UUID     string                    `json:"uuid,omitempty"`
+	Name     string                    `json:"name"`
+	Inbounds []InternalSquadInboundRef `json:"inbounds"`
 }
 
 // AccessibleNode represents a node accessible through an internal squad's inbounds.

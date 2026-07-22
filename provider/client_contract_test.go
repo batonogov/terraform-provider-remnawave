@@ -71,9 +71,9 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "GetSubscriptionSettings", method: http.MethodGet, path: "/api/subscription-settings"},
 		{name: "UpdateSubscriptionSettings", method: http.MethodPatch, path: "/api/subscription-settings", args: []any{&SubscriptionSettings{UUID: "item-id"}}},
 
-		{name: "CreateInternalSquad", method: http.MethodPost, path: "/api/internal-squads", args: []any{&InternalSquad{Name: "squad", Inbounds: []string{}}}},
+		{name: "CreateInternalSquad", method: http.MethodPost, path: "/api/internal-squads", args: []any{&InternalSquad{Name: "squad"}}},
 		{name: "GetInternalSquadByUUID", method: http.MethodGet, path: "/api/internal-squads/item-id", args: []any{"item-id"}},
-		{name: "UpdateInternalSquad", method: http.MethodPatch, path: "/api/internal-squads", args: []any{&InternalSquad{UUID: "item-id", Name: "squad", Inbounds: []string{}}}},
+		{name: "UpdateInternalSquad", method: http.MethodPatch, path: "/api/internal-squads", args: []any{&InternalSquad{UUID: "item-id", Name: "squad"}}},
 		{name: "DeleteInternalSquad", method: http.MethodDelete, path: "/api/internal-squads/item-id", args: []any{"item-id"}},
 		{name: "GetInternalSquadAccessibleNodes", method: http.MethodGet, path: "/api/internal-squads/item-id/accessible-nodes", args: []any{"item-id"}},
 
