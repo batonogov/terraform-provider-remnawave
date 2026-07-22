@@ -174,7 +174,8 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			},
 			"external_squad_uuid": schema.StringAttribute{
 				Optional:    true,
-				Description: "External squad UUID assigned to the user.",
+				Computed:    true,
+				Description: "External squad UUID assigned to the user. When omitted after import, the prior state value is preserved, preventing accidental removal of squad membership on unrelated updates.",
 			},
 			"subscription_url": schema.StringAttribute{
 				Computed:    true,

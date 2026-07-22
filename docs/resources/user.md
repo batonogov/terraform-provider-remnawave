@@ -38,7 +38,7 @@ resource "remnawave_user" "example" {
 - `created_at` (String) Creation timestamp. May be supplied when importing users into Remnawave.
 - `description` (String) Free-form description.
 - `email` (String) User email address.
-- `external_squad_uuid` (String) External squad UUID assigned to the user.
+- `external_squad_uuid` (String) External squad UUID assigned to the user. When omitted after import, the prior state value is preserved, preventing accidental removal of squad membership on unrelated updates.
 - `hwid_device_limit` (Number) Max hardware devices allowed.
 - `last_traffic_reset_at` (String) Initial last-traffic-reset timestamp. Remnawave only accepts it during creation.
 - `short_uuid` (String) Short UUID used in subscription URLs.
