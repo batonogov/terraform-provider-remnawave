@@ -122,6 +122,7 @@ func TestClientAPIContracts(t *testing.T) {
 
 		{name: "CreateBillingHistory", method: http.MethodPost, path: "/api/infra-billing/history", args: []any{map[string]any{"amount": float64(42)}}, wantJSON: map[string]any{"amount": float64(42)}},
 		{name: "GetBillingHistory", method: http.MethodGet, path: "/api/infra-billing/history"},
+		{name: "GetBillingHistoryPaged", method: http.MethodGet, path: "/api/infra-billing/history", query: map[string]string{"size": "500", "start": "0"}, args: []any{0, 500}},
 		{name: "DeleteBillingHistory", method: http.MethodDelete, path: "/api/infra-billing/history/item-id", args: []any{"item-id"}},
 
 		{name: "GetSubscriptionByUUID", method: http.MethodGet, path: "/api/subscriptions/by-uuid/item-id", args: []any{"item-id"}},
