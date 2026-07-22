@@ -21,4 +21,9 @@ variable "remnawave_api_token" {
 provider "remnawave" {
   endpoint  = var.remnawave_endpoint
   api_token = var.remnawave_api_token
+
+  # Optional authentication for an outer reverse-proxy gate:
+  # custom_headers = {
+  #   Cookie = var.remnawave_gateway_cookie # cookie_name=cookie_value
+  # }
 }

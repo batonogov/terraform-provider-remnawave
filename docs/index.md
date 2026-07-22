@@ -35,6 +35,11 @@ variable "remnawave_api_token" {
 provider "remnawave" {
   endpoint  = var.remnawave_endpoint
   api_token = var.remnawave_api_token
+
+  # Optional authentication for an outer reverse-proxy gate:
+  # custom_headers = {
+  #   Cookie = var.remnawave_gateway_cookie # cookie_name=cookie_value
+  # }
 }
 ```
 
@@ -44,6 +49,7 @@ provider "remnawave" {
 ### Optional
 
 - `api_token` (String, Sensitive) Pre-generated API token (JWT) for authentication. If set, username/password are ignored. Can also be set via REMNAWAVE_API_TOKEN env var.
+- `custom_headers` (Map of String, Sensitive) Custom HTTP headers to send with every request, for example reverse-proxy authentication headers. Can also be set as a JSON object via REMNAWAVE_CUSTOM_HEADERS env var. The HCL map takes precedence as a whole and is not merged with the environment value.
 - `endpoint` (String) Base URL of the Remnawave panel, e.g. https://panel.example.com. Can also be set via REMNAWAVE_ENDPOINT env var.
 - `insecure_skip_verify` (Boolean) Skip TLS certificate verification (useful for self-signed certs). Can also be set via REMNAWAVE_INSECURE_SKIP_VERIFY env var.
 - `password` (String, Sensitive) Remnawave admin password for login. Can also be set via REMNAWAVE_PASSWORD env var.

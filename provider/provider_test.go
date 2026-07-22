@@ -32,8 +32,8 @@ func TestProviderMetadataAndSchema(t *testing.T) {
 	if schemaResp.Diagnostics.HasError() {
 		t.Fatalf("schema diagnostics: %v", schemaResp.Diagnostics)
 	}
-	if len(schemaResp.Schema.Attributes) != 7 {
-		t.Fatalf("provider attributes = %d, want 7", len(schemaResp.Schema.Attributes))
+	if len(schemaResp.Schema.Attributes) != 8 {
+		t.Fatalf("provider attributes = %d, want 8", len(schemaResp.Schema.Attributes))
 	}
 
 	endpoint, ok := schemaResp.Schema.Attributes["endpoint"].(providerschema.StringAttribute)
@@ -49,6 +49,17 @@ func TestProviderMetadataAndSchema(t *testing.T) {
 		if !ok || !attribute.Sensitive {
 			t.Errorf("%s must be a sensitive string attribute", name)
 		}
+	}
+
+	customHeaders, ok := schemaResp.Schema.Attributes["custom_headers"].(providerschema.MapAttribute)
+	if !ok {
+		t.Fatalf("custom_headers attribute type = %T", schemaResp.Schema.Attributes["custom_headers"])
+	}
+	if !customHeaders.Optional || customHeaders.Required || !customHeaders.Sensitive {
+		t.Errorf("custom_headers must be an optional sensitive map: %#v", customHeaders)
+	}
+	if !customHeaders.ElementType.Equal(types.StringType) {
+		t.Errorf("custom_headers element type = %s, want %s", customHeaders.ElementType, types.StringType)
 	}
 }
 
@@ -155,6 +166,7 @@ func TestProviderConfigure(t *testing.T) {
 		envInsecureSkipVerify,
 		envRequestTimeout,
 		envProxyHeaders,
+		envCustomHeaders,
 	} {
 		t.Setenv(key, "")
 	}
@@ -185,6 +197,7 @@ func TestProviderConfigure(t *testing.T) {
 		t.Setenv(envInsecureSkipVerify, "true")
 		t.Setenv(envRequestTimeout, "45s")
 		t.Setenv(envProxyHeaders, "true")
+		t.Setenv(envCustomHeaders, `{"Cookie":"gateway=env-secret","X-Gateway-Token":"env-token"}`)
 
 		var resp frameworkprovider.ConfigureResponse
 		p.Configure(context.Background(), frameworkprovider.ConfigureRequest{
@@ -203,10 +216,134 @@ func TestProviderConfigure(t *testing.T) {
 		if client.httpClient.Timeout != 45*time.Second || !client.proxyHeaders {
 			t.Errorf("client timeout/proxy = %s/%v", client.httpClient.Timeout, client.proxyHeaders)
 		}
+		if len(client.customHeaders) != 2 || client.customHeaders["Cookie"] != "gateway=env-secret" || client.customHeaders["X-Gateway-Token"] != "env-token" {
+			t.Errorf("client custom headers were not loaded from the environment")
+		}
 		transport := client.httpClient.Transport.(*http.Transport)
 		if !transport.TLSClientConfig.InsecureSkipVerify {
 			t.Errorf("InsecureSkipVerify = false")
 		}
+	})
+
+	t.Run("configured custom headers replace environment map", func(t *testing.T) {
+		t.Setenv(envCustomHeaders, `{"X-Environment-Only":"environment-secret"}`)
+
+		var resp frameworkprovider.ConfigureResponse
+		p.Configure(context.Background(), frameworkprovider.ConfigureRequest{
+			Config: testProviderConfig(schemaResp.Schema, map[string]any{
+				"endpoint":       "https://panel.example.com",
+				"api_token":      "token",
+				"custom_headers": map[string]string{"Cookie": "gateway=hcl-secret"},
+			}),
+		}, &resp)
+		if resp.Diagnostics.HasError() {
+			t.Fatalf("Configure() diagnostics: %v", resp.Diagnostics)
+		}
+		client := resp.ResourceData.(*Client)
+		if len(client.customHeaders) != 1 || client.customHeaders["Cookie"] != "gateway=hcl-secret" {
+			t.Errorf("client custom headers were merged with the environment map")
+		}
+	})
+
+	t.Run("configured empty custom headers suppress invalid environment", func(t *testing.T) {
+		t.Setenv(envCustomHeaders, `{"Cookie":"do-not-leak"`)
+
+		var resp frameworkprovider.ConfigureResponse
+		p.Configure(context.Background(), frameworkprovider.ConfigureRequest{
+			Config: testProviderConfig(schemaResp.Schema, map[string]any{
+				"endpoint":       "https://panel.example.com",
+				"api_token":      "token",
+				"custom_headers": map[string]string{},
+			}),
+		}, &resp)
+		if resp.Diagnostics.HasError() {
+			t.Fatalf("Configure() diagnostics: %v", resp.Diagnostics)
+		}
+		if client := resp.ResourceData.(*Client); len(client.customHeaders) != 0 {
+			t.Errorf("client custom headers count = %d, want 0", len(client.customHeaders))
+		}
+	})
+
+	t.Run("unknown configured custom headers do not use environment", func(t *testing.T) {
+		t.Setenv(envCustomHeaders, `{"Cookie":"environment-secret"}`)
+
+		var resp frameworkprovider.ConfigureResponse
+		p.Configure(context.Background(), frameworkprovider.ConfigureRequest{
+			Config: testProviderConfig(schemaResp.Schema, map[string]any{
+				"endpoint":       "https://panel.example.com",
+				"api_token":      "token",
+				"custom_headers": tftypes.UnknownValue,
+			}),
+		}, &resp)
+		assertDiagnosticSummary(t, resp.Diagnostics, "Unknown custom_headers")
+		assertDiagnosticsDoNotContain(t, resp.Diagnostics, "environment-secret")
+		if resp.ResourceData != nil || resp.DataSourceData != nil {
+			t.Fatal("Configure() created a client from the environment for unknown custom_headers")
+		}
+	})
+
+	t.Run("invalid custom headers environment", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			value     string
+			forbidden []string
+		}{
+			{
+				name:      "invalid JSON",
+				value:     `{"Cookie":"syntax-secret"`,
+				forbidden: []string{`{"Cookie":"syntax-secret"`, "syntax-secret"},
+			},
+			{
+				name:      "non-object root",
+				value:     `["root-secret"]`,
+				forbidden: []string{`["root-secret"]`, "root-secret"},
+			},
+			{
+				name:  "null root",
+				value: "null",
+			},
+			{
+				name:      "null value",
+				value:     `{"Cookie":null}`,
+				forbidden: []string{`{"Cookie":null}`},
+			},
+			{
+				name:      "non-string value",
+				value:     `{"Cookie":{"secret":"nested-secret"}}`,
+				forbidden: []string{`{"Cookie":{"secret":"nested-secret"}}`, "nested-secret"},
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Setenv(envCustomHeaders, tt.value)
+				var resp frameworkprovider.ConfigureResponse
+				p.Configure(context.Background(), frameworkprovider.ConfigureRequest{
+					Config: testProviderConfig(schemaResp.Schema, map[string]any{
+						"endpoint":  "https://panel.example.com",
+						"api_token": "token",
+					}),
+				}, &resp)
+				assertDiagnosticSummary(t, resp.Diagnostics, "Invalid REMNAWAVE_CUSTOM_HEADERS")
+				assertDiagnosticsDoNotContain(t, resp.Diagnostics, tt.forbidden...)
+			})
+		}
+	})
+
+	t.Run("null configured custom header value", func(t *testing.T) {
+		t.Setenv(envCustomHeaders, `{"Cookie":"environment-secret"}`)
+		var resp frameworkprovider.ConfigureResponse
+		p.Configure(context.Background(), frameworkprovider.ConfigureRequest{
+			Config: testProviderConfig(schemaResp.Schema, map[string]any{
+				"endpoint":       "https://panel.example.com",
+				"api_token":      "token",
+				"custom_headers": map[string]any{"Cookie": nil},
+			}),
+		}, &resp)
+		if !resp.Diagnostics.HasError() {
+			t.Fatal("Configure() succeeded with a null configured custom header value")
+		}
+		assertDiagnosticsDoNotContain(t, resp.Diagnostics, "environment-secret")
 	})
 
 	t.Run("configured username and password", func(t *testing.T) {
@@ -281,6 +418,7 @@ func testProviderConfig(providerSchema providerschema.Schema, values map[string]
 		"insecure_skip_verify": tftypes.Bool,
 		"request_timeout":      tftypes.String,
 		"proxy_headers":        tftypes.Bool,
+		"custom_headers":       tftypes.Map{ElementType: tftypes.String},
 	}
 	rawValues := make(map[string]tftypes.Value, len(attributeTypes))
 	for name, attributeType := range attributeTypes {
@@ -288,12 +426,37 @@ func testProviderConfig(providerSchema providerschema.Schema, values map[string]
 		if configured, ok := values[name]; ok {
 			value = configured
 		}
-		rawValues[name] = tftypes.NewValue(attributeType, value)
+		rawValues[name] = testProviderAttributeValue(attributeType, value)
 	}
 	return tfsdk.Config{
 		Raw:    tftypes.NewValue(tftypes.Object{AttributeTypes: attributeTypes}, rawValues),
 		Schema: providerSchema,
 	}
+}
+
+func testProviderAttributeValue(attributeType tftypes.Type, value any) tftypes.Value {
+	mapType, isMap := attributeType.(tftypes.Map)
+	if !isMap || value == nil {
+		return tftypes.NewValue(attributeType, value)
+	}
+
+	mapValues := make(map[string]tftypes.Value)
+	switch configured := value.(type) {
+	case map[string]string:
+		for key, element := range configured {
+			mapValues[key] = tftypes.NewValue(mapType.ElementType, element)
+		}
+	case map[string]any:
+		for key, element := range configured {
+			mapValues[key] = tftypes.NewValue(mapType.ElementType, element)
+		}
+	case map[string]tftypes.Value:
+		mapValues = configured
+	default:
+		return tftypes.NewValue(attributeType, value)
+	}
+
+	return tftypes.NewValue(attributeType, mapValues)
 }
 
 func assertDiagnosticSummary(t *testing.T, diagnostics diag.Diagnostics, want string) {
@@ -304,4 +467,16 @@ func assertDiagnosticSummary(t *testing.T, diagnostics diag.Diagnostics, want st
 		}
 	}
 	t.Fatalf("diagnostics = %v, want summary %q", diagnostics, want)
+}
+
+func assertDiagnosticsDoNotContain(t *testing.T, diagnostics diag.Diagnostics, forbidden ...string) {
+	t.Helper()
+	for _, diagnostic := range diagnostics {
+		text := diagnostic.Summary() + "\n" + diagnostic.Detail()
+		for _, value := range forbidden {
+			if value != "" && strings.Contains(text, value) {
+				t.Errorf("diagnostic contains sensitive input %q: %s", value, text)
+			}
+		}
+	}
 }

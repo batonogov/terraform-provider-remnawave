@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -28,6 +29,7 @@ type RemnawaveProviderModel struct {
 	InsecureSkipVerify types.Bool   `tfsdk:"insecure_skip_verify"`
 	RequestTimeout     types.String `tfsdk:"request_timeout"`
 	ProxyHeaders       types.Bool   `tfsdk:"proxy_headers"`
+	CustomHeaders      types.Map    `tfsdk:"custom_headers"`
 }
 
 const (
@@ -38,6 +40,7 @@ const (
 	envInsecureSkipVerify = "REMNAWAVE_INSECURE_SKIP_VERIFY"
 	envRequestTimeout     = "REMNAWAVE_REQUEST_TIMEOUT"
 	envProxyHeaders       = "REMNAWAVE_PROXY_HEADERS"
+	envCustomHeaders      = "REMNAWAVE_CUSTOM_HEADERS"
 )
 
 func New(version string) func() provider.Provider {
@@ -84,6 +87,12 @@ func (p *RemnawaveProvider) Schema(_ context.Context, _ provider.SchemaRequest, 
 			"proxy_headers": schema.BoolAttribute{
 				Optional:    true,
 				Description: "Send X-Forwarded-For/X-Forwarded-Proto headers to bypass ProxyCheckMiddleware when connecting without a reverse proxy. Can also be set via REMNAWAVE_PROXY_HEADERS env var.",
+			},
+			"custom_headers": schema.MapAttribute{
+				Optional:    true,
+				Sensitive:   true,
+				ElementType: types.StringType,
+				Description: "Custom HTTP headers to send with every request, for example reverse-proxy authentication headers. Can also be set as a JSON object via REMNAWAVE_CUSTOM_HEADERS env var. The HCL map takes precedence as a whole and is not merged with the environment value.",
 			},
 		},
 	}
@@ -145,6 +154,30 @@ func (p *RemnawaveProvider) Configure(ctx context.Context, req provider.Configur
 		return
 	}
 
+	customHeaders := make(map[string]string)
+	if config.CustomHeaders.IsUnknown() {
+		resp.Diagnostics.AddError(
+			"Unknown custom_headers",
+			"custom_headers must be known during provider configuration. An unknown HCL value does not fall back to REMNAWAVE_CUSTOM_HEADERS.",
+		)
+		return
+	}
+	if !config.CustomHeaders.IsNull() {
+		resp.Diagnostics.Append(config.CustomHeaders.ElementsAs(ctx, &customHeaders, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	} else if rawHeaders := os.Getenv(envCustomHeaders); rawHeaders != "" {
+		customHeaders, err = parseCustomHeadersEnv(rawHeaders)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Invalid REMNAWAVE_CUSTOM_HEADERS",
+				"REMNAWAVE_CUSTOM_HEADERS must be a non-null JSON object whose values are non-null strings. Header values are omitted from this diagnostic.",
+			)
+			return
+		}
+	}
+
 	client, err := NewClient(ClientConfig{
 		Endpoint:           endpoint,
 		APIToken:           apiToken,
@@ -153,6 +186,7 @@ func (p *RemnawaveProvider) Configure(ctx context.Context, req provider.Configur
 		InsecureSkipVerify: insecureSkipVerify,
 		Timeout:            timeout,
 		ProxyHeaders:       proxyHeaders,
+		CustomHeaders:      customHeaders,
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Client init failed", err.Error())
@@ -220,6 +254,28 @@ func (p *RemnawaveProvider) DataSources(_ context.Context) []func() datasource.D
 		NewUserIPsDataSource,
 		NewPasskeysDataSource,
 	}
+}
+
+func parseCustomHeadersEnv(raw string) (map[string]string, error) {
+	var encodedHeaders map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &encodedHeaders); err != nil || encodedHeaders == nil {
+		return nil, fmt.Errorf("expected a non-null JSON object")
+	}
+
+	headers := make(map[string]string, len(encodedHeaders))
+	for name, encodedValue := range encodedHeaders {
+		var value any
+		if err := json.Unmarshal(encodedValue, &value); err != nil {
+			return nil, fmt.Errorf("invalid value for header %q", name)
+		}
+		stringValue, ok := value.(string)
+		if !ok {
+			return nil, fmt.Errorf("header %q must have a non-null string value", name)
+		}
+		headers[name] = stringValue
+	}
+
+	return headers, nil
 }
 
 func envString(tfVal types.String, envKey, fallback string) string {

@@ -11,6 +11,11 @@ terraform {
 provider "remnawave" {
   endpoint  = "https://panel.example.com"
   api_token = var.remnawave_api_token
+
+  # Optional authentication for an outer reverse-proxy gate:
+  # custom_headers = {
+  #   Cookie = var.remnawave_gateway_cookie # cookie_name=cookie_value
+  # }
 }
 
 # Username/password authentication is also supported

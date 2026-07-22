@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,7 +29,8 @@ type Client struct {
 	username    string
 	password    string
 
-	proxyHeaders bool
+	proxyHeaders  bool
+	customHeaders map[string]string
 
 	// serverVersion is the major.minor of the Remnawave backend (e.g. "2.7",
 	// "2.8"), detected lazily on the first request via /api/system/metadata.
@@ -49,6 +51,9 @@ type ClientConfig struct {
 	// to every request. Needed when connecting directly to the panel
 	// without a reverse proxy (e.g. acceptance tests).
 	ProxyHeaders bool
+	// CustomHeaders adds user-configured headers to every request. Header names
+	// and values are validated, and the map is defensively copied by NewClient.
+	CustomHeaders map[string]string
 }
 
 type apiResponse struct {
@@ -67,6 +72,18 @@ func (e *HTTPStatusError) Error() string {
 	}
 	return fmt.Sprintf("request failed: status %d, body: %s", e.StatusCode, e.Body)
 }
+
+type redactedRequestError struct {
+	message string
+}
+
+func (e *redactedRequestError) Error() string { return e.message }
+
+var (
+	errCrossOriginCustomHeaderRedirect = errors.New("refusing to redirect custom headers to a different origin")
+	errCustomHeaderRedirectLimit       = errors.New("stopped after 10 redirects")
+	errInvalidRedirectLocation         = errors.New("redirect response contained an invalid Location header")
+)
 
 // NewClient creates a new Remnawave API client.
 // If APIToken is provided, it is used as a Bearer token directly (no login needed).
@@ -89,6 +106,11 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 		return nil, errors.New("endpoint must not include a query string or fragment")
 	}
 
+	customHeaders, err := validateCustomHeaders(cfg.CustomHeaders)
+	if err != nil {
+		return nil, err
+	}
+
 	timeout := cfg.Timeout
 	if timeout == 0 {
 		timeout = 30 * time.Second
@@ -102,15 +124,155 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 		Timeout:   timeout,
 		Transport: transport,
 	}
+	if len(customHeaders) > 0 {
+		endpointOrigin := normalizedOrigin(baseURL)
+		httpClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			if normalizedOrigin(req.URL) != endpointOrigin {
+				for name := range customHeaders {
+					req.Header.Del(name)
+				}
+				return errCrossOriginCustomHeaderRedirect
+			}
+			if len(via) >= 10 {
+				return errCustomHeaderRedirectLimit
+			}
+
+			// net/http intentionally strips sensitive headers when the textual
+			// host changes. Reapply them only after our stricter normalized-origin
+			// check has accepted the redirect (for example, host vs host:443).
+			for name, value := range customHeaders {
+				req.Header.Set(name, value)
+			}
+			if len(via) > 0 {
+				for _, name := range []string{
+					"Authorization",
+					"X-Remnawave-Client-Type",
+					"X-Forwarded-For",
+					"X-Forwarded-Proto",
+				} {
+					if values := via[0].Header.Values(name); len(values) > 0 {
+						req.Header[name] = append([]string(nil), values...)
+					}
+				}
+			}
+			return nil
+		}
+	}
 
 	return &Client{
-		baseURL:      baseURL,
-		httpClient:   httpClient,
-		apiToken:     cfg.APIToken,
-		username:     cfg.Username,
-		password:     cfg.Password,
-		proxyHeaders: cfg.ProxyHeaders,
+		baseURL:       baseURL,
+		httpClient:    httpClient,
+		apiToken:      cfg.APIToken,
+		username:      cfg.Username,
+		password:      cfg.Password,
+		proxyHeaders:  cfg.ProxyHeaders,
+		customHeaders: customHeaders,
 	}, nil
+}
+
+var reservedCustomHeaders = map[string]struct{}{
+	"authorization":           {},
+	"connection":              {},
+	"content-length":          {},
+	"content-type":            {},
+	"host":                    {},
+	"keep-alive":              {},
+	"http2-settings":          {},
+	"proxy-authenticate":      {},
+	"proxy-authorization":     {},
+	"proxy-connection":        {},
+	"te":                      {},
+	"trailer":                 {},
+	"transfer-encoding":       {},
+	"upgrade":                 {},
+	"x-remnawave-client-type": {},
+}
+
+// validateCustomHeaders validates, canonicalizes, and clones custom headers.
+// Error messages deliberately omit header values because they may be secrets.
+func validateCustomHeaders(headers map[string]string) (map[string]string, error) {
+	if len(headers) == 0 {
+		return nil, nil
+	}
+
+	validated := make(map[string]string, len(headers))
+	seen := make(map[string]struct{}, len(headers))
+	for name, value := range headers {
+		if !validHeaderName(name) {
+			return nil, fmt.Errorf("invalid custom header name %q", name)
+		}
+
+		lowerName := strings.ToLower(name)
+		if _, duplicate := seen[lowerName]; duplicate {
+			return nil, fmt.Errorf("duplicate custom header name %q (header names are case-insensitive)", name)
+		}
+		seen[lowerName] = struct{}{}
+
+		if _, reserved := reservedCustomHeaders[lowerName]; reserved || strings.HasPrefix(lowerName, "x-forwarded-") {
+			return nil, fmt.Errorf("custom header %q is reserved", name)
+		}
+		if !validHeaderValue(value) {
+			return nil, fmt.Errorf("custom header %q has an invalid value", name)
+		}
+
+		validated[http.CanonicalHeaderKey(name)] = strings.Trim(value, " \t")
+	}
+	return validated, nil
+}
+
+func validHeaderName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i := 0; i < len(name); i++ {
+		b := name[i]
+		if ('a' <= b && b <= 'z') || ('A' <= b && b <= 'Z') || ('0' <= b && b <= '9') {
+			continue
+		}
+		switch b {
+		case '!', '#', '$', '%', '&', '\'', '*', '+', '-', '.', '^', '_', '`', '|', '~':
+			continue
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func validHeaderValue(value string) bool {
+	for i := 0; i < len(value); i++ {
+		b := value[i]
+		if b == '\x7f' || (b < ' ' && b != '\t') {
+			return false
+		}
+	}
+	return true
+}
+
+type requestOrigin struct {
+	scheme   string
+	hostname string
+	port     string
+}
+
+func normalizedOrigin(u *url.URL) requestOrigin {
+	scheme := strings.ToLower(u.Scheme)
+	port := u.Port()
+	if port == "" {
+		switch scheme {
+		case "http":
+			port = "80"
+		case "https":
+			port = "443"
+		}
+	} else if numericPort, err := strconv.Atoi(port); err == nil {
+		port = strconv.Itoa(numericPort)
+	}
+	return requestOrigin{
+		scheme:   scheme,
+		hostname: strings.ToLower(u.Hostname()),
+		port:     port,
+	}
 }
 
 // authenticate obtains a JWT access token via username/password login,
@@ -196,6 +358,7 @@ func (c *Client) doRaw(ctx context.Context, method, path string, body any, out a
 	if err != nil {
 		return err
 	}
+	c.setCustomHeaders(req)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -230,6 +393,7 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, o
 		if err != nil {
 			return nil, err
 		}
+		c.setCustomHeaders(req)
 		req.Header.Set("Authorization", "Bearer "+token)
 		req.Header.Set("Content-Type", "application/json")
 		if c.apiToken == "" {
@@ -250,7 +414,7 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, o
 	// On 401, try re-authenticating once (unless using static API token).
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return err
+		return c.redactRequestError(err)
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized && c.apiToken == "" {
@@ -273,7 +437,7 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, o
 		}
 		resp, err = c.httpClient.Do(req2)
 		if err != nil {
-			return err
+			return c.redactRequestError(err)
 		}
 	}
 
@@ -283,7 +447,7 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, o
 func (c *Client) sendRequest(req *http.Request, out any) error {
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return err
+		return c.redactRequestError(err)
 	}
 	return c.decodeResponse(resp, out)
 }
@@ -300,7 +464,8 @@ func (c *Client) decodeResponse(resp *http.Response, out any) error {
 	}
 
 	if resp.StatusCode >= 400 {
-		msg := strings.TrimSpace(string(body))
+		msg := c.redactCustomHeaderValues(string(body))
+		msg = strings.TrimSpace(msg)
 		if len(msg) > 1024 {
 			msg = msg[:1024] + "...(truncated)"
 		}
@@ -322,6 +487,98 @@ func (c *Client) decodeResponse(resp *http.Response, out any) error {
 	}
 	// Fallback: try direct decode
 	return json.Unmarshal(body, out)
+}
+
+func (c *Client) setCustomHeaders(req *http.Request) {
+	for name, value := range c.customHeaders {
+		req.Header.Set(name, value)
+	}
+}
+
+func (c *Client) redactCustomHeaderValues(value string) string {
+	if value == "" || len(c.customHeaders) == 0 {
+		return value
+	}
+
+	unique := make(map[string]struct{}, len(c.customHeaders)*2)
+	secrets := make([]string, 0, len(c.customHeaders)*2)
+	addPattern := func(pattern string) {
+		if pattern == "" {
+			return
+		}
+		if _, exists := unique[pattern]; exists {
+			return
+		}
+		unique[pattern] = struct{}{}
+		secrets = append(secrets, pattern)
+	}
+	for _, secret := range c.customHeaders {
+		if secret == "" {
+			continue
+		}
+		addPattern(secret)
+		// Reverse proxies commonly return structured JSON error bodies. Include
+		// the JSON string-content representation so quotes, backslashes, tabs,
+		// and encoding/json's HTML escapes cannot reveal a reversible secret.
+		if encoded, err := json.Marshal(secret); err == nil && len(encoded) >= 2 {
+			addPattern(string(encoded[1 : len(encoded)-1]))
+		}
+	}
+	if len(secrets) == 0 {
+		return value
+	}
+
+	sort.Slice(secrets, func(i, j int) bool {
+		if len(secrets[i]) == len(secrets[j]) {
+			return secrets[i] < secrets[j]
+		}
+		return len(secrets[i]) > len(secrets[j])
+	})
+	replacements := make([]string, 0, len(secrets)*2)
+	for _, secret := range secrets {
+		replacements = append(replacements, secret, "[REDACTED]")
+	}
+	return strings.NewReplacer(replacements...).Replace(value)
+}
+
+func (c *Client) redactRequestError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if len(c.customHeaders) > 0 {
+		if errors.Is(err, errCrossOriginCustomHeaderRedirect) {
+			return errCrossOriginCustomHeaderRedirect
+		}
+		if errors.Is(err, errCustomHeaderRedirectLimit) {
+			return errCustomHeaderRedirectLimit
+		}
+		var urlErr *url.Error
+		if errors.As(err, &urlErr) && urlErr.Err != nil && strings.Contains(urlErr.Err.Error(), "failed to parse Location header") {
+			return errInvalidRedirectLocation
+		}
+		if errors.As(err, &urlErr) {
+			message := "HTTP request failed"
+			if urlErr.Op != "" {
+				message = urlErr.Op + " request failed"
+			}
+			if urlErr.Err != nil {
+				message += ": " + c.redactCustomHeaderValues(urlErr.Err.Error())
+			}
+			// url.Error.URL may be a same-origin redirect URL containing a
+			// percent-encoded reflection of a secret. Omit it, and do not expose
+			// the original url.Error through an unwrap-able cause.
+			return &redactedRequestError{message: message}
+		}
+	}
+	rawMessage := err.Error()
+	message := c.redactCustomHeaderValues(rawMessage)
+	if message == rawMessage {
+		return err
+	}
+	// Do not retain an unwrap-able cause here: redirect and transport errors
+	// can themselves contain the reflected secret. Returning that cause would
+	// let callers recover the value through errors.Unwrap/errors.As.
+	return &redactedRequestError{message: message}
 }
 
 func (c *Client) resolvePath(path string) string {
