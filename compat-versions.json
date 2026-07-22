@@ -1,8 +1,9 @@
 {
   "versions": [
+    { "version": "v2.8.1", "supported": true },
     { "version": "v2.8.0", "supported": true },
     { "version": "v2.7.4", "supported": true }
   ],
-  "default_version": "v2.8.0",
+  "default_version": "v2.8.1",
   "minor_lines": ["2.8.x", "2.7.x"]
 }

@@ -88,9 +88,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - label: "2.8.0"
-            version: "2.8.0"
-            digest: "sha256:cbc6d2ea0a84d8414dec565bb9ce299a3318b9e5297496baf8efcff2a1e66c65"
+          - label: "2.8.1"
+            version: "2.8.1"
+            digest: "sha256:74606a89929bb50c51532a864fc981dce6b8a6b7af7e7dc2d8a2a2e8d9941e6c"
             token_payload: '{"name":"acceptance-tests","expiresInDays":1,"scopes":["*"]}'
           - label: "2.7.4"
             version: "2.7.4"
