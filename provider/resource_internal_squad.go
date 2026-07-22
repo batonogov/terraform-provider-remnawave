@@ -33,7 +33,7 @@ func (r *internalSquadResource) Schema(_ context.Context, _ resource.SchemaReque
 		Attributes: map[string]schema.Attribute{
 			"uuid":     schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 			"name":     schema.StringAttribute{Required: true, Description: "Squad name (2-30 chars)."},
-			"inbounds": schema.SetAttribute{Optional: true, ElementType: types.StringType, Description: "Set of config profile inbound UUIDs."},
+			"inbounds": schema.SetAttribute{Optional: true, Computed: true, ElementType: types.StringType, Description: "Set of config profile inbound UUIDs."},
 			"accessible_nodes": schema.ListAttribute{
 				Computed:    true,
 				ElementType: types.StringType,
@@ -61,10 +61,11 @@ func (r *internalSquadResource) Create(ctx context.Context, req resource.CreateR
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	squad := &InternalSquad{Name: plan.Name.ValueString(), Inbounds: []string{}}
-	if !plan.Inbounds.IsNull() {
+	squad := &InternalSquad{Name: plan.Name.ValueString()}
+	if !plan.Inbounds.IsNull() && !plan.Inbounds.IsUnknown() {
+		squad.Inbounds = make([]InternalSquadInboundRef, 0, len(plan.Inbounds.Elements()))
 		for _, v := range plan.Inbounds.Elements() {
-			squad.Inbounds = append(squad.Inbounds, v.(types.String).ValueString())
+			squad.Inbounds = append(squad.Inbounds, InternalSquadInboundRef{UUID: v.(types.String).ValueString()})
 		}
 	}
 	created, err := r.client.CreateInternalSquad(ctx, squad)
@@ -96,6 +97,11 @@ func (r *internalSquadResource) Read(ctx context.Context, req resource.ReadReque
 	}
 	state.UUID = types.StringValue(squad.UUID)
 	state.Name = types.StringValue(squad.Name)
+	inboundElems := make([]attr.Value, 0, len(squad.Inbounds))
+	for _, ib := range squad.Inbounds {
+		inboundElems = append(inboundElems, types.StringValue(ib.UUID))
+	}
+	state.Inbounds, _ = types.SetValue(types.StringType, inboundElems)
 
 	// Fetch accessible nodes (read-only derived data).
 	accessible, err := r.client.GetInternalSquadAccessibleNodes(ctx, squad.UUID)
@@ -119,10 +125,11 @@ func (r *internalSquadResource) Update(ctx context.Context, req resource.UpdateR
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	squad := &InternalSquad{UUID: plan.UUID.ValueString(), Name: plan.Name.ValueString(), Inbounds: []string{}}
-	if !plan.Inbounds.IsNull() {
+	squad := &InternalSquad{UUID: plan.UUID.ValueString(), Name: plan.Name.ValueString()}
+	if !plan.Inbounds.IsNull() && !plan.Inbounds.IsUnknown() {
+		squad.Inbounds = make([]InternalSquadInboundRef, 0, len(plan.Inbounds.Elements()))
 		for _, v := range plan.Inbounds.Elements() {
-			squad.Inbounds = append(squad.Inbounds, v.(types.String).ValueString())
+			squad.Inbounds = append(squad.Inbounds, InternalSquadInboundRef{UUID: v.(types.String).ValueString()})
 		}
 	}
 	updated, err := r.client.UpdateInternalSquad(ctx, squad)
