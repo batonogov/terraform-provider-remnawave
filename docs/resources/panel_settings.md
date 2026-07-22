@@ -27,8 +27,8 @@ resource "remnawave_panel_settings" "main" {
 
 - `branding_logo_url` (String) Panel branding logo URL.
 - `branding_title` (String) Panel branding title.
-- `oauth2_settings` (String) OAuth2 settings as JSON string. Contains configuration for github, pocketid, yandex, keycloak, generic, telegram providers.
-- `passkey_settings` (String) Passkey/WebAuthn settings as JSON string.
+- `oauth2_settings` (String, Sensitive) OAuth2 settings as JSON string. Contains configuration for github, pocketid, yandex, keycloak, generic, telegram providers.
+- `passkey_settings` (String, Sensitive) Passkey/WebAuthn settings as JSON string.
 - `password_auth_enabled` (Boolean) Enable password auth.
 
 ### Read-Only

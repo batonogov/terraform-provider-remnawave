@@ -93,6 +93,7 @@ func (r *nodeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			},
 			"proxy_url": schema.StringAttribute{
 				Optional:    true,
+				Sensitive:   true,
 				Description: "Optional SOCKS5 proxy URL used to reach the node.",
 				Validators: []validator.String{
 					stringvalidator.RegexMatches(

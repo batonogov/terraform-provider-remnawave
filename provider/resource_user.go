@@ -130,6 +130,7 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"vless_uuid": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
+				Sensitive:   true,
 				Description: "VLESS UUID. Auto-generated if not set.",
 			},
 			"ss_password": schema.StringAttribute{
@@ -177,6 +178,7 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			},
 			"subscription_url": schema.StringAttribute{
 				Computed:    true,
+				Sensitive:   true,
 				Description: "Subscription URL for the user.",
 			},
 			"last_triggered_threshold": schema.Int64Attribute{

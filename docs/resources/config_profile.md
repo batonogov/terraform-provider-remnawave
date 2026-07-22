@@ -44,7 +44,7 @@ resource "remnawave_config_profile" "default" {
 
 ### Optional
 
-- `config` (String) Xray configuration as JSON string. Opaque to the provider — the panel manages the structure.
+- `config` (String, Sensitive) Xray configuration as JSON string. Opaque to the provider — the panel manages the structure.
 
 ### Read-Only
 
@@ -60,7 +60,7 @@ Read-Only:
 - `network` (String)
 - `port` (Number)
 - `profile_uuid` (String)
-- `raw_inbound` (String) Raw inbound as normalized JSON.
+- `raw_inbound` (String, Sensitive) Raw inbound as normalized JSON.
 - `security` (String)
 - `tag` (String)
 - `type` (String)

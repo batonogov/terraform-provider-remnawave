@@ -86,6 +86,7 @@ func (r *configProfileResource) Schema(_ context.Context, _ resource.SchemaReque
 			},
 			"config": schema.StringAttribute{
 				Optional:      true,
+				Sensitive:     true,
 				PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}},
 				Description:   "Xray configuration as JSON string. Opaque to the provider — the panel manages the structure.",
 			},
@@ -100,7 +101,7 @@ func (r *configProfileResource) Schema(_ context.Context, _ resource.SchemaReque
 					"network":      schema.StringAttribute{Computed: true},
 					"security":     schema.StringAttribute{Computed: true},
 					"port":         schema.Int64Attribute{Computed: true},
-					"raw_inbound":  schema.StringAttribute{Computed: true, Description: "Raw inbound as normalized JSON."},
+					"raw_inbound":  schema.StringAttribute{Computed: true, Sensitive: true, Description: "Raw inbound as normalized JSON."},
 				}},
 			},
 			"nodes": schema.ListNestedAttribute{
