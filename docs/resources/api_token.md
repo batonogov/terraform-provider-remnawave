@@ -3,12 +3,12 @@
 page_title: "remnawave_api_token Resource - terraform-provider-remnawave"
 subcategory: ""
 description: |-
-  Manages a Remnawave API token. Note: requires admin JWT auth (not API token). Token value only returned on create.
+  Manages a Remnawave API token. Note: requires admin JWT auth (not API token). Token value only returned on create. Import supports compound ID <uuid>,<expires_in_days> to seed the required replacement attribute.
 ---
 
 # remnawave_api_token (Resource)
 
-Manages a Remnawave API token. Note: requires admin JWT auth (not API token). Token value only returned on create.
+Manages a Remnawave API token. Note: requires admin JWT auth (not API token). Token value only returned on create. Import supports compound ID `<uuid>,<expires_in_days>` to seed the required replacement attribute.
 
 ## Example Usage
 
@@ -25,11 +25,11 @@ resource "remnawave_api_token" "ci" {
 
 ### Required
 
-- `expires_in_days` (Number) Token expiration in days.
 - `name` (String) Token name (2-30 chars).
 
 ### Optional
 
+- `expires_in_days` (Number) Token expiration in days. On import, can be derived from createdAt/expireAt or provided via compound import ID `<uuid>,<expires_in_days>`.
 - `scopes` (Set of String) Token scopes (default: ['*']).
 
 ### Read-Only
