@@ -1338,7 +1338,7 @@ func (c *Client) GetAllPasskeys(ctx context.Context) ([]Passkey, error) {
 }
 
 func (c *Client) DeletePasskey(ctx context.Context, uuid string) error {
-	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/passkeys/%s", uuid), nil, nil)
+	return c.doRequest(ctx, http.MethodDelete, "/api/passkeys", map[string]string{"id": uuid}, nil)
 }
 
 func (c *Client) GetSystemStats(ctx context.Context, tz string) (map[string]any, error) {

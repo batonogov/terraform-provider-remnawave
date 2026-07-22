@@ -160,7 +160,7 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "DropConnections", method: http.MethodPost, path: "/api/ip-control/drop-connections", args: []any{"item-id"}, wantJSON: map[string]any{"userUuid": "item-id"}},
 		{name: "DropConnectionsV2", method: http.MethodPost, path: "/api/ip-control/drop-connections", args: []any{map[string]any{"dropBy": map[string]any{"by": "userUuids", "userUuids": []any{"item-id"}}, "targetNodes": map[string]any{"target": "allNodes"}}}, wantJSON: map[string]any{"dropBy": map[string]any{"by": "userUuids", "userUuids": []any{"item-id"}}, "targetNodes": map[string]any{"target": "allNodes"}}},
 		{name: "GetAllPasskeys", method: http.MethodGet, path: "/api/passkeys"},
-		{name: "DeletePasskey", method: http.MethodDelete, path: "/api/passkeys/item-id", args: []any{"item-id"}},
+		{name: "DeletePasskey", method: http.MethodDelete, path: "/api/passkeys", args: []any{"item-id"}, wantJSON: map[string]any{"id": "item-id"}},
 	}
 	coveredMethods := make(map[string]struct{}, len(tests))
 	for _, tt := range tests {
