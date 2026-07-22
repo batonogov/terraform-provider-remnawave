@@ -177,6 +177,31 @@ func (r *hwidDeviceResource) Read(ctx context.Context, req resource.ReadRequest,
 		}
 		if hwid, ok := dev["hwid"].(string); ok && hwid == state.Hwid.ValueString() {
 			found = true
+			if v, ok := dev["platform"].(string); ok && v != "" {
+				state.Platform = types.StringValue(v)
+			} else {
+				state.Platform = types.StringNull()
+			}
+			if v, ok := dev["osVersion"].(string); ok && v != "" {
+				state.OsVersion = types.StringValue(v)
+			} else {
+				state.OsVersion = types.StringNull()
+			}
+			if v, ok := dev["deviceModel"].(string); ok && v != "" {
+				state.DeviceModel = types.StringValue(v)
+			} else {
+				state.DeviceModel = types.StringNull()
+			}
+			if v, ok := dev["userAgent"].(string); ok && v != "" {
+				state.UserAgent = types.StringValue(v)
+			} else {
+				state.UserAgent = types.StringNull()
+			}
+			if v, ok := dev["requestIp"].(string); ok && v != "" {
+				state.RequestIp = types.StringValue(v)
+			} else {
+				state.RequestIp = types.StringNull()
+			}
 			break
 		}
 	}
