@@ -2,7 +2,7 @@ terraform {
   required_providers {
     remnawave = {
       source  = "batonogov/remnawave"
-      version = "~> 0.5.0"
+      version = "~> 0.6.0"
     }
   }
 }
@@ -18,7 +18,19 @@ variable "remnawave_api_token" {
   sensitive   = true
 }
 
+variable "remnawave_gateway_cookie" {
+  type        = string
+  description = "Complete cookie pair required by an optional outer reverse-proxy gate, for example cookie_name=cookie_value."
+  sensitive   = true
+  default     = null
+}
+
 provider "remnawave" {
   endpoint  = var.remnawave_endpoint
   api_token = var.remnawave_api_token
+
+  # Optional authentication for an outer reverse-proxy gate:
+  # custom_headers = {
+  #   Cookie = var.remnawave_gateway_cookie # cookie_name=cookie_value
+  # }
 }

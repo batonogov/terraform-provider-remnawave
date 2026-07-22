@@ -2,9 +2,12 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -28,6 +31,7 @@ type RemnawaveProviderModel struct {
 	InsecureSkipVerify types.Bool   `tfsdk:"insecure_skip_verify"`
 	RequestTimeout     types.String `tfsdk:"request_timeout"`
 	ProxyHeaders       types.Bool   `tfsdk:"proxy_headers"`
+	CustomHeaders      types.Map    `tfsdk:"custom_headers"`
 }
 
 const (
@@ -38,6 +42,7 @@ const (
 	envInsecureSkipVerify = "REMNAWAVE_INSECURE_SKIP_VERIFY"
 	envRequestTimeout     = "REMNAWAVE_REQUEST_TIMEOUT"
 	envProxyHeaders       = "REMNAWAVE_PROXY_HEADERS"
+	envCustomHeaders      = "REMNAWAVE_CUSTOM_HEADERS"
 )
 
 func New(version string) func() provider.Provider {
@@ -84,6 +89,12 @@ func (p *RemnawaveProvider) Schema(_ context.Context, _ provider.SchemaRequest, 
 			"proxy_headers": schema.BoolAttribute{
 				Optional:    true,
 				Description: "Send X-Forwarded-For/X-Forwarded-Proto headers to bypass ProxyCheckMiddleware when connecting without a reverse proxy. Can also be set via REMNAWAVE_PROXY_HEADERS env var.",
+			},
+			"custom_headers": schema.MapAttribute{
+				Optional:    true,
+				Sensitive:   true,
+				ElementType: types.StringType,
+				Description: "Custom HTTP headers to send with every request, for example reverse-proxy authentication headers. Can also be set as a JSON object via REMNAWAVE_CUSTOM_HEADERS env var. The HCL map takes precedence as a whole and is not merged with the environment value.",
 			},
 		},
 	}
@@ -145,6 +156,30 @@ func (p *RemnawaveProvider) Configure(ctx context.Context, req provider.Configur
 		return
 	}
 
+	customHeaders := make(map[string]string)
+	if config.CustomHeaders.IsUnknown() {
+		resp.Diagnostics.AddError(
+			"Unknown custom_headers",
+			"custom_headers must be known during provider configuration. An unknown HCL value does not fall back to REMNAWAVE_CUSTOM_HEADERS.",
+		)
+		return
+	}
+	if !config.CustomHeaders.IsNull() {
+		resp.Diagnostics.Append(config.CustomHeaders.ElementsAs(ctx, &customHeaders, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	} else if rawHeaders := os.Getenv(envCustomHeaders); rawHeaders != "" {
+		customHeaders, err = parseCustomHeadersEnv(rawHeaders)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Invalid REMNAWAVE_CUSTOM_HEADERS",
+				"REMNAWAVE_CUSTOM_HEADERS must be a non-null JSON object whose values are non-null strings. Header values are omitted from this diagnostic.",
+			)
+			return
+		}
+	}
+
 	client, err := NewClient(ClientConfig{
 		Endpoint:           endpoint,
 		APIToken:           apiToken,
@@ -153,6 +188,7 @@ func (p *RemnawaveProvider) Configure(ctx context.Context, req provider.Configur
 		InsecureSkipVerify: insecureSkipVerify,
 		Timeout:            timeout,
 		ProxyHeaders:       proxyHeaders,
+		CustomHeaders:      customHeaders,
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Client init failed", err.Error())
@@ -220,6 +256,54 @@ func (p *RemnawaveProvider) DataSources(_ context.Context) []func() datasource.D
 		NewUserIPsDataSource,
 		NewPasskeysDataSource,
 	}
+}
+
+func parseCustomHeadersEnv(raw string) (map[string]string, error) {
+	decoder := json.NewDecoder(strings.NewReader(raw))
+
+	root, err := decoder.Token()
+	if err != nil || root != json.Delim('{') {
+		return nil, fmt.Errorf("expected a non-null JSON object")
+	}
+
+	headers := make(map[string]string)
+	seen := make(map[string]struct{})
+	for decoder.More() {
+		nameToken, err := decoder.Token()
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON object")
+		}
+		name, ok := nameToken.(string)
+		if !ok {
+			return nil, fmt.Errorf("expected a string header name")
+		}
+
+		foldedName := strings.ToLower(name)
+		if _, duplicate := seen[foldedName]; duplicate {
+			return nil, fmt.Errorf("duplicate header name")
+		}
+		seen[foldedName] = struct{}{}
+
+		valueToken, err := decoder.Token()
+		if err != nil {
+			return nil, fmt.Errorf("invalid value for header %q", name)
+		}
+		value, ok := valueToken.(string)
+		if !ok {
+			return nil, fmt.Errorf("header %q must have a non-null string value", name)
+		}
+		headers[name] = value
+	}
+
+	closing, err := decoder.Token()
+	if err != nil || closing != json.Delim('}') {
+		return nil, fmt.Errorf("invalid JSON object")
+	}
+	if _, err := decoder.Token(); err != io.EOF {
+		return nil, fmt.Errorf("unexpected data after JSON object")
+	}
+
+	return headers, nil
 }
 
 func envString(tfVal types.String, envKey, fallback string) string {

@@ -66,7 +66,7 @@ terraform {
   required_providers {
     remnawave = {
       source  = "batonogov/remnawave"
-      version = "~> 0.5.0"
+      version = "~> 0.6.0"
     }
   }
 }
@@ -150,6 +150,40 @@ provider "remnawave" {
 > `NODE_ENV=development` on the backend — Remnawave's `ProxyCheckMiddleware` requires
 > `X-Forwarded-For`/`X-Forwarded-Proto` headers for browser-originated requests.
 
+### Reverse-Proxy Authentication
+
+If an outer reverse proxy requires a gateway cookie or service-token headers,
+pass them with the sensitive `custom_headers` map. For example, `Cookie` must
+contain the complete cookie pair:
+
+```hcl
+variable "remnawave_gateway_cookie" {
+  type        = string
+  description = "Complete cookie pair required by the outer reverse proxy, for example cookie_name=cookie_value."
+  sensitive   = true
+}
+
+provider "remnawave" {
+  endpoint  = "https://panel.example.com"
+  api_token = var.remnawave_api_token
+
+  custom_headers = {
+    Cookie = var.remnawave_gateway_cookie # cookie_name=cookie_value
+  }
+}
+```
+
+Alternatively, supply the map as a JSON object through the environment:
+
+```sh
+export REMNAWAVE_CUSTOM_HEADERS='{"Cookie":"cookie_name=cookie_value"}'
+```
+
+When `custom_headers` is configured in HCL, it replaces the environment map as
+a whole; the two maps are not merged. Terraform's `Sensitive` marker only
+redacts values from Terraform output. Inject header secrets through environment
+variables or a secret store, and never commit secret-bearing `.tfvars` files.
+
 ## Provider Configuration
 
 All provider attributes can be supplied through environment variables — the
@@ -165,6 +199,7 @@ values take precedence over environment variables.
 | `insecure_skip_verify` | `REMNAWAVE_INSECURE_SKIP_VERIFY` | `bool` | Skip TLS certificate verification (`true`/`false`) |
 | `request_timeout` | `REMNAWAVE_REQUEST_TIMEOUT` | `string` | HTTP client timeout (default `30s`) |
 | `proxy_headers` | `REMNAWAVE_PROXY_HEADERS` | `bool` | Send `X-Forwarded-For`/`Proto` headers (bypass `ProxyCheckMiddleware`) |
+| `custom_headers` | `REMNAWAVE_CUSTOM_HEADERS` | `map(string)` (sensitive) | Additional headers for outer reverse-proxy authentication; the environment value is a JSON object |
 
 ## Resources
 
@@ -354,7 +389,7 @@ terraform {
   required_providers {
     remnawave = {
       source  = "batonogov/remnawave"
-      version = "~> 0.5.0" # Allow 0.5.x patch releases
+      version = "~> 0.6.0" # Allow 0.6.x patch releases
     }
   }
 }
