@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.1](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.6.0...v0.6.1) (2026-07-22)
+
+
+### Bug Fixes
+
+* **api_token:** support compound import and derive expires_in_days from timestamps ([#160](https://github.com/batonogov/terraform-provider-remnawave/issues/160)) ([#171](https://github.com/batonogov/terraform-provider-remnawave/issues/171)) ([9c496e1](https://github.com/batonogov/terraform-provider-remnawave/commit/9c496e165279cd6db949adb37aa99f5f0d26aaa0))
+* **billing_history:** paginate Read to find records beyond first page ([#158](https://github.com/batonogov/terraform-provider-remnawave/issues/158)) ([#170](https://github.com/batonogov/terraform-provider-remnawave/issues/170)) ([2cd55de](https://github.com/batonogov/terraform-provider-remnawave/commit/2cd55de5db3ebf36e7c3e8041fb254285cd01fd5))
+* **hwid_device:** hydrate device metadata in Read ([#163](https://github.com/batonogov/terraform-provider-remnawave/issues/163)) ([#172](https://github.com/batonogov/terraform-provider-remnawave/issues/172)) ([cf22d8f](https://github.com/batonogov/terraform-provider-remnawave/commit/cf22d8f26e44d87068633a7b0489aa7400a731ca))
+* **internal_squad:** decode inbound objects and preserve on sparse update ([#157](https://github.com/batonogov/terraform-provider-remnawave/issues/157)) ([#168](https://github.com/batonogov/terraform-provider-remnawave/issues/168)) ([059c078](https://github.com/batonogov/terraform-provider-remnawave/commit/059c0781ddf4c94a1d728b5924ce419a5d7ffc69))
+* **node:** make config_profile_inbounds Computed to preserve inbounds on sparse update ([#161](https://github.com/batonogov/terraform-provider-remnawave/issues/161)) ([#166](https://github.com/batonogov/terraform-provider-remnawave/issues/166)) ([f47b471](https://github.com/batonogov/terraform-provider-remnawave/commit/f47b471502aac975cb81160d5edb72905dc97102))
+* **passkey:** use collection path with JSON body for delete ([#159](https://github.com/batonogov/terraform-provider-remnawave/issues/159)) ([#169](https://github.com/batonogov/terraform-provider-remnawave/issues/169)) ([385dc4f](https://github.com/batonogov/terraform-provider-remnawave/commit/385dc4fdafed58009838ca7f1a97596e2e2285ac))
+* **user:** make external_squad_uuid Computed to preserve membership on sparse update ([#162](https://github.com/batonogov/terraform-provider-remnawave/issues/162)) ([#167](https://github.com/batonogov/terraform-provider-remnawave/issues/167)) ([b71202a](https://github.com/batonogov/terraform-provider-remnawave/commit/b71202a40169cb5db1aeab06bbc063718c1dc0f0))
+
 ## [0.6.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.5.1...v0.6.0) (2026-07-22)
 
 
