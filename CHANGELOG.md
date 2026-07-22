@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.5.1...v0.6.0) (2026-07-22)
+
+
+### Features
+
+* support custom HTTP headers ([#156](https://github.com/batonogov/terraform-provider-remnawave/issues/156)) ([250bf54](https://github.com/batonogov/terraform-provider-remnawave/commit/250bf5473f6285071f9c5884e7c26075c2923b18))
+
+
+### Bug Fixes
+
+* align bulk actions and host tags across versions ([#151](https://github.com/batonogov/terraform-provider-remnawave/issues/151)) ([0aa8beb](https://github.com/batonogov/terraform-provider-remnawave/commit/0aa8bebce20dc1b4396718d89822a6c6fc52bd7e))
+
 ## [0.5.1](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.5.0...v0.5.1) (2026-07-20)
 
 
