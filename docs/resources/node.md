@@ -34,7 +34,7 @@ resource "remnawave_node" "de_fra_01" {
 ### Optional
 
 - `active_plugin_uuid` (String) Active node plugin UUID.
-- `config_profile_inbounds` (Set of String) Set of inbound UUIDs enabled for this node's config profile.
+- `config_profile_inbounds` (Set of String) Set of inbound UUIDs enabled for this node's config profile. When omitted, the prior state value is preserved, preventing accidental removal of all active inbounds on update.
 - `consumption_multiplier` (Number) User traffic consumption multiplier (0.0-100.0).
 - `country_code` (String) ISO 3166-1 alpha-2 country code (2 chars).
 - `is_traffic_tracking_active` (Boolean) Enable traffic tracking for this node.
