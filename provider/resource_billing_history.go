@@ -97,27 +97,47 @@ func (r *billingHistoryResource) Read(ctx context.Context, req resource.ReadRequ
 		return
 	}
 
-	out, err := r.client.GetBillingHistory(ctx)
-	if err != nil {
-		if isNotFound(err) {
-			tflog.Warn(ctx, "billing history record not found", map[string]any{"uuid": state.UUID.ValueString()})
-			resp.State.RemoveResource(ctx)
+	target := state.UUID.ValueString()
+
+	// The billing history endpoint is paginated (default page size 50).
+	// Iterate through all pages until the record is found or all records
+	// have been exhausted.
+	const pageSize = 500
+	var found *BillingHistoryRecord
+	start := 0
+	for {
+		page, err := r.client.GetBillingHistoryPaged(ctx, start, pageSize)
+		if err != nil {
+			if isNotFound(err) {
+				tflog.Warn(ctx, "billing history record not found", map[string]any{"uuid": target})
+				resp.State.RemoveResource(ctx)
+				return
+			}
+			resp.Diagnostics.AddError("Failed to read billing history", err.Error())
 			return
 		}
-		resp.Diagnostics.AddError("Failed to read billing history", err.Error())
-		return
-	}
 
-	var found *BillingHistoryRecord
-	target := state.UUID.ValueString()
-	for i := range out.Records {
-		if out.Records[i].UUID == target {
-			found = &out.Records[i]
+		for i := range page.Records {
+			if page.Records[i].UUID == target {
+				found = &page.Records[i]
+				break
+			}
+		}
+		if found != nil {
 			break
 		}
+
+		// Stop if we've fetched all available records or received an
+		// under-full page (end of data).
+		fetched := start + len(page.Records)
+		if len(page.Records) < pageSize || fetched >= page.Total {
+			break
+		}
+		start += pageSize
 	}
+
 	if found == nil {
-		tflog.Warn(ctx, "billing history record not found in list", map[string]any{"uuid": target})
+		tflog.Warn(ctx, "billing history record not found after checking all pages", map[string]any{"uuid": target})
 		resp.State.RemoveResource(ctx)
 		return
 	}

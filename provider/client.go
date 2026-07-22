@@ -1470,6 +1470,19 @@ func (c *Client) GetBillingHistory(ctx context.Context) (*billingHistoryResponse
 	return &out, nil
 }
 
+func (c *Client) GetBillingHistoryPaged(ctx context.Context, start, size int) (*billingHistoryResponse, error) {
+	q := url.Values{}
+	q.Set("start", strconv.Itoa(start))
+	q.Set("size", strconv.Itoa(size))
+	path := "/api/infra-billing/history?" + q.Encode()
+
+	var out billingHistoryResponse
+	if err := c.doRequest(ctx, http.MethodGet, path, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 func (c *Client) DeleteBillingHistory(ctx context.Context, uuid string) error {
 	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/infra-billing/history/%s", uuid), nil, nil)
 }
