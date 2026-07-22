@@ -49,7 +49,7 @@ resource "remnawave_user" "example" {
 - `traffic_limit_bytes` (Number) Traffic limit in bytes. 0 = unlimited.
 - `traffic_limit_strategy` (String) Reset strategy: NO_RESET, DAY, WEEK, MONTH, MONTH_ROLLING.
 - `trojan_password` (String, Sensitive) Trojan protocol password (8-32 chars). Auto-generated if not set.
-- `vless_uuid` (String) VLESS UUID. Auto-generated if not set.
+- `vless_uuid` (String, Sensitive) VLESS UUID. Auto-generated if not set.
 
 ### Read-Only
 
@@ -60,7 +60,7 @@ resource "remnawave_user" "example" {
 - `lifetime_used_traffic_bytes` (Number) Lifetime traffic consumed by the user.
 - `online_at` (String) Timestamp when the user was last observed online.
 - `sub_revoked_at` (String) Timestamp of the most recent subscription revocation.
-- `subscription_url` (String) Subscription URL for the user.
+- `subscription_url` (String, Sensitive) Subscription URL for the user.
 - `updated_at` (String) Last update timestamp.
 - `used_traffic_bytes` (Number) Traffic used in the current reset period.
 - `uuid` (String) UUID of the user (assigned by the panel).

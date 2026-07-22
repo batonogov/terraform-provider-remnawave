@@ -43,7 +43,7 @@ resource "remnawave_node" "de_fra_01" {
 - `notify_percent` (Number) Notify at this traffic usage percentage (0-100).
 - `port` (Number) Node port for internal panel API communication.
 - `provider_uuid` (String) Infrastructure provider UUID associated with the node.
-- `proxy_url` (String) Optional SOCKS5 proxy URL used to reach the node.
+- `proxy_url` (String, Sensitive) Optional SOCKS5 proxy URL used to reach the node.
 - `tags` (Set of String) Node tags (up to 10).
 - `traffic_limit_bytes` (Number) Traffic limit in bytes for this node.
 - `traffic_reset_day` (Number) Day of month (1-31) to reset traffic counter.
