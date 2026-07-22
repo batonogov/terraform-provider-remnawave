@@ -52,7 +52,7 @@ request — [see the full CI matrix](https://github.com/batonogov/terraform-prov
 
 | Remnawave version | Status |
 | --- | --- |
-| v2.8.0 | ✅ Tested (primary) |
+| v2.8.1 | ✅ Tested (primary) |
 | v2.7.4 | ✅ Tested (matrix) |
 
 The client auto-detects the backend version via `/api/system/metadata` on the
@@ -434,7 +434,7 @@ Contributions are welcome! Please:
 4. Run `gofmt`, `golangci-lint`, and the relevant test suite before submitting
    a pull request.
 5. Ensure CI is green — acceptance tests run against both Remnawave v2.7.4 and
-   v2.8.0.
+   v2.8.1.
 
 ### Security
 

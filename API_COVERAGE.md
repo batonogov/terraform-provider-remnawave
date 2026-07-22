@@ -7,9 +7,9 @@ unsafe and misleading provider design.
 
 ## Audited baseline
 
-- Backend release: `2.8.0`
-- Backend source commit: `798d74986db5984364897464306928973bce3b67`
-- Acceptance image: `remnawave/backend:2.8.0@sha256:cbc6d2ea0a84d8414dec565bb9ce299a3318b9e5297496baf8efcff2a1e66c65`
+- Backend release: `2.8.1`
+- Backend source commit: `ba51868149362d0b9ac0e23133d0532176ccb5a2`
+- Acceptance image: `remnawave/backend:2.8.1@sha256:361f9bb0b183d4fcefea2f1f7163db490e2aa1ec3b4bdde016a9ab9229ce956b`
 - Contract inventory: 184 `*.command.ts` files under `libs/contract/commands`
 - Provider surface: 26 resources, 23 data sources, and 105 exported client operations
 
@@ -53,7 +53,7 @@ The following checks are required for supported functionality:
    envelope handling.
 2. Every registered resource and data source that can be exercised
    non-interactively has real-panel acceptance coverage against both pinned
-   Remnawave 2.8.0 and 2.7.4 images. The import-only passkey resource is the
+   Remnawave 2.8.1 and 2.7.4 images. The import-only passkey resource is the
    explicit exception because creating its fixture requires a WebAuthn ceremony.
 3. Declarative resources exercise representative lifecycle paths; this matrix
    does not imply that every mutable resource has every update/import permutation.

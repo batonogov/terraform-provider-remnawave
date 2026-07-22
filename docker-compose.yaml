@@ -1,6 +1,6 @@
 services:
   remnawave:
-    image: remnawave/backend:${REMNAWAVE_VERSION:-2.8.0}@${REMNAWAVE_DIGEST:-sha256:cbc6d2ea0a84d8414dec565bb9ce299a3318b9e5297496baf8efcff2a1e66c65}
+    image: remnawave/backend:${REMNAWAVE_VERSION:-2.8.1}@${REMNAWAVE_DIGEST:-sha256:361f9bb0b183d4fcefea2f1f7163db490e2aa1ec3b4bdde016a9ab9229ce956b}
     container_name: remnawave-test
     hostname: remnawave
     ports:
@@ -12,6 +12,7 @@ services:
       DATABASE_URL: "postgresql://postgres:postgres@remnawave-db:5432/postgres"
       REDIS_HOST: "remnawave-redis"
       REDIS_PORT: "6379"
+      APP_SECRET: "test_jwt_secret_for_acceptance_tests_only_not_for_production_use_64chars"
       JWT_AUTH_SECRET: "test_jwt_secret_for_acceptance_tests_only_not_for_production_use_64chars"
       JWT_API_TOKENS_SECRET: "test_api_token_secret_for_acceptance_tests_only_not_for_production_64chars"
       FRONT_END_DOMAIN: "*"
