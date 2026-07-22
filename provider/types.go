@@ -303,6 +303,7 @@ type ApiToken struct {
 	Name          string   `json:"name"`
 	ExpiresInDays int64    `json:"expiresInDays,omitempty"`
 	ExpireAt      string   `json:"expireAt,omitempty"`
+	CreatedAt     string   `json:"createdAt,omitempty"`
 	Scopes        []string `json:"scopes,omitempty"`
 	Token         string   `json:"token,omitempty"`
 }
