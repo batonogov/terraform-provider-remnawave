@@ -1,9 +1,9 @@
 {
   "versions": [
     {
-      "version": "v2.8.0",
+      "version": "v2.8.1",
       "supported": true,
-      "digest": "sha256:cbc6d2ea0a84d8414dec565bb9ce299a3318b9e5297496baf8efcff2a1e66c65",
+      "digest": "sha256:361f9bb0b183d4fcefea2f1f7163db490e2aa1ec3b4bdde016a9ab9229ce956b",
       "token_payload": {
         "name": "acceptance-tests",
         "expiresInDays": 1,
@@ -19,6 +19,6 @@
       }
     }
   ],
-  "default_version": "v2.8.0",
+  "default_version": "v2.8.1",
   "minor_lines": ["2.8.x", "2.7.x"]
 }
