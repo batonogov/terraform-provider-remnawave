@@ -216,8 +216,9 @@ func (r *nodeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			},
 			"config_profile_inbounds": schema.SetAttribute{
 				Optional:    true,
+				Computed:    true,
 				ElementType: types.StringType,
-				Description: "Set of inbound UUIDs enabled for this node's config profile.",
+				Description: "Set of inbound UUIDs enabled for this node's config profile. When omitted, the prior state value is preserved, preventing accidental removal of all active inbounds on update.",
 			},
 		},
 	}
