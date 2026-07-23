@@ -23,10 +23,10 @@ data "remnawave_subscriptions" "by_uuid" {
 
 ### Optional
 
-- `short_uuid` (String) Short UUID of the subscription to look up.
+- `short_uuid` (String, Sensitive) Short UUID of the subscription to look up.
 - `username` (String) Username of the subscription to look up.
 - `uuid` (String) UUID of the subscription to look up.
 
 ### Read-Only
 
-- `response` (String) Raw JSON response from the API.
+- `response` (String, Sensitive) Raw JSON response from the API.

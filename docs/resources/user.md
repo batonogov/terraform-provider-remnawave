@@ -41,7 +41,7 @@ resource "remnawave_user" "example" {
 - `external_squad_uuid` (String) External squad UUID assigned to the user. When omitted after import, the prior state value is preserved, preventing accidental removal of squad membership on unrelated updates.
 - `hwid_device_limit` (Number) Max hardware devices allowed.
 - `last_traffic_reset_at` (String) Initial last-traffic-reset timestamp. Remnawave only accepts it during creation.
-- `short_uuid` (String) Short UUID used in subscription URLs.
+- `short_uuid` (String, Sensitive) Short UUID used in subscription URLs.
 - `ss_password` (String, Sensitive) Shadowsocks password (8-32 chars). Auto-generated if not set.
 - `status` (String) User status: ACTIVE or DISABLED. LIMITED/EXPIRED are managed by the panel.
 - `tag` (String) User tag (uppercase letters, numbers, underscores; max 16).
