@@ -731,7 +731,7 @@ func TestCustomHeaderRedirects(t *testing.T) {
 		if strings.Contains(err.Error(), secret) || strings.Contains(err.Error(), escapedSecret) {
 			t.Fatalf("redirect error disclosed configured header value: %v", err)
 		}
-		if !errors.Is(err, errCrossOriginCustomHeaderRedirect) {
+		if !errors.Is(err, errCrossOriginRedirect) {
 			t.Errorf("redirect error = %v, want static cross-origin policy error", err)
 		}
 		var urlErr *url.Error
@@ -773,7 +773,7 @@ func TestCustomHeaderRedirects(t *testing.T) {
 		}
 	})
 
-	t.Run("default redirects preserved when unset", func(t *testing.T) {
+	t.Run("cross-origin redirects rejected when unset", func(t *testing.T) {
 		var targetCalls atomic.Int32
 		target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			targetCalls.Add(1)
@@ -789,14 +789,14 @@ func TestCustomHeaderRedirects(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if client.httpClient.CheckRedirect != nil {
-			t.Fatal("CheckRedirect is set without custom headers")
+		if client.httpClient.CheckRedirect == nil {
+			t.Fatal("CheckRedirect is not set without custom headers")
 		}
-		if _, err := client.GetSystemHealth(context.Background()); err != nil {
-			t.Fatalf("GetSystemHealth() error = %v", err)
+		if _, err := client.GetSystemHealth(context.Background()); !errors.Is(err, errCrossOriginRedirect) {
+			t.Fatalf("GetSystemHealth() error = %v, want cross-origin redirect error", err)
 		}
-		if targetCalls.Load() != 1 {
-			t.Errorf("redirect target calls = %d, want 1", targetCalls.Load())
+		if targetCalls.Load() != 0 {
+			t.Errorf("redirect target calls = %d, want 0", targetCalls.Load())
 		}
 	})
 }

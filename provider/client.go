@@ -83,10 +83,10 @@ type redactedRequestError struct {
 func (e *redactedRequestError) Error() string { return e.message }
 
 var (
-	errCrossOriginCustomHeaderRedirect = errors.New("refusing to redirect custom headers to a different origin")
-	errCustomHeaderRedirectLimit       = errors.New("stopped after 10 redirects")
-	errInvalidRedirectLocation         = errors.New("redirect response contained an invalid Location header")
-	errResponseBodyRead                = errors.New("failed to read HTTP response body")
+	errCrossOriginRedirect     = errors.New("refusing to redirect to a different origin")
+	errRedirectLimit           = errors.New("stopped after 10 redirects")
+	errInvalidRedirectLocation = errors.New("redirect response contained an invalid Location header")
+	errResponseBodyRead        = errors.New("failed to read HTTP response body")
 )
 
 // NewClient creates a new Remnawave API client.
@@ -128,39 +128,39 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 		Timeout:   timeout,
 		Transport: transport,
 	}
-	if len(customHeaders) > 0 {
-		endpointOrigin := normalizedOrigin(baseURL)
-		httpClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-			if normalizedOrigin(req.URL) != endpointOrigin {
-				for name := range customHeaders {
-					req.Header.Del(name)
-				}
-				return errCrossOriginCustomHeaderRedirect
+	endpointOrigin := normalizedOrigin(baseURL)
+	httpClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if normalizedOrigin(req.URL) != endpointOrigin {
+			for name := range req.Header {
+				req.Header.Del(name)
 			}
-			if len(via) >= 10 {
-				return errCustomHeaderRedirectLimit
-			}
-
-			// net/http intentionally strips sensitive headers when the textual
-			// host changes. Reapply them only after our stricter normalized-origin
-			// check has accepted the redirect (for example, host vs host:443).
-			for name, value := range customHeaders {
-				req.Header.Set(name, value)
-			}
-			if len(via) > 0 {
-				for _, name := range []string{
-					"Authorization",
-					"X-Remnawave-Client-Type",
-					"X-Forwarded-For",
-					"X-Forwarded-Proto",
-				} {
-					if values := via[0].Header.Values(name); len(values) > 0 {
-						req.Header[name] = append([]string(nil), values...)
-					}
-				}
-			}
-			return nil
+			req.Body = nil
+			req.GetBody = nil
+			return errCrossOriginRedirect
 		}
+		if len(via) >= 10 {
+			return errRedirectLimit
+		}
+
+		// net/http intentionally strips sensitive headers when the textual
+		// host changes. Reapply them only after our stricter normalized-origin
+		// check has accepted the redirect (for example, host vs host:443).
+		for name, value := range customHeaders {
+			req.Header.Set(name, value)
+		}
+		if len(via) > 0 {
+			for _, name := range []string{
+				"Authorization",
+				"X-Remnawave-Client-Type",
+				"X-Forwarded-For",
+				"X-Forwarded-Proto",
+			} {
+				if values := via[0].Header.Values(name); len(values) > 0 {
+					req.Header[name] = append([]string(nil), values...)
+				}
+			}
+		}
+		return nil
 	}
 
 	return &Client{
@@ -549,17 +549,17 @@ func (c *Client) redactRequestError(err error) error {
 	if err == nil {
 		return nil
 	}
+	if errors.Is(err, errCrossOriginRedirect) {
+		return errCrossOriginRedirect
+	}
+	if errors.Is(err, errRedirectLimit) {
+		return errRedirectLimit
+	}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) && urlErr.Err != nil && strings.Contains(urlErr.Err.Error(), "failed to parse Location header") {
+		return errInvalidRedirectLocation
+	}
 	if len(c.customHeaders) > 0 {
-		if errors.Is(err, errCrossOriginCustomHeaderRedirect) {
-			return errCrossOriginCustomHeaderRedirect
-		}
-		if errors.Is(err, errCustomHeaderRedirectLimit) {
-			return errCustomHeaderRedirectLimit
-		}
-		var urlErr *url.Error
-		if errors.As(err, &urlErr) && urlErr.Err != nil && strings.Contains(urlErr.Err.Error(), "failed to parse Location header") {
-			return errInvalidRedirectLocation
-		}
 		if errors.As(err, &urlErr) {
 			message := "HTTP request failed"
 			if urlErr.Op != "" {
