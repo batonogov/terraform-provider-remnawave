@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.6.2...v0.7.0) (2026-07-23)
+
+
+### Features
+
+* add Windows ARM64 release builds ([#196](https://github.com/batonogov/terraform-provider-remnawave/issues/196)) ([eb3198e](https://github.com/batonogov/terraform-provider-remnawave/commit/eb3198eeffcf40f037196e8a92faf09b35bd64aa))
+
+
+### Bug Fixes
+
+* exclude SBOMs from Registry checksums ([#198](https://github.com/batonogov/terraform-provider-remnawave/issues/198)) ([6fbcc1e](https://github.com/batonogov/terraform-provider-remnawave/commit/6fbcc1ef2f58afc60b73d19bda7561bf60e93443))
+
 ## [0.6.2](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.6.1...v0.6.2) (2026-07-23)
 
 
