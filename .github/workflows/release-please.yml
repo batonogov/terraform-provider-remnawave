@@ -215,7 +215,10 @@ jobs:
           checksum_file="dist/terraform-provider-remnawave_${version}_SHA256SUMS"
           ./scripts/verify-release-artifacts.sh dist "$version" "$VALIDATED_SHA" "$TAG_NAME"
           ./scripts/verify-release-supply-chain.sh \
-            dist "$version" "$RUNNER_TEMP/published-archive-SHA256SUMS"
+            dist \
+            "$version" \
+            "$RUNNER_TEMP/published-archive-SHA256SUMS" \
+            "$RUNNER_TEMP/published-attestation-SHA256SUMS"
           gpg --batch --verify "${checksum_file}.sig" "$checksum_file"
           cmp \
             "$RUNNER_TEMP/preflight-archive-SHA256SUMS" \
@@ -225,7 +228,7 @@ jobs:
         id: attest
         uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
         with:
-          subject-checksums: ${{ runner.temp }}/published-archive-SHA256SUMS
+          subject-checksums: ${{ runner.temp }}/published-attestation-SHA256SUMS
 
       - name: Verify provenance and prepare bundle
         env:
@@ -243,7 +246,7 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release-please.yml" \
               --source-digest "$VALIDATED_SHA"
-          done < "$RUNNER_TEMP/published-archive-SHA256SUMS"
+          done < "$RUNNER_TEMP/published-attestation-SHA256SUMS"
 
       - name: Upload provenance and publish verified draft
         env:
@@ -264,6 +267,11 @@ jobs:
 
           {
             awk '{print $2}' "$checksum_file"
+            jq -r --arg version "$version" '
+              . as $config
+              | .targets[]
+              | "\($config.project_name)_\($version)_\(.goos)_\(.goarch).zip.spdx.json"
+            ' release-targets.json
             basename "$checksum_file"
             basename "$signature_file"
             basename "$bundle"

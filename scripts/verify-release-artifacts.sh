@@ -47,6 +47,8 @@ temporary_dir=$(mktemp -d "${TMPDIR:-/tmp}/release-artifacts.XXXXXX")
 trap 'rm -rf "$temporary_dir"' EXIT
 expected_archives="$temporary_dir/expected-archives.txt"
 actual_archives="$temporary_dir/actual-archives.txt"
+expected_checksum_assets="$temporary_dir/expected-checksum-assets.txt"
+actual_checksum_assets="$temporary_dir/actual-checksum-assets.txt"
 
 jq -r --arg version "$release_version" '
   . as $config
@@ -62,6 +64,36 @@ if ! diff -u "$expected_archives" "$actual_archives"; then
   fail "archive set does not exactly match release-targets.json"
 fi
 
+manifest_name="${project_name}_${release_version}_manifest.json"
+manifest_path="$dist_dir/$manifest_name"
+[[ -f "$manifest_path" ]] || fail "missing Registry manifest $manifest_name"
+cmp "$repository_dir/terraform-registry-manifest.json" "$manifest_path" >/dev/null ||
+  fail "$manifest_name does not match terraform-registry-manifest.json"
+
+{
+  cat "$expected_archives"
+  printf '%s\n' "$manifest_name"
+} | LC_ALL=C sort >"$expected_checksum_assets"
+
+if ! awk '
+  NF != 2 || length($1) != 64 || $1 !~ /^[0-9a-f]+$/ {
+    invalid = 1
+    next
+  }
+  {
+    print $2
+  }
+  END {
+    exit invalid
+  }
+' "$checksum_path" | LC_ALL=C sort >"$actual_checksum_assets"; then
+  fail "$checksum_name contains malformed entries"
+fi
+
+if ! diff -u "$expected_checksum_assets" "$actual_checksum_assets"; then
+  fail "$checksum_name must contain exactly the provider archives and Registry manifest"
+fi
+
 hash_file() {
   if command -v sha256sum >/dev/null 2>&1; then
     sha256sum "$1" | awk '{print $1}'
@@ -70,17 +102,17 @@ hash_file() {
   fi
 }
 
+while IFS= read -r asset_name; do
+  asset_path="$dist_dir/$asset_name"
+  [[ -f "$asset_path" ]] || fail "missing checksummed asset $asset_name"
+  expected_checksum=$(awk -v name="$asset_name" '$2 == name {print $1}' "$checksum_path")
+  actual_checksum=$(hash_file "$asset_path")
+  [[ "$actual_checksum" == "$expected_checksum" ]] ||
+    fail "checksum mismatch for $asset_name"
+done <"$expected_checksum_assets"
+
 while IFS=$'\t' read -r goos goarch archive_name; do
   archive_path="$dist_dir/$archive_name"
-  checksum_count=$(awk -v name="$archive_name" '$2 == name {count++} END {print count + 0}' "$checksum_path")
-  [[ "$checksum_count" == "1" ]] ||
-    fail "$archive_name has $checksum_count checksum entries, want exactly 1"
-
-  expected_checksum=$(awk -v name="$archive_name" '$2 == name {print $1}' "$checksum_path")
-  actual_checksum=$(hash_file "$archive_path")
-  [[ "$actual_checksum" == "$expected_checksum" ]] ||
-    fail "checksum mismatch for $archive_name"
-
   binary_name="${project_name}_v${release_version}"
   if [[ "$goos" == "windows" ]]; then
     binary_name="${binary_name}.exe"

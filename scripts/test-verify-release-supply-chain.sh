@@ -7,6 +7,7 @@ temporary_dir=$(mktemp -d "${TMPDIR:-/tmp}/release-supply-chain-test.XXXXXX")
 trap 'rm -rf "$temporary_dir"' EXIT
 dist_dir="$temporary_dir/dist"
 archive_checksums="$temporary_dir/archive-SHA256SUMS"
+attestation_checksums="$temporary_dir/attestation-SHA256SUMS"
 project_name=$(jq -r '.project_name' "$repository_dir/release-targets.json")
 expected_target_count=$(jq '.targets | length' "$repository_dir/release-targets.json")
 release_version=1.2.3
@@ -53,14 +54,14 @@ done < <(jq -r '.targets[] | [.goos, .goarch] | @tsv' "$repository_dir/release-t
 write_checksums() {
   checksum_file="$dist_dir/${project_name}_${release_version}_SHA256SUMS"
   : >"$checksum_file"
-  for asset in "$dist_dir"/*.zip "$dist_dir"/*.zip.spdx.json; do
+  for asset in "$dist_dir"/*.zip "$dist_dir/${project_name}_${release_version}_manifest.json"; do
     printf '%s  %s\n' "$(hash_file "$asset")" "$(basename "$asset")" >>"$checksum_file"
   done
 }
 
 run_check() {
   "$script_dir/verify-release-supply-chain.sh" \
-    "$dist_dir" "$release_version" "$archive_checksums"
+    "$dist_dir" "$release_version" "$archive_checksums" "$attestation_checksums"
 }
 
 expect_failure() {
@@ -71,9 +72,13 @@ expect_failure() {
   fi
 }
 
+cp \
+  "$repository_dir/terraform-registry-manifest.json" \
+  "$dist_dir/${project_name}_${release_version}_manifest.json"
 write_checksums
 run_check >/dev/null
 [[ "$(wc -l <"$archive_checksums" | tr -d ' ')" == "$expected_target_count" ]]
+[[ "$(wc -l <"$attestation_checksums" | tr -d ' ')" == "$((expected_target_count * 2))" ]]
 
 test_sbom="${project_name}_${release_version}_linux_amd64.zip.spdx.json"
 mv "$dist_dir/$test_sbom" "$temporary_dir/$test_sbom"
@@ -101,6 +106,13 @@ checksum_file="$dist_dir/${project_name}_${release_version}_SHA256SUMS"
 head -n 1 "$checksum_file" >>"$checksum_file"
 expect_failure "duplicate checksum subject"
 
+write_checksums
+printf '%s  %s\n' \
+  "$(hash_file "$dist_dir/$test_sbom")" \
+  "$test_sbom" \
+  >>"$checksum_file"
+expect_failure "SBOM in Terraform checksum"
+
 jq -e '
   .draft == true
   and .["force-tag-creation"] == true
@@ -110,12 +122,20 @@ jq -e '
 
 ruby -rjson -ryaml -e '
   config = YAML.load_file(ARGV.fetch(0))
+  archive = config.fetch("archives").fetch(0)
   sbom = config.fetch("sboms").fetch(0)
+  checksum = config.fetch("checksum")
   release = config.fetch("release")
+  abort "provider archive ID is not explicit" unless
+    archive["id"] == "provider-archives"
   abort "SBOM generation is not enabled for archives" unless
+    sbom["id"] == "provider-archive-sboms" &&
     sbom["artifacts"] == "archive" &&
+    sbom["ids"] == ["provider-archives"] &&
     sbom["documents"] == ["${artifact}.spdx.json"] &&
     sbom["disable"] == false
+  abort "Terraform checksum is not limited to provider archives" unless
+    checksum["ids"] == ["provider-archives"]
   abort "release must remain a reusable draft" unless
     release["draft"] == true && release["use_existing_draft"] == true
 
