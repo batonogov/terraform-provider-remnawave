@@ -89,6 +89,8 @@ jobs:
       pull-requests: write
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
+      release_id: ${{ steps.release.outputs.id }}
+      release_upload_url: ${{ steps.release.outputs.upload_url }}
       tag_name: ${{ steps.release.outputs.tag_name }}
       release_sha: ${{ steps.release.outputs.sha }}
     steps:
@@ -112,12 +114,35 @@ jobs:
           manifest-file: .release-please-manifest.json
           target-branch: main
 
-      - name: Verify release tag target
+      - name: Verify draft release identity and tag target
         if: steps.release.outputs.release_created == 'true'
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ steps.release.outputs.id }}
           RELEASE_SHA: ${{ steps.release.outputs.sha }}
+          RELEASE_UPLOAD_URL: ${{ steps.release.outputs.upload_url }}
+          TAG_NAME: ${{ steps.release.outputs.tag_name }}
           VALIDATED_SHA: ${{ needs.verify-ci.outputs.validated_sha }}
-        run: test "$RELEASE_SHA" = "$VALIDATED_SHA"
+        run: |
+          test "$RELEASE_SHA" = "$VALIDATED_SHA"
+          [[ "$RELEASE_ID" =~ ^[1-9][0-9]*$ ]]
+          expected_upload_url="https://uploads.github.com/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets{?name,label}"
+          test "$RELEASE_UPLOAD_URL" = "$expected_upload_url"
+          gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" \
+            > "$RUNNER_TEMP/draft-release.json"
+          jq -e \
+            --argjson release_id "$RELEASE_ID" \
+            --arg upload_url "$RELEASE_UPLOAD_URL" \
+            --arg tag_name "$TAG_NAME" \
+            --arg expected_sha "$VALIDATED_SHA" '
+              .id == $release_id
+              and .upload_url == $upload_url
+              and .tag_name == $tag_name
+              and .target_commitish == $expected_sha
+              and .draft == true
+              and .prerelease == false
+              and .published_at == null
+            ' "$RUNNER_TEMP/draft-release.json" >/dev/null
 
   goreleaser:
     name: GoReleaser
@@ -251,34 +276,14 @@ jobs:
       - name: Upload provenance and publish verified draft
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.release-please.outputs.release_id }}
+          RELEASE_UPLOAD_URL: ${{ needs.release-please.outputs.release_upload_url }}
           TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+          VALIDATED_SHA: ${{ needs.verify-ci.outputs.validated_sha }}
         run: |
-          version=${TAG_NAME#v}
-          checksum_file="dist/terraform-provider-remnawave_${version}_SHA256SUMS"
-          signature_file="${checksum_file}.sig"
-          bundle="dist/terraform-provider-remnawave_${version}_provenance.intoto.jsonl"
-          release_json="$RUNNER_TEMP/draft-release.json"
-          expected_assets="$RUNNER_TEMP/expected-assets.txt"
-          remote_assets="$RUNNER_TEMP/remote-assets.txt"
-
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG_NAME" > "$release_json"
-          jq -e '.draft == true' "$release_json" >/dev/null
-          gh release upload "$TAG_NAME" "$bundle"
-
-          {
-            awk '{print $2}' "$checksum_file"
-            jq -r --arg version "$version" '
-              . as $config
-              | .targets[]
-              | "\($config.project_name)_\($version)_\(.goos)_\(.goarch).zip.spdx.json"
-            ' release-targets.json
-            basename "$checksum_file"
-            basename "$signature_file"
-            basename "$bundle"
-          } | LC_ALL=C sort -u > "$expected_assets"
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG_NAME" \
-            --jq '.assets[].name' | LC_ALL=C sort > "$remote_assets"
-          diff -u "$expected_assets" "$remote_assets"
-
-          gh release edit "$TAG_NAME" --draft=false
-          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG_NAME" --jq .draft)" = "false"
+          ./scripts/publish-release-draft.sh \
+            "$RELEASE_ID" \
+            "$RELEASE_UPLOAD_URL" \
+            "$TAG_NAME" \
+            "$VALIDATED_SHA" \
+            dist
