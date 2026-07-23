@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "auth" && "${2:-}" == "status" ]]; then
+  exit 0
+fi
+
+[[ "${1:-}" == "api" ]] || {
+  echo "mock gh: unsupported command: $*" >&2
+  exit 1
+}
+shift
+
+method=GET
+endpoint=
+jq_filter=
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -H)
+      shift
+      ;;
+    --method)
+      method=$2
+      shift
+      ;;
+    --input)
+      shift
+      ;;
+    --jq)
+      jq_filter=$2
+      shift
+      ;;
+    repos/*)
+      endpoint=$1
+      ;;
+  esac
+  shift
+done
+
+[[ -n "$endpoint" ]] || {
+  echo "mock gh: API endpoint is missing" >&2
+  exit 1
+}
+
+if [[ "$method" != "GET" ]]; then
+  echo "$method $endpoint" >>"$MOCK_API_LOG"
+  exit 0
+fi
+
+case "$endpoint" in
+  repos/owner/repository/rulesets)
+    if [[ "$jq_filter" == *'"main"'* ]]; then
+      echo 1
+    elif [[ "$jq_filter" == *'"release-tags"'* ]]; then
+      echo 2
+    else
+      printf '%s\n' \
+        '[{"id":1,"name":"main"},{"id":2,"name":"release-tags"}]'
+    fi
+    ;;
+  repos/owner/repository/rulesets/1)
+    jq '. + {id: 1}' "$MOCK_FIXTURE_DIR/main.json"
+    ;;
+  repos/owner/repository/rulesets/2)
+    jq '. + {id: 2}' "$MOCK_FIXTURE_DIR/tags.json"
+    ;;
+  repos/owner/repository/actions/permissions)
+    cat "$MOCK_FIXTURE_DIR/actions.json"
+    ;;
+  repos/owner/repository/actions/permissions/workflow)
+    cat "$MOCK_FIXTURE_DIR/workflow.json"
+    ;;
+  repos/owner/repository/environments/release)
+    cat "$MOCK_FIXTURE_DIR/environment.json"
+    ;;
+  *)
+    echo "mock gh: unsupported endpoint: $endpoint" >&2
+    exit 1
+    ;;
+esac

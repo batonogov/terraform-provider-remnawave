@@ -253,14 +253,18 @@ tag or publish manually.**
   `examples/provider/provider.tf`, then run `task docs` to regenerate
   `docs/index.md`. Patch releases within the same minor line need no update.
 
-### Required repository secrets
+### Required release environment secrets
 
 The goreleaser job fails without these secrets:
 
-- `GPG_PRIVATE_KEY` — keypair used to detach-sign `SHA256SUMS` (binary
+- `RELEASE_GPG_PRIVATE_KEY` — keypair used to detach-sign `SHA256SUMS` (binary
   signature, not ASCII-armored).
-- `GPG_PASSPHRASE` — passphrase for the key (cached before signing;
+- `RELEASE_GPG_PASSPHRASE` — passphrase for the key (cached before signing;
   goreleaser itself cannot prompt interactively).
+
+Store both only on the protected `release` GitHub Environment, not as
+repository-level secrets. The Environment requires an independent deployment
+approval before the GoReleaser job can access them.
 
 ### Build contract
 

@@ -51,6 +51,16 @@ tasks:
       - go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.24.0 validate --provider-dir .
       - ./scripts/check-docs-drift.sh
 
+  repo:security:check:
+    desc: Audit GitHub repository and release security settings
+    cmds:
+      - ./scripts/configure-repository-security.sh --check
+
+  test:repo-security:
+    desc: Test repository security policy enforcement
+    cmds:
+      - ./scripts/test-configure-repository-security.sh
+
   test:acc:
     desc: Run acceptance tests (needs Docker)
     cmds:
