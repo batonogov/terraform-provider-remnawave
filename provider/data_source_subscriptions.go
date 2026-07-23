@@ -45,10 +45,12 @@ func (d *subscriptionsDataSource) Schema(_ context.Context, _ datasource.SchemaR
 			},
 			"short_uuid": schema.StringAttribute{
 				Optional:    true,
+				Sensitive:   true,
 				Description: "Short UUID of the subscription to look up.",
 			},
 			"response": schema.StringAttribute{
 				Computed:    true,
+				Sensitive:   true,
 				Description: "Raw JSON response from the API.",
 			},
 		},

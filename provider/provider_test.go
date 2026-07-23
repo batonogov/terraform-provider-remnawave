@@ -8,10 +8,12 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	datasourceschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	frameworkprovider "github.com/hashicorp/terraform-plugin-framework/provider"
 	providerschema "github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	resourceschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
@@ -126,6 +128,57 @@ func TestProviderRegistersUniqueDataSources(t *testing.T) {
 		if len(schemaResp.Schema.Attributes) == 0 && len(schemaResp.Schema.Blocks) == 0 {
 			t.Errorf("%s has an empty schema", metadata.TypeName)
 		}
+	}
+}
+
+func TestSubscriptionCredentialAttributesAreSensitive(t *testing.T) {
+	t.Parallel()
+
+	t.Run("user short UUID", func(t *testing.T) {
+		var schemaResp resource.SchemaResponse
+		NewUserResource().Schema(context.Background(), resource.SchemaRequest{}, &schemaResp)
+		assertSensitiveResourceStringAttribute(t, schemaResp, "short_uuid")
+	})
+
+	t.Run("subscription selector and response", func(t *testing.T) {
+		var schemaResp datasource.SchemaResponse
+		NewSubscriptionsDataSource().Schema(context.Background(), datasource.SchemaRequest{}, &schemaResp)
+		assertSensitiveDataSourceStringAttribute(t, schemaResp, "short_uuid")
+		assertSensitiveDataSourceStringAttribute(t, schemaResp, "response")
+	})
+
+	t.Run("connection keys response", func(t *testing.T) {
+		var schemaResp datasource.SchemaResponse
+		NewConnectionKeysDataSource().Schema(context.Background(), datasource.SchemaRequest{}, &schemaResp)
+		assertSensitiveDataSourceStringAttribute(t, schemaResp, "response")
+	})
+}
+
+func assertSensitiveResourceStringAttribute(t *testing.T, schemaResp resource.SchemaResponse, name string) {
+	t.Helper()
+	if schemaResp.Diagnostics.HasError() {
+		t.Fatalf("schema diagnostics: %v", schemaResp.Diagnostics)
+	}
+	attribute, ok := schemaResp.Schema.Attributes[name].(resourceschema.StringAttribute)
+	if !ok {
+		t.Fatalf("%s attribute type = %T", name, schemaResp.Schema.Attributes[name])
+	}
+	if !attribute.Sensitive {
+		t.Errorf("%s must be sensitive", name)
+	}
+}
+
+func assertSensitiveDataSourceStringAttribute(t *testing.T, schemaResp datasource.SchemaResponse, name string) {
+	t.Helper()
+	if schemaResp.Diagnostics.HasError() {
+		t.Fatalf("schema diagnostics: %v", schemaResp.Diagnostics)
+	}
+	attribute, ok := schemaResp.Schema.Attributes[name].(datasourceschema.StringAttribute)
+	if !ok {
+		t.Fatalf("%s attribute type = %T", name, schemaResp.Schema.Attributes[name])
+	}
+	if !attribute.Sensitive {
+		t.Errorf("%s must be sensitive", name)
 	}
 }
 

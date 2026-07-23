@@ -283,6 +283,7 @@ func (d *connectionKeysDataSource) Schema(_ context.Context, _ datasource.Schema
 			},
 			"response": schema.StringAttribute{
 				Computed:    true,
+				Sensitive:   true,
 				Description: "Raw JSON response from the API.",
 			},
 		},

@@ -27,4 +27,4 @@ data "remnawave_connection_keys" "user_keys" {
 
 ### Read-Only
 
-- `response` (String) Raw JSON response from the API.
+- `response` (String, Sensitive) Raw JSON response from the API.

@@ -8,11 +8,22 @@ The following provider attributes and resource fields contain sensitive data:
 | --- | --- | --- | --- |
 | `provider.api_token` | Yes | No | JWT API token |
 | `provider.password` | Yes | No | Admin password for login |
+| `provider.custom_headers` | Yes | No | May contain gateway credentials |
+| `remnawave_user.short_uuid` | Yes | No | Capability used in subscription URLs |
 | `remnawave_user.trojan_password` | Yes | No | Trojan protocol password |
 | `remnawave_user.ss_password` | Yes | No | Shadowsocks password |
-| `remnawave_user.vless_uuid` | No | No | VLESS UUID |
+| `remnawave_user.vless_uuid` | Yes | No | VLESS client credential |
+| `remnawave_user.subscription_url` | Yes | No | Subscription access URL |
 | `remnawave_api_token.token` | Yes | No | JWT token (only returned on create) |
 | `remnawave_keygen.pub_key` | Yes | No | Panel public key |
+| `remnawave_subscriptions.short_uuid` | Yes | No | Capability used to select a subscription |
+| `remnawave_subscriptions.response` | Yes | No | May contain subscription and configuration URLs |
+| `remnawave_connection_keys.response` | Yes | No | Contains connection credentials |
+
+Terraform's `Sensitive` flag redacts values from normal CLI presentation, but
+does not encrypt or remove them from state. Store state in a protected backend,
+restrict access to state snapshots and backups, and avoid publishing state as a
+CI artifact.
 
 ## Reporting
 
