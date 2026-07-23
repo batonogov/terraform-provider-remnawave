@@ -119,13 +119,13 @@ ruby -ryaml -e '
     release["draft"] == true && release["use_existing_draft"] == true
 ' "$repository_dir/.goreleaser.yml"
 
-rg -q 'anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610' \
+grep -Fq 'anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610' \
   "$repository_dir/.github/workflows/release-please.yml"
-rg -q 'actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6' \
+grep -Fq 'actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6' \
   "$repository_dir/.github/workflows/release-please.yml"
-rg -q 'id-token: write' "$repository_dir/.github/workflows/release-please.yml"
-rg -q 'attestations: write' "$repository_dir/.github/workflows/release-please.yml"
-rg -q 'gh release edit "\$TAG_NAME" --draft=false' \
+grep -Fq 'id-token: write' "$repository_dir/.github/workflows/release-please.yml"
+grep -Fq 'attestations: write' "$repository_dir/.github/workflows/release-please.yml"
+grep -Fq 'gh release edit "$TAG_NAME" --draft=false' \
   "$repository_dir/.github/workflows/release-please.yml"
 
 echo "release supply-chain tests passed"
