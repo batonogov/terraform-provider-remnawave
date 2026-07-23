@@ -45,6 +45,7 @@ required_jobs=(
   "Documentation"
   "Prepare Compatibility Matrix"
   "Release Gate Tests"
+  "Release Artifact Tests"
   "Repository Policy Tests"
   "Vulnerability Scan"
 )

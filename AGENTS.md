@@ -274,7 +274,12 @@ approval before the GoReleaser job can access them.
   (`-X main.version`); locally built binaries report `dev`.
 - Builds are reproducible: `-trimpath` + `mod_timestamp`. Release targets are:
   Linux (`amd64`, `arm64`, `arm`, `386`), macOS (`amd64`, `arm64`), and Windows
-  and FreeBSD (`amd64`, `386`).
+  and FreeBSD (`amd64`, `386`). `release-targets.json` is the machine-readable
+  archive contract; keep it in sync with `.goreleaser.yml`.
+- Release builds must start from a clean detached tag checkout. `/dist/` is the
+  only ignored in-worktree output. The release workflow builds once without
+  publishing, verifies every archive's checksum and embedded Go VCS/module
+  metadata, then requires the published build to reproduce the same checksums.
 - `compat-versions.json` records the supported Remnawave backend versions. Keep
   it in sync with the **Compatibility** note in `## Project` when bumping the
   target line. CI acceptance tests use it as the source of truth for the
@@ -283,8 +288,8 @@ approval before the GoReleaser job can access them.
 ### Pre-release gate
 
 The release workflow is triggered by `workflow_run` and enforces successful
-lint, build, unit, documentation, release-gate, and compatibility-matrix
-acceptance jobs for the exact current `main` SHA. Failed, cancelled, skipped,
-missing, duplicate, or stale results block both Release Please and GoReleaser.
-Ordinary CI jobs have read-only permissions and cannot access release or GPG
-credentials.
+lint, build, unit, documentation, release-gate, release-artifact, and
+compatibility-matrix acceptance jobs for the exact current `main` SHA. Failed,
+cancelled, skipped, missing, duplicate, or stale results block both Release
+Please and GoReleaser. Ordinary CI jobs have read-only permissions and cannot
+access release or GPG credentials.
