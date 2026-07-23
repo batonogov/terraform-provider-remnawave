@@ -8,8 +8,9 @@ deployment environment.
 ## Rollout order
 
 Apply the settings only after the PRs adding the `Vulnerability Scan`,
-`Release Gate Tests`, and `Release Artifact Tests` jobs have reached `main`.
-Requiring a check before its workflow exists blocks every pull request.
+`Release Gate Tests`, `Release Artifact Tests`, and
+`Release Supply Chain Tests` jobs have reached `main`. Requiring a check before
+its workflow exists blocks every pull request.
 
 1. Add a reviewer other than the person who normally merges a release PR. Get
    the reviewer's numeric ID with `gh api users/LOGIN --jq .id`.

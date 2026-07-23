@@ -67,6 +67,11 @@ tasks:
       - ./scripts/test-verify-release-worktree.sh
       - ./scripts/test-verify-release-artifacts.sh
 
+  test:release-supply-chain:
+    desc: Test release SBOM and provenance policy
+    cmds:
+      - ./scripts/test-verify-release-supply-chain.sh
+
   test:acc:
     desc: Run acceptance tests (needs Docker)
     cmds:
@@ -97,5 +102,6 @@ tasks:
       - task: test:unit
       - task: test:vuln
       - task: test:release-artifacts
+      - task: test:release-supply-chain
       - task: docs:check
       - task: build

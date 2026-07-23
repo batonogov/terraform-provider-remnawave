@@ -49,3 +49,10 @@ Branch, tag, Actions, and release-Environment settings are versioned under
 `.github/repository-settings/` and audited with
 `task repo:security:check`. The rollout and narrow emergency-bypass procedure
 are documented in `docs/repository-security.md`.
+
+## Release provenance
+
+Releases include a per-archive SPDX SBOM, GPG-signed checksums, and a
+GitHub/Sigstore provenance bundle. The release remains a draft until every
+archive/SBOM pair and attestation has been verified. Consumer verification
+steps are documented in `docs/release-verification.md`.

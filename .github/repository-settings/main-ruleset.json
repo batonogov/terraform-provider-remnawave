@@ -64,6 +64,9 @@
             "context": "Release Artifact Tests"
           },
           {
+            "context": "Release Supply Chain Tests"
+          },
+          {
             "context": "Repository Policy Tests"
           },
           {

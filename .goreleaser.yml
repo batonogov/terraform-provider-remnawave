@@ -34,6 +34,13 @@ archives:
       - zip
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
+sboms:
+  - id: archives
+    artifacts: archive
+    documents:
+      - "${artifact}.spdx.json"
+    disable: false
+
 checksum:
   extra_files:
     - glob: 'terraform-registry-manifest.json'
@@ -42,7 +49,8 @@ checksum:
   algorithm: sha256
 
 release:
-  draft: false
+  draft: true
+  use_existing_draft: true
   extra_files:
     - glob: 'terraform-registry-manifest.json'
       name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'

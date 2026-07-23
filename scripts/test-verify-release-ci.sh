@@ -19,6 +19,7 @@ jq -n --argjson versions "$(jq '[.versions[] | select(.supported) | .version | l
         "Prepare Compatibility Matrix",
         "Release Gate Tests",
         "Release Artifact Tests",
+        "Release Supply Chain Tests",
         "Repository Policy Tests",
         "Vulnerability Scan"
       ] + [$versions[] | "Acceptance Tests (\(.))"]
