@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.7.1...v0.7.2) (2026-07-23)
+
+
+### Bug Fixes
+
+* publish draft releases by ID ([#201](https://github.com/batonogov/terraform-provider-remnawave/issues/201)) ([f25a684](https://github.com/batonogov/terraform-provider-remnawave/commit/f25a6849270c612a0626d35a9884f0afa4bc6ffd))
+
 ## [0.7.1](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.6.1...v0.7.1) (2026-07-23)
 
 Terraform Registry currently ends at v0.6.1: v0.6.2 was rejected during
