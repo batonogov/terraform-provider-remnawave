@@ -367,7 +367,7 @@ func TestCustomHeaderResponseBodyReadErrorIsOpaque(t *testing.T) {
 	})
 
 	_, err = client.GetSystemHealth(context.Background())
-	if !errors.Is(err, errCustomHeaderResponseBodyRead) {
+	if !errors.Is(err, errResponseBodyRead) {
 		t.Fatalf("error = %v, want fixed response-body read error", err)
 	}
 	if errors.Is(err, readErr) {
