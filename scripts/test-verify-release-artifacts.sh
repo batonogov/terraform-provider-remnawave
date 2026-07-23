@@ -62,14 +62,18 @@ hash_file() {
 }
 
 write_checksums() {
-  (
-    cd "$dist_dir"
-    if command -v sha256sum >/dev/null 2>&1; then
-      sha256sum ./*.zip "./${project_name}_${release_version}_manifest.json"
-    else
-      shasum -a 256 ./*.zip "./${project_name}_${release_version}_manifest.json"
-    fi
-  ) | sed 's#  \./#  #' >"$dist_dir/${project_name}_${release_version}_SHA256SUMS"
+  checksum_file="$dist_dir/${project_name}_${release_version}_SHA256SUMS"
+  : >"$checksum_file"
+  for archive in "$dist_dir"/*.zip; do
+    printf '%s  %s\n' \
+      "$(hash_file "$archive")" \
+      "$(basename "$archive")" \
+      >>"$checksum_file"
+  done
+  printf '%s  %s\n' \
+    "$(hash_file "$repository_dir/terraform-registry-manifest.json")" \
+    "${project_name}_${release_version}_manifest.json" \
+    >>"$checksum_file"
 }
 
 run_check() {
@@ -89,10 +93,8 @@ expect_failure() {
 }
 
 create_archives "$build_dir/$project_name"
-cp \
-  "$repository_dir/terraform-registry-manifest.json" \
-  "$dist_dir/${project_name}_${release_version}_manifest.json"
 write_checksums
+[[ ! -e "$dist_dir/${project_name}_${release_version}_manifest.json" ]]
 run_check >/dev/null
 
 unexpected_sbom="${project_name}_${release_version}_linux_amd64.zip.spdx.json"

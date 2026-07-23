@@ -65,10 +65,11 @@ if ! diff -u "$expected_archives" "$actual_archives"; then
 fi
 
 manifest_name="${project_name}_${release_version}_manifest.json"
-manifest_path="$dist_dir/$manifest_name"
-[[ -f "$manifest_path" ]] || fail "missing Registry manifest $manifest_name"
-cmp "$repository_dir/terraform-registry-manifest.json" "$manifest_path" >/dev/null ||
-  fail "$manifest_name does not match terraform-registry-manifest.json"
+# GoReleaser checksums and uploads this extra file under manifest_name without
+# copying the renamed file into dist during the unpublished preflight build.
+manifest_source="$repository_dir/terraform-registry-manifest.json"
+[[ -f "$manifest_source" ]] ||
+  fail "missing Registry manifest source terraform-registry-manifest.json"
 
 {
   cat "$expected_archives"
@@ -104,6 +105,9 @@ hash_file() {
 
 while IFS= read -r asset_name; do
   asset_path="$dist_dir/$asset_name"
+  if [[ "$asset_name" == "$manifest_name" ]]; then
+    asset_path="$manifest_source"
+  fi
   [[ -f "$asset_path" ]] || fail "missing checksummed asset $asset_name"
   expected_checksum=$(awk -v name="$asset_name" '$2 == name {print $1}' "$checksum_path")
   actual_checksum=$(hash_file "$asset_path")

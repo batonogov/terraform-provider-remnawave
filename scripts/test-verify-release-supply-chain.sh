@@ -54,9 +54,13 @@ done < <(jq -r '.targets[] | [.goos, .goarch] | @tsv' "$repository_dir/release-t
 write_checksums() {
   checksum_file="$dist_dir/${project_name}_${release_version}_SHA256SUMS"
   : >"$checksum_file"
-  for asset in "$dist_dir"/*.zip "$dist_dir/${project_name}_${release_version}_manifest.json"; do
-    printf '%s  %s\n' "$(hash_file "$asset")" "$(basename "$asset")" >>"$checksum_file"
+  for archive in "$dist_dir"/*.zip; do
+    printf '%s  %s\n' "$(hash_file "$archive")" "$(basename "$archive")" >>"$checksum_file"
   done
+  printf '%s  %s\n' \
+    "$(hash_file "$repository_dir/terraform-registry-manifest.json")" \
+    "${project_name}_${release_version}_manifest.json" \
+    >>"$checksum_file"
 }
 
 run_check() {
@@ -72,9 +76,6 @@ expect_failure() {
   fi
 }
 
-cp \
-  "$repository_dir/terraform-registry-manifest.json" \
-  "$dist_dir/${project_name}_${release_version}_manifest.json"
 write_checksums
 run_check >/dev/null
 [[ "$(wc -l <"$archive_checksums" | tr -d ' ')" == "$expected_target_count" ]]
