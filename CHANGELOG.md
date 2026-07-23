@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.7.0...v0.7.1) (2026-07-23)
+
+
+### Bug Fixes
+
+* verify release manifest from source ([#199](https://github.com/batonogov/terraform-provider-remnawave/issues/199)) ([53424f7](https://github.com/batonogov/terraform-provider-remnawave/commit/53424f74a74acdd90c6c8411e99a7e883a469313))
+
 ## [0.7.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.6.1...v0.7.0) (2026-07-23)
 
 Terraform Registry did not publish v0.6.2. This release therefore includes
