@@ -124,7 +124,9 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Test SBOM and provenance release policy
-        run: ./scripts/test-verify-release-supply-chain.sh
+        run: |
+          ./scripts/test-verify-release-supply-chain.sh
+          ./scripts/test-publish-release-draft.sh
 
   repository-policy-tests:
     name: Repository Policy Tests

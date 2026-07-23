@@ -160,7 +160,23 @@ grep -Fq 'actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6' \
   "$repository_dir/.github/workflows/release-please.yml"
 grep -Fq 'id-token: write' "$repository_dir/.github/workflows/release-please.yml"
 grep -Fq 'attestations: write' "$repository_dir/.github/workflows/release-please.yml"
-grep -Fq 'gh release edit "$TAG_NAME" --draft=false' \
+grep -Fq 'release_id: ${{ steps.release.outputs.id }}' \
   "$repository_dir/.github/workflows/release-please.yml"
+grep -Fq 'release_upload_url: ${{ steps.release.outputs.upload_url }}' \
+  "$repository_dir/.github/workflows/release-please.yml"
+grep -Fq './scripts/publish-release-draft.sh' \
+  "$repository_dir/.github/workflows/release-please.yml"
+if grep -Fq 'releases/tags/$TAG_NAME' \
+  "$repository_dir/.github/workflows/release-please.yml" \
+  "$repository_dir/scripts/publish-release-draft.sh"; then
+  echo "draft publication must not use the published-release tag endpoint" >&2
+  exit 1
+fi
+if grep -Eq 'gh release (edit|upload)' \
+  "$repository_dir/.github/workflows/release-please.yml" \
+  "$repository_dir/scripts/publish-release-draft.sh"; then
+  echo "draft publication must mutate the validated numeric release ID" >&2
+  exit 1
+fi
 
 echo "release supply-chain tests passed"

@@ -71,6 +71,7 @@ tasks:
     desc: Test release SBOM and provenance policy
     cmds:
       - ./scripts/test-verify-release-supply-chain.sh
+      - ./scripts/test-publish-release-draft.sh
 
   test:acc:
     desc: Run acceptance tests (needs Docker)
