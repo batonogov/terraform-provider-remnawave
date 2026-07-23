@@ -61,6 +61,12 @@ tasks:
     cmds:
       - ./scripts/test-configure-repository-security.sh
 
+  test:release-artifacts:
+    desc: Test clean release worktree and artifact verification
+    cmds:
+      - ./scripts/test-verify-release-worktree.sh
+      - ./scripts/test-verify-release-artifacts.sh
+
   test:acc:
     desc: Run acceptance tests (needs Docker)
     cmds:
@@ -90,5 +96,6 @@ tasks:
       - task: lint
       - task: test:unit
       - task: test:vuln
+      - task: test:release-artifacts
       - task: docs:check
       - task: build

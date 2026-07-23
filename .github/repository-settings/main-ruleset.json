@@ -61,6 +61,9 @@
             "context": "Release Gate Tests"
           },
           {
+            "context": "Release Artifact Tests"
+          },
+          {
             "context": "Repository Policy Tests"
           },
           {

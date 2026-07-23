@@ -149,6 +149,12 @@ jobs:
           test "$tag_sha" = "$VALIDATED_SHA"
           test "$RELEASE_SHA" = "$VALIDATED_SHA"
 
+      - name: Verify clean detached release worktree
+        env:
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+          VALIDATED_SHA: ${{ needs.verify-ci.outputs.validated_sha }}
+        run: ./scripts/verify-release-worktree.sh "$VALIDATED_SHA" "$TAG_NAME"
+
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7
         id: import_gpg
@@ -156,7 +162,26 @@ jobs:
           gpg_private_key: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.RELEASE_GPG_PASSPHRASE }}
 
-      - name: Run GoReleaser
+      - name: Build release artifacts without publishing
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
+        with:
+          version: v2.16.0
+          args: release --clean --skip=publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+
+      - name: Verify unpublished release artifacts
+        env:
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+          VALIDATED_SHA: ${{ needs.verify-ci.outputs.validated_sha }}
+        run: |
+          version=${TAG_NAME#v}
+          ./scripts/verify-release-artifacts.sh dist "$version" "$VALIDATED_SHA" "$TAG_NAME"
+          cp "dist/terraform-provider-remnawave_${version}_SHA256SUMS" \
+            "$RUNNER_TEMP/preflight-SHA256SUMS"
+
+      - name: Publish release artifacts
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
         with:
           version: v2.16.0
@@ -164,3 +189,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+
+      - name: Verify published artifacts match the preflight build
+        env:
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+          VALIDATED_SHA: ${{ needs.verify-ci.outputs.validated_sha }}
+        run: |
+          version=${TAG_NAME#v}
+          checksum_file="dist/terraform-provider-remnawave_${version}_SHA256SUMS"
+          ./scripts/verify-release-artifacts.sh dist "$version" "$VALIDATED_SHA" "$TAG_NAME"
+          cmp "$RUNNER_TEMP/preflight-SHA256SUMS" "$checksum_file"
