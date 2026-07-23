@@ -60,6 +60,13 @@ type apiResponse struct {
 	Response json.RawMessage `json:"response"`
 }
 
+// maxResponseBodyBytes bounds decoded HTTP response bodies before they are
+// buffered. Go's transport transparently decompresses responses, so this limit
+// applies to the bytes presented after decompression as well as to plain and
+// chunked bodies. Error bodies have an independent zero-byte limit: they are
+// never read because they are untrusted and are not included in diagnostics.
+const maxResponseBodyBytes int64 = 32 << 20
+
 // HTTPStatusError carries the HTTP status code from a failed request.
 type HTTPStatusError struct {
 	StatusCode int
@@ -87,6 +94,7 @@ var (
 	errRedirectLimit           = errors.New("stopped after 10 redirects")
 	errInvalidRedirectLocation = errors.New("redirect response contained an invalid Location header")
 	errResponseBodyRead        = errors.New("failed to read HTTP response body")
+	errResponseBodyTooLarge    = errors.New("HTTP response body exceeds 32 MiB limit")
 )
 
 // NewClient creates a new Remnawave API client.
@@ -469,11 +477,17 @@ func (c *Client) decodeResponse(resp *http.Response, out any) error {
 		return &HTTPStatusError{StatusCode: resp.StatusCode}
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	// Read at most limit-plus-one bytes so a body exactly at the limit remains
+	// valid while any larger decoded body is detected without unbounded
+	// buffering. Content-Length is intentionally not trusted for enforcement.
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBodyBytes+1))
 	if err != nil {
 		// Do not expose a remote-controlled read error or retain it as an
 		// unwrap-able cause.
 		return errResponseBodyRead
+	}
+	if int64(len(body)) > maxResponseBodyBytes {
+		return errResponseBodyTooLarge
 	}
 
 	if out == nil || len(body) == 0 {

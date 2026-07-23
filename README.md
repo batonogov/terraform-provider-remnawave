@@ -201,6 +201,11 @@ values take precedence over environment variables.
 | `proxy_headers` | `REMNAWAVE_PROXY_HEADERS` | `bool` | Send `X-Forwarded-For`/`Proto` headers (bypass `ProxyCheckMiddleware`) |
 | `custom_headers` | `REMNAWAVE_CUSTOM_HEADERS` | `map(string)` (sensitive) | Additional headers for outer reverse-proxy authentication; the environment value is a JSON object |
 
+The client accepts at most 32 MiB of decoded data in a successful HTTP
+response. The limit is enforced while reading and after transparent content
+decompression; responses above it fail with a fixed diagnostic. HTTP error
+bodies have a zero-byte limit and are never read or included in diagnostics.
+
 ## Resources
 
 The provider exposes **26 resources** across 7 functional areas:
