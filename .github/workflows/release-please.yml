@@ -1,29 +1,126 @@
 name: Release Please
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
 
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
 permissions:
-  contents: write
-  pull-requests: write
+  actions: read
+  contents: read
 
 jobs:
+  verify-ci:
+    name: Verify Exact CI Revision
+    if: >-
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      validated_sha: ${{ steps.verify.outputs.validated_sha }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Fetch CI job results
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: >-
+          gh api
+          "repos/${{ github.repository }}/actions/runs/${CI_RUN_ID}/jobs?per_page=100"
+          > "$RUNNER_TEMP/ci-jobs.json"
+
+      - name: Verify successful CI and exact source revision
+        id: verify
+        env:
+          CI_JOBS_FILE: ${{ runner.temp }}/ci-jobs.json
+          CI_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          CI_RUN_EVENT: ${{ github.event.workflow_run.event }}
+          CI_RUN_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          CI_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          git fetch --no-tags origin main
+          export CHECKED_OUT_SHA
+          CHECKED_OUT_SHA=$(git rev-parse HEAD)
+          export REMOTE_MAIN_SHA
+          REMOTE_MAIN_SHA=$(git rev-parse refs/remotes/origin/main)
+          ./scripts/verify-release-ci.sh
+          echo "validated_sha=$CI_RUN_HEAD_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Verify embedded VCS revision
+        env:
+          VALIDATED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          candidate="$RUNNER_TEMP/terraform-provider-remnawave"
+          go build -trimpath -ldflags="-X main.version=ci-gate" -o "$candidate" .
+          metadata=$(go version -m "$candidate")
+          embedded_revision=$(awk '$1 == "build" && $2 ~ /^vcs.revision=/ {
+            sub(/^vcs.revision=/, "", $2)
+            print $2
+          }' <<< "$metadata")
+          embedded_modified=$(awk '$1 == "build" && $2 ~ /^vcs.modified=/ {
+            sub(/^vcs.modified=/, "", $2)
+            print $2
+          }' <<< "$metadata")
+          test "$embedded_revision" = "$VALIDATED_SHA"
+          test "$embedded_modified" = "false"
+
   release-please:
     name: Release Please
+    needs: verify-ci
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
+      release_sha: ${{ steps.release.outputs.sha }}
     steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.verify-ci.outputs.validated_sha }}
+          fetch-depth: 0
+
+      - name: Recheck main before release mutation
+        env:
+          VALIDATED_SHA: ${{ needs.verify-ci.outputs.validated_sha }}
+        run: |
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "$VALIDATED_SHA"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$VALIDATED_SHA"
+
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
         id: release
         with:
           release-type: simple
+          target-branch: main
+
+      - name: Verify release tag target
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+          VALIDATED_SHA: ${{ needs.verify-ci.outputs.validated_sha }}
+        run: test "$RELEASE_SHA" = "$VALIDATED_SHA"
 
   goreleaser:
     name: GoReleaser
-    needs: release-please
+    needs: [verify-ci, release-please]
     if: needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -31,11 +128,25 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
           fetch-depth: 0
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+
+      - name: Verify checkout, tag, release, and CI revisions
+        env:
+          RELEASE_SHA: ${{ needs.release-please.outputs.release_sha }}
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+          VALIDATED_SHA: ${{ needs.verify-ci.outputs.validated_sha }}
+        run: |
+          git fetch --force --tags origin "refs/tags/$TAG_NAME:refs/tags/$TAG_NAME"
+          checkout_sha=$(git rev-parse HEAD)
+          tag_sha=$(git rev-list -n 1 "$TAG_NAME")
+          test "$checkout_sha" = "$VALIDATED_SHA"
+          test "$tag_sha" = "$VALIDATED_SHA"
+          test "$RELEASE_SHA" = "$VALIDATED_SHA"
 
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7

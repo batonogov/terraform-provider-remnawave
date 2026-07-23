@@ -220,15 +220,21 @@ tag or publish manually.**
 
 ### Flow
 
-1. A push to `main` runs `release-please`, which groups Conventional Commits
-   since the last release into a release PR titled `chore(main): release X.Y.Z`.
-2. Merging that PR creates the `vX.Y.Z` tag, a GitHub Release, and updates
-   `.release-please-manifest.json` (source of truth for the next version) and
-   `CHANGELOG.md`.
-3. `release_created == true` triggers the `goreleaser` job, which builds the
-   provider for every supported platform, attaches archives + `SHA256SUMS` + a
-   GPG-detached `SHA256SUMS.sig` to the release, and the Terraform Registry
-   picks the release up automatically.
+1. A push to `main` runs the normal CI workflow. Only a successful, completed
+   CI run for the current `main` SHA can trigger the release workflow.
+2. The release workflow verifies every CI job, rejects stale or mismatched
+   revisions, and checks the embedded Go `vcs.revision` before granting write
+   permissions to `release-please`.
+3. `release-please` groups Conventional Commits since the last release into a
+   release PR titled `chore(main): release X.Y.Z`.
+4. Merging that PR repeats the exact-SHA gate before creating the `vX.Y.Z` tag
+   and GitHub Release. `.release-please-manifest.json` remains the source of
+   truth for the next version.
+5. `release_created == true` triggers the `goreleaser` job. It verifies that
+   the checkout, tag target, Release Please output, and CI-tested SHA are
+   identical before importing the GPG key, then builds and attaches archives,
+   `SHA256SUMS`, and `SHA256SUMS.sig`. The Terraform Registry picks up the
+   release automatically.
 
 ### Versioning
 
@@ -272,5 +278,9 @@ The goreleaser job fails without these secrets:
 
 ### Pre-release gate
 
-Before merging a release PR, confirm CI on `main` is green — the acceptance
-suite (`task test:acc`) must pass against the pinned backend image.
+The release workflow is triggered by `workflow_run` and enforces successful
+lint, build, unit, documentation, release-gate, and compatibility-matrix
+acceptance jobs for the exact current `main` SHA. Failed, cancelled, skipped,
+missing, duplicate, or stale results block both Release Please and GoReleaser.
+Ordinary CI jobs have read-only permissions and cannot access release or GPG
+credentials.

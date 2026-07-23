@@ -474,6 +474,10 @@ Contributions are welcome! Please:
 5. Ensure CI is green — acceptance tests run against both Remnawave v2.7.4 and
    v2.8.1.
 
+Releases are machine-gated: the release workflow runs only after successful CI
+for the exact current `main` commit, then verifies the CI jobs, tag target, and
+embedded Go VCS revision before publishing.
+
 ### Security
 
 If you believe you have found a security issue, please report it privately
