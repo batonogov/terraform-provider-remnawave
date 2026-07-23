@@ -136,7 +136,10 @@ provider "remnawave" {
 ### Username / Password
 
 If no API token is provided, the provider logs in via `POST /api/auth/login`
-and obtains a JWT automatically. The token is refreshed on 401 responses.
+and obtains a JWT automatically. After a 401 response, the provider refreshes
+the token and transparently replays only `GET` and `HEAD` requests. Mutating
+requests fail without replay because the server may already have applied them;
+the next operation authenticates with a fresh token.
 
 ```hcl
 provider "remnawave" {

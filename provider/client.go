@@ -90,11 +90,12 @@ type redactedRequestError struct {
 func (e *redactedRequestError) Error() string { return e.message }
 
 var (
-	errCrossOriginRedirect     = errors.New("refusing to redirect to a different origin")
-	errRedirectLimit           = errors.New("stopped after 10 redirects")
-	errInvalidRedirectLocation = errors.New("redirect response contained an invalid Location header")
-	errResponseBodyRead        = errors.New("failed to read HTTP response body")
-	errResponseBodyTooLarge    = errors.New("HTTP response body exceeds 32 MiB limit")
+	errCrossOriginRedirect         = errors.New("refusing to redirect to a different origin")
+	errRedirectLimit               = errors.New("stopped after 10 redirects")
+	errInvalidRedirectLocation     = errors.New("redirect response contained an invalid Location header")
+	errResponseBodyRead            = errors.New("failed to read HTTP response body")
+	errResponseBodyTooLarge        = errors.New("HTTP response body exceeds 32 MiB limit")
+	errMutatingRequestUnauthorized = errors.New("request failed: status 401; authentication expired and mutating request was not retried")
 )
 
 // NewClient creates a new Remnawave API client.
@@ -423,7 +424,9 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, o
 		return err
 	}
 
-	// On 401, try re-authenticating once (unless using static API token).
+	// On 401, re-authenticate and replay only retrieval methods. A 401 does not
+	// prove that a mutating request had no server-side effect, so replaying a
+	// POST, PUT, PATCH, or DELETE could apply the operation twice.
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return c.redactRequestError(err)
@@ -439,6 +442,9 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, o
 			c.tokenExpiry = time.Time{}
 		}
 		c.authMu.Unlock()
+		if method != http.MethodGet && method != http.MethodHead {
+			return errMutatingRequestUnauthorized
+		}
 		token, err = c.token(ctx)
 		if err != nil {
 			return err
