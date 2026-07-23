@@ -45,6 +45,8 @@ required_jobs=(
   "Documentation"
   "Prepare Compatibility Matrix"
   "Release Gate Tests"
+  "Repository Policy Tests"
+  "Vulnerability Scan"
 )
 
 while IFS= read -r label; do

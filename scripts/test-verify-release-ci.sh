@@ -17,7 +17,9 @@ jq -n --argjson versions "$(jq '[.versions[] | select(.supported) | .version | l
         "Unit Tests",
         "Documentation",
         "Prepare Compatibility Matrix",
-        "Release Gate Tests"
+        "Release Gate Tests",
+        "Repository Policy Tests",
+        "Vulnerability Scan"
       ] + [$versions[] | "Acceptance Tests (\(.))"]
       | map({name: ., status: "completed", conclusion: "success"})
     )

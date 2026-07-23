@@ -42,3 +42,10 @@ blanket `continue-on-error` or disabled scans are not acceptable.
 ## Reporting
 
 Report security issues privately to the repository owner.
+
+## Repository controls
+
+Branch, tag, Actions, and release-Environment settings are versioned under
+`.github/repository-settings/` and audited with
+`task repo:security:check`. The rollout and narrow emergency-bypass procedure
+are documented in `docs/repository-security.md`.
