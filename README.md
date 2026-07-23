@@ -401,7 +401,7 @@ terraform {
 
 | Tool | Version |
 | --- | --- |
-| [Go](https://go.dev/dl/) | 1.26.4+ (see [`go.mod`](go.mod)) |
+| [Go](https://go.dev/dl/) | 1.26.5+ (see [`go.mod`](go.mod)) |
 | [Terraform CLI](https://developer.hashicorp.com/terraform/install) | 1.12+ |
 | [Task](https://taskfile.dev) | Latest (optional, for `task` commands) |
 | [Docker](https://www.docker.com/) | Required for acceptance tests |
@@ -420,6 +420,9 @@ golangci-lint run
 
 # Unit tests (no Docker needed)
 go test ./provider/... -race -cover
+
+# Reachable vulnerability scan
+task test:vuln
 
 # Acceptance tests (starts Remnawave panel via Docker Compose)
 task test:acc
