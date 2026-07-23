@@ -277,9 +277,10 @@ approval before the GoReleaser job can access them.
 - `main.version` (`main.go`) is injected at build time via goreleaser ldflags
   (`-X main.version`); locally built binaries report `dev`.
 - Builds are reproducible: `-trimpath` + `mod_timestamp`. Release targets are:
-  Linux (`amd64`, `arm64`, `arm`, `386`), macOS (`amd64`, `arm64`), and Windows
-  and FreeBSD (`amd64`, `386`). `release-targets.json` is the machine-readable
-  archive contract; keep it in sync with `.goreleaser.yml`.
+  Linux (`amd64`, `arm64`, `arm`, `386`), macOS (`amd64`, `arm64`), Windows
+  (`amd64`, `arm64`, `386`), and FreeBSD (`amd64`, `386`).
+  `release-targets.json` is the machine-readable archive contract; keep it in
+  sync with `.goreleaser.yml`.
 - Release builds must start from a clean detached tag checkout. `/dist/` is the
   only ignored in-worktree output. The release workflow builds once without
   publishing, verifies every archive's checksum and embedded Go VCS/module
