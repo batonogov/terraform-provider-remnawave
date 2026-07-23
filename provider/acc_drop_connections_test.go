@@ -9,8 +9,9 @@ import (
 )
 
 // TestAccDropConnectionsResource_ByUserUUID verifies the V2 request reaches
-// the backend and propagates its diagnostic. The compose fixture intentionally
-// has no connected Xray node, so a successful connection drop is impossible.
+// the backend and returns a status-only not-found diagnostic. The compose
+// fixture intentionally has no connected Xray node, so a successful connection
+// drop is impossible.
 func TestAccDropConnectionsResource_ByUserUUID(t *testing.T) {
 	testAccPreCheck(t)
 
@@ -34,7 +35,7 @@ resource "remnawave_drop_connections" "test" {
   triggers   = { init = "1" }
 }
 `,
-				ExpectError: regexp.MustCompile("Connected[[:space:]]+nodes not found"),
+				ExpectError: regexp.MustCompile(`request failed: status 404`),
 			},
 		},
 	})
