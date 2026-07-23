@@ -25,6 +25,20 @@ does not encrypt or remove them from state. Store state in a protected backend,
 restrict access to state snapshots and backups, and avoid publishing state as a
 CI artifact.
 
+## Vulnerability Gate
+
+CI runs the pinned `govulncheck` source scan and blocks changes when provider
+code can reach a known vulnerable symbol. Run the same check locally with
+`task test:vuln`.
+
+A vulnerability exception is allowed only when no fixed dependency is
+available and the advisory is not practically reachable in this provider. The
+exception must be reviewed in a pull request and identify the advisory, explain
+the reachability analysis and compensating controls, name an owner, link a
+tracking issue, and include an expiry date no more than 30 days away. CI must
+limit the exception to that exact advisory and fail after the expiry date;
+blanket `continue-on-error` or disabled scans are not acceptable.
+
 ## Reporting
 
 Report security issues privately to the repository owner.

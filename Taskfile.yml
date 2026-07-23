@@ -32,6 +32,11 @@ tasks:
       - go test ./provider -skip '^TestAcc' -count=1 -race -covermode=atomic -coverprofile=coverage.out
       - go tool cover -func=coverage.out
 
+  test:vuln:
+    desc: Scan reachable Go code for known vulnerabilities
+    cmds:
+      - go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
+
   docs:
     desc: Format examples and generate Terraform Registry documentation
     cmds:
@@ -74,5 +79,6 @@ tasks:
       - task: vet
       - task: lint
       - task: test:unit
+      - task: test:vuln
       - task: docs:check
       - task: build
