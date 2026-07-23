@@ -60,10 +60,13 @@ type apiResponse struct {
 	Response json.RawMessage `json:"response"`
 }
 
-// HTTPStatusError carries the HTTP status code and body from a failed request.
+// HTTPStatusError carries the HTTP status code from a failed request.
 type HTTPStatusError struct {
 	StatusCode int
-	Body       string
+	// Body is retained for source compatibility. Client responses never
+	// populate it because remote error bodies are untrusted and may reflect
+	// credentials or request payloads.
+	Body string
 }
 
 func (e *HTTPStatusError) Error() string {
@@ -80,10 +83,10 @@ type redactedRequestError struct {
 func (e *redactedRequestError) Error() string { return e.message }
 
 var (
-	errCrossOriginRedirect          = errors.New("refusing to redirect to a different origin")
-	errRedirectLimit                = errors.New("stopped after 10 redirects")
-	errInvalidRedirectLocation      = errors.New("redirect response contained an invalid Location header")
-	errCustomHeaderResponseBodyRead = errors.New("failed to read HTTP response body")
+	errCrossOriginRedirect     = errors.New("refusing to redirect to a different origin")
+	errRedirectLimit           = errors.New("stopped after 10 redirects")
+	errInvalidRedirectLocation = errors.New("redirect response contained an invalid Location header")
+	errResponseBodyRead        = errors.New("failed to read HTTP response body")
 )
 
 // NewClient creates a new Remnawave API client.
@@ -459,32 +462,18 @@ func (c *Client) decodeResponse(resp *http.Response, out any) error {
 		_ = resp.Body.Close()
 	}()
 
-	// Error response bodies are untrusted and can reflect a custom header in
-	// encodings that cannot be exhaustively redacted. Do not read or expose the
-	// body when custom headers (which are commonly secrets) are configured.
-	if resp.StatusCode >= 400 && len(c.customHeaders) > 0 {
+	// Error response bodies are untrusted and can reflect credentials, custom
+	// headers, or request payloads in encodings that cannot be exhaustively
+	// redacted. Return status-only diagnostics without reading the body.
+	if resp.StatusCode >= 400 {
 		return &HTTPStatusError{StatusCode: resp.StatusCode}
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		// A response body is controlled by the remote server or an intermediary.
-		// Its Read error can therefore reflect a custom header in an arbitrary,
-		// reversibly encoded form. Do not expose or wrap that error when custom
-		// headers (which are commonly secrets) are configured.
-		if len(c.customHeaders) > 0 {
-			return errCustomHeaderResponseBodyRead
-		}
-		return err
-	}
-
-	if resp.StatusCode >= 400 {
-		msg := string(body)
-		msg = strings.TrimSpace(msg)
-		if len(msg) > 1024 {
-			msg = msg[:1024] + "...(truncated)"
-		}
-		return &HTTPStatusError{StatusCode: resp.StatusCode, Body: msg}
+		// Do not expose a remote-controlled read error or retain it as an
+		// unwrap-able cause.
+		return errResponseBodyRead
 	}
 
 	if out == nil || len(body) == 0 {

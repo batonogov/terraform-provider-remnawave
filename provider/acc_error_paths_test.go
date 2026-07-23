@@ -62,7 +62,7 @@ resource "remnawave_node" "test" {
 }
 
 // TestAccNodeNonExistentProfile verifies that referencing a non-existent
-// config profile UUID (zero UUID) produces an error that mentions the UUID.
+// config profile UUID (zero UUID) produces a status-only not-found error.
 func TestAccNodeNonExistentProfile(t *testing.T) {
 	testAccPreCheck(t)
 	endpoint, authBlock := testAccProviderBlock()
@@ -87,7 +87,7 @@ resource "remnawave_node" "test" {
   config_profile_inbounds     = ["00000000-0000-0000-0000-000000000000"]
 }
 `,
-			ExpectError: regexp.MustCompile(`(?i).*(not found|A124|inbound|profile).*`),
+			ExpectError: regexp.MustCompile(`request failed: status 404`),
 		}},
 	})
 }
@@ -96,7 +96,7 @@ resource "remnawave_node" "test" {
 // ports > 65535 without error, so there is nothing to test here.
 
 // TestAccConfigProfileEmptyName verifies that an empty config profile name
-// is rejected with a validation error.
+// is rejected with a status-only bad-request error.
 func TestAccConfigProfileEmptyName(t *testing.T) {
 	testAccPreCheck(t)
 	endpoint, authBlock := testAccProviderBlock()
@@ -121,7 +121,7 @@ resource "remnawave_config_profile" "test" {
   })
 }
 `,
-			ExpectError: regexp.MustCompile(`(?i).*(name|empty|required|min|blank|shorter).*`),
+			ExpectError: regexp.MustCompile(`request failed: status 400`),
 		}},
 	})
 }

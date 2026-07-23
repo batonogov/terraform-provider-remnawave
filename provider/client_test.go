@@ -467,10 +467,10 @@ func TestDecodeResponseHTTPError(t *testing.T) {
 	if statusErr.StatusCode != http.StatusBadGateway {
 		t.Errorf("status = %d", statusErr.StatusCode)
 	}
-	if statusErr.Body != longBody[:1024]+"...(truncated)" {
-		t.Errorf("body length/content = %d/%q", len(statusErr.Body), statusErr.Body)
+	if statusErr.Body != "" {
+		t.Errorf("body = %q, want empty", statusErr.Body)
 	}
-	if got := statusErr.Error(); !strings.Contains(got, "status 502") || !strings.Contains(got, "body:") {
+	if got := statusErr.Error(); got != "request failed: status 502" {
 		t.Errorf("Error() = %q", got)
 	}
 	if got := (&HTTPStatusError{StatusCode: http.StatusNotFound}).Error(); got != "request failed: status 404" {
@@ -493,8 +493,11 @@ func TestDecodeResponseReadError(t *testing.T) {
 		StatusCode: http.StatusOK,
 		Body:       failingReadCloser{err: want},
 	}, nil)
-	if !errors.Is(err, want) {
-		t.Fatalf("error = %v, want %v", err, want)
+	if !errors.Is(err, errResponseBodyRead) {
+		t.Fatalf("error = %v, want fixed response-body read error", err)
+	}
+	if errors.Is(err, want) {
+		t.Fatal("response-body read error retained the remote-controlled cause")
 	}
 }
 

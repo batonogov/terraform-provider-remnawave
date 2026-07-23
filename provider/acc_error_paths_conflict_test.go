@@ -9,7 +9,7 @@ import (
 )
 
 // TestAccDuplicateSnippetNameConflict verifies that creating two snippets with
-// the same name produces a clear error (409 Conflict from backend).
+// the same name produces a status-only bad-request error from the backend.
 //
 // Covers #118 (409 Conflict for duplicate snippet name).
 func TestAccDuplicateSnippetNameConflict(t *testing.T) {
@@ -32,7 +32,7 @@ resource "remnawave_snippet" "second" {
   snippet = jsonencode([{ "type" = "field", "domain" = ["geosite:category-ads"] }])
 }
 `,
-				ExpectError: regexp.MustCompile(`(?i)(conflict|already exists|409|duplicate)`),
+				ExpectError: regexp.MustCompile(`request failed: status 400`),
 			},
 		},
 	})
