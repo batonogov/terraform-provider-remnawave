@@ -80,6 +80,15 @@ jobs:
       - name: Ensure generated documentation is current
         run: ./scripts/check-docs-drift.sh
 
+  release-gate-tests:
+    name: Release Gate Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Test release CI verification
+        run: ./scripts/test-verify-release-ci.sh
+
   prepare-compat:
     name: Prepare Compatibility Matrix
     runs-on: ubuntu-latest
