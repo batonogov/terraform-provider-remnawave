@@ -283,13 +283,13 @@ func TestConcurrentRequestsShareAuthentication(t *testing.T) {
 	}
 }
 
-func TestUnauthorizedReauthenticatesAndPreservesBody(t *testing.T) {
+func TestUnauthorizedMutatingRequestIsNotRetried(t *testing.T) {
 	t.Parallel()
 
 	var mu sync.Mutex
 	loginCalls := 0
 	apiCalls := 0
-	var requestBodies []string
+	const bodySecret = "do-not-replay-body-secret"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		defer mu.Unlock()
@@ -300,13 +300,11 @@ func TestUnauthorizedReauthenticatesAndPreservesBody(t *testing.T) {
 		case "/api/users":
 			apiCalls++
 			body, _ := io.ReadAll(r.Body)
-			requestBodies = append(requestBodies, string(body))
-			if r.Header.Get("Authorization") == "Bearer token-1" {
-				w.WriteHeader(http.StatusUnauthorized)
-				_, _ = io.WriteString(w, `{"message":"expired"}`)
-				return
+			if !strings.Contains(string(body), bodySecret) {
+				t.Errorf("request body = %q, want secret marker", body)
 			}
-			_, _ = io.WriteString(w, `{"response":{"uuid":"new-id","username":"alice","expireAt":"2027-01-01T00:00:00Z"}}`)
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = io.WriteString(w, `{"message":"`+bodySecret+`"}`)
 		default:
 			http.NotFound(w, r)
 		}
@@ -317,18 +315,18 @@ func TestUnauthorizedReauthenticatesAndPreservesBody(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	created, err := client.CreateUser(context.Background(), &User{Username: "alice", ExpireAt: "2027-01-01T00:00:00Z"})
-	if err != nil {
-		t.Fatalf("CreateUser() error = %v", err)
+	_, err = client.CreateUser(context.Background(), &User{
+		Username: bodySecret,
+		ExpireAt: "2027-01-01T00:00:00Z",
+	})
+	if !errors.Is(err, errMutatingRequestUnauthorized) {
+		t.Fatalf("CreateUser() error = %v, want %v", err, errMutatingRequestUnauthorized)
 	}
-	if created.UUID != "new-id" {
-		t.Errorf("created = %#v", created)
+	if strings.Contains(err.Error(), bodySecret) {
+		t.Fatalf("error disclosed request body: %v", err)
 	}
-	if loginCalls != 2 || apiCalls != 2 {
-		t.Errorf("calls: login=%d api=%d", loginCalls, apiCalls)
-	}
-	if len(requestBodies) != 2 || requestBodies[0] == "" || requestBodies[0] != requestBodies[1] {
-		t.Errorf("retry bodies = %#v", requestBodies)
+	if loginCalls != 1 || apiCalls != 1 {
+		t.Errorf("calls: login=%d api=%d, want login=1 api=1", loginCalls, apiCalls)
 	}
 }
 
