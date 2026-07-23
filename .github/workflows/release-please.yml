@@ -108,7 +108,8 @@ jobs:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
         id: release
         with:
-          release-type: simple
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
           target-branch: main
 
       - name: Verify release tag target
@@ -126,6 +127,8 @@ jobs:
     environment: release
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -136,11 +139,23 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Install Syft
+        id: syft
+        uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          syft-version: v1.49.0
+
+      - name: Add Syft to PATH
+        env:
+          SYFT_COMMAND: ${{ steps.syft.outputs.cmd }}
+        run: echo "$(dirname "$SYFT_COMMAND")" >> "$GITHUB_PATH"
+
       - name: Verify checkout, tag, release, and CI revisions
         env:
           RELEASE_SHA: ${{ needs.release-please.outputs.release_sha }}
           TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
           VALIDATED_SHA: ${{ needs.verify-ci.outputs.validated_sha }}
+          WORKFLOW_SHA: ${{ github.sha }}
         run: |
           git fetch --force --tags origin "refs/tags/$TAG_NAME:refs/tags/$TAG_NAME"
           checkout_sha=$(git rev-parse HEAD)
@@ -148,6 +163,7 @@ jobs:
           test "$checkout_sha" = "$VALIDATED_SHA"
           test "$tag_sha" = "$VALIDATED_SHA"
           test "$RELEASE_SHA" = "$VALIDATED_SHA"
+          test "$WORKFLOW_SHA" = "$VALIDATED_SHA"
 
       - name: Verify clean detached release worktree
         env:
@@ -178,8 +194,8 @@ jobs:
         run: |
           version=${TAG_NAME#v}
           ./scripts/verify-release-artifacts.sh dist "$version" "$VALIDATED_SHA" "$TAG_NAME"
-          cp "dist/terraform-provider-remnawave_${version}_SHA256SUMS" \
-            "$RUNNER_TEMP/preflight-SHA256SUMS"
+          ./scripts/verify-release-supply-chain.sh \
+            dist "$version" "$RUNNER_TEMP/preflight-archive-SHA256SUMS"
 
       - name: Publish release artifacts
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
@@ -198,4 +214,63 @@ jobs:
           version=${TAG_NAME#v}
           checksum_file="dist/terraform-provider-remnawave_${version}_SHA256SUMS"
           ./scripts/verify-release-artifacts.sh dist "$version" "$VALIDATED_SHA" "$TAG_NAME"
-          cmp "$RUNNER_TEMP/preflight-SHA256SUMS" "$checksum_file"
+          ./scripts/verify-release-supply-chain.sh \
+            dist "$version" "$RUNNER_TEMP/published-archive-SHA256SUMS"
+          gpg --batch --verify "${checksum_file}.sig" "$checksum_file"
+          cmp \
+            "$RUNNER_TEMP/preflight-archive-SHA256SUMS" \
+            "$RUNNER_TEMP/published-archive-SHA256SUMS"
+
+      - name: Attest final release archives
+        id: attest
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
+        with:
+          subject-checksums: ${{ runner.temp }}/published-archive-SHA256SUMS
+
+      - name: Verify provenance and prepare bundle
+        env:
+          ATTESTATION_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+          VALIDATED_SHA: ${{ needs.verify-ci.outputs.validated_sha }}
+        run: |
+          version=${TAG_NAME#v}
+          bundle="dist/terraform-provider-remnawave_${version}_provenance.intoto.jsonl"
+          cp "$ATTESTATION_BUNDLE" "$bundle"
+          while read -r _ archive; do
+            gh attestation verify "dist/$archive" \
+              --bundle "$bundle" \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release-please.yml" \
+              --source-digest "$VALIDATED_SHA"
+          done < "$RUNNER_TEMP/published-archive-SHA256SUMS"
+
+      - name: Upload provenance and publish verified draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          version=${TAG_NAME#v}
+          checksum_file="dist/terraform-provider-remnawave_${version}_SHA256SUMS"
+          signature_file="${checksum_file}.sig"
+          bundle="dist/terraform-provider-remnawave_${version}_provenance.intoto.jsonl"
+          release_json="$RUNNER_TEMP/draft-release.json"
+          expected_assets="$RUNNER_TEMP/expected-assets.txt"
+          remote_assets="$RUNNER_TEMP/remote-assets.txt"
+
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG_NAME" > "$release_json"
+          jq -e '.draft == true' "$release_json" >/dev/null
+          gh release upload "$TAG_NAME" "$bundle"
+
+          {
+            awk '{print $2}' "$checksum_file"
+            basename "$checksum_file"
+            basename "$signature_file"
+            basename "$bundle"
+          } | LC_ALL=C sort -u > "$expected_assets"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG_NAME" \
+            --jq '.assets[].name' | LC_ALL=C sort > "$remote_assets"
+          diff -u "$expected_assets" "$remote_assets"
+
+          gh release edit "$TAG_NAME" --draft=false
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG_NAME" --jq .draft)" = "false"

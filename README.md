@@ -31,6 +31,7 @@ hosts, squads, billing, subscription pages, and more as infrastructure-as-code.
 - [Examples](#examples)
 - [Importing Existing Resources](#importing-existing-resources)
 - [Versioning \& Upgrades](#versioning--upgrades)
+- [Release Integrity](#release-integrity)
 - [Development](#development)
 - [Contributing](#contributing)
 - [License](#license)
@@ -402,6 +403,13 @@ terraform {
   }
 }
 ```
+
+## Release Integrity
+
+Each platform archive is covered by signed checksums, a matching SPDX 2.3 SBOM,
+and GitHub/Sigstore build provenance bound to its SHA-256 digest and the release
+workflow. See [Verifying Releases](docs/release-verification.md) for commands
+that validate the archive, SBOM, source commit, and workflow identity.
 
 ## Development
 

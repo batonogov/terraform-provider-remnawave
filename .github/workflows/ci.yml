@@ -117,6 +117,15 @@ jobs:
           ./scripts/test-verify-release-worktree.sh
           ./scripts/test-verify-release-artifacts.sh
 
+  release-supply-chain-tests:
+    name: Release Supply Chain Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Test SBOM and provenance release policy
+        run: ./scripts/test-verify-release-supply-chain.sh
+
   repository-policy-tests:
     name: Repository Policy Tests
     runs-on: ubuntu-latest
