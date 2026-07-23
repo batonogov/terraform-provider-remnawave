@@ -8,6 +8,7 @@ trap 'rm -rf "$temporary_dir"' EXIT
 dist_dir="$temporary_dir/dist"
 archive_checksums="$temporary_dir/archive-SHA256SUMS"
 project_name=$(jq -r '.project_name' "$repository_dir/release-targets.json")
+expected_target_count=$(jq '.targets | length' "$repository_dir/release-targets.json")
 release_version=1.2.3
 mkdir -p "$dist_dir"
 
@@ -72,7 +73,7 @@ expect_failure() {
 
 write_checksums
 run_check >/dev/null
-[[ "$(wc -l <"$archive_checksums" | tr -d ' ')" == "10" ]]
+[[ "$(wc -l <"$archive_checksums" | tr -d ' ')" == "$expected_target_count" ]]
 
 test_sbom="${project_name}_${release_version}_linux_amd64.zip.spdx.json"
 mv "$dist_dir/$test_sbom" "$temporary_dir/$test_sbom"
@@ -107,7 +108,7 @@ jq -e '
   and (.packages["."] | type == "object")
 ' "$repository_dir/release-please-config.json" >/dev/null
 
-ruby -ryaml -e '
+ruby -rjson -ryaml -e '
   config = YAML.load_file(ARGV.fetch(0))
   sbom = config.fetch("sboms").fetch(0)
   release = config.fetch("release")
@@ -117,7 +118,20 @@ ruby -ryaml -e '
     sbom["disable"] == false
   abort "release must remain a reusable draft" unless
     release["draft"] == true && release["use_existing_draft"] == true
-' "$repository_dir/.goreleaser.yml"
+
+  build = config.fetch("builds").fetch(0)
+  ignored = build.fetch("ignore", []).map { |target|
+    [target.fetch("goos"), target.fetch("goarch")]
+  }
+  configured_targets = build.fetch("goos").product(build.fetch("goarch"))
+    .reject { |target| ignored.include?(target) }
+    .sort
+  expected_targets = JSON.parse(File.read(ARGV.fetch(1))).fetch("targets").map { |target|
+    [target.fetch("goos"), target.fetch("goarch")]
+  }.sort
+  abort "GoReleaser targets do not match release-targets.json" unless
+    configured_targets == expected_targets
+' "$repository_dir/.goreleaser.yml" "$repository_dir/release-targets.json"
 
 grep -Fq 'anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610' \
   "$repository_dir/.github/workflows/release-please.yml"

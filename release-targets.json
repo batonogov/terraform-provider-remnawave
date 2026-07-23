@@ -32,6 +32,10 @@
     },
     {
       "goos": "windows",
+      "goarch": "arm64"
+    },
+    {
+      "goos": "windows",
       "goarch": "386"
     },
     {
