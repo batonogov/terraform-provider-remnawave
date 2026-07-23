@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.2](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.6.1...v0.6.2) (2026-07-23)
+
+
+### Bug Fixes
+
+* avoid replaying mutating requests after 401 ([#193](https://github.com/batonogov/terraform-provider-remnawave/issues/193)) ([4f09054](https://github.com/batonogov/terraform-provider-remnawave/commit/4f09054d1bcd55867de38027f655b3a4e644ca1a))
+* bound HTTP response body reads ([#192](https://github.com/batonogov/terraform-provider-remnawave/issues/192)) ([e704158](https://github.com/batonogov/terraform-provider-remnawave/commit/e704158e83b8971cc9c0b1d25ac1e5eb7e0c1ea8))
+* enforce same-origin redirects for all requests ([#185](https://github.com/batonogov/terraform-provider-remnawave/issues/185)) ([31ee3e5](https://github.com/batonogov/terraform-provider-remnawave/commit/31ee3e59f9417b830053519e8625b15a4102ea9e))
+* mark subscription credentials sensitive ([#187](https://github.com/batonogov/terraform-provider-remnawave/issues/187)) ([668cee0](https://github.com/batonogov/terraform-provider-remnawave/commit/668cee01092f60ea743f7fb3ba1c6c6cf9358fca))
+* omit untrusted HTTP error bodies from diagnostics ([#186](https://github.com/batonogov/terraform-provider-remnawave/issues/186)) ([e6d25a6](https://github.com/batonogov/terraform-provider-remnawave/commit/e6d25a67414039735a0595dc589fb36fb007f56e))
+* update vulnerable Go dependencies ([#188](https://github.com/batonogov/terraform-provider-remnawave/issues/188)) ([7418558](https://github.com/batonogov/terraform-provider-remnawave/commit/741855829c4d97a14395844fdbc50b78b69d9318))
+* verify clean release artifacts ([#194](https://github.com/batonogov/terraform-provider-remnawave/issues/194)) ([67d8e11](https://github.com/batonogov/terraform-provider-remnawave/commit/67d8e11033a9d0fff4507f45b831f2c01979a68d))
+
 ## [0.6.1](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.6.0...v0.6.1) (2026-07-22)
 
 
