@@ -113,7 +113,9 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Test clean release and archive verification
-        run: task test:release-artifacts
+        run: |
+          ./scripts/test-verify-release-worktree.sh
+          ./scripts/test-verify-release-artifacts.sh
 
   repository-policy-tests:
     name: Repository Policy Tests
