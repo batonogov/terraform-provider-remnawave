@@ -7,7 +7,7 @@ Every provider release publishes the following integrity material:
 - `terraform-provider-remnawave_<version>_SHA256SUMS` and its detached GPG
   signature;
 - `terraform-provider-remnawave_<version>_provenance.intoto.jsonl`, containing
-  GitHub/Sigstore SLSA provenance for all platform archives.
+  GitHub/Sigstore SLSA provenance for all platform archives and SBOMs.
 
 The Terraform Registry verifies its downloaded package against the release
 checksums. The commands below independently connect those same archive bytes to
@@ -40,8 +40,10 @@ gpg --verify "${checksums}.sig" "$checksums"
 shasum -a 256 -c "$checksums"
 ```
 
-On Linux, `sha256sum -c "$checksums"` is equivalent. Stop if either command
-fails.
+On Linux, `sha256sum -c "$checksums"` is equivalent. The Registry-compatible
+checksum file contains exactly the provider ZIPs and the Registry manifest;
+SBOM integrity is covered by the provenance bundle below. Stop if either
+command fails.
 
 ## Verify provenance
 
@@ -87,5 +89,12 @@ jq -r '
 ' "$sbom"
 ```
 
-The signed checksum manifest covers both the archive and its SBOM, making the
-filename mapping and the exact SBOM bytes independently verifiable.
+Verify the exact SBOM bytes against the same provenance bundle:
+
+```sh
+gh attestation verify "$sbom" \
+  --bundle "$bundle" \
+  --repo "$repo" \
+  --signer-workflow "$repo/.github/workflows/release-please.yml" \
+  --source-digest "$tag_sha"
+```

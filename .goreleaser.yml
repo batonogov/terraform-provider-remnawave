@@ -32,18 +32,23 @@ builds:
     binary: "{{ .ProjectName }}_v{{ .Version }}"
 
 archives:
-  - formats:
+  - id: provider-archives
+    formats:
       - zip
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 sboms:
-  - id: archives
+  - id: provider-archive-sboms
     artifacts: archive
+    ids:
+      - provider-archives
     documents:
       - "${artifact}.spdx.json"
     disable: false
 
 checksum:
+  ids:
+    - provider-archives
   extra_files:
     - glob: 'terraform-registry-manifest.json'
       name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'

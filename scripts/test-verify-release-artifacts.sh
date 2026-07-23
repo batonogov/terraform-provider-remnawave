@@ -53,13 +53,21 @@ create_archives() {
   done < <(jq -r '.targets[] | [.goos, .goarch] | @tsv' "$repository_dir/release-targets.json")
 }
 
+hash_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  else
+    shasum -a 256 "$1" | awk '{print $1}'
+  fi
+}
+
 write_checksums() {
   (
     cd "$dist_dir"
     if command -v sha256sum >/dev/null 2>&1; then
-      sha256sum ./*.zip
+      sha256sum ./*.zip "./${project_name}_${release_version}_manifest.json"
     else
-      shasum -a 256 ./*.zip
+      shasum -a 256 ./*.zip "./${project_name}_${release_version}_manifest.json"
     fi
   ) | sed 's#  \./#  #' >"$dist_dir/${project_name}_${release_version}_SHA256SUMS"
 }
@@ -81,8 +89,21 @@ expect_failure() {
 }
 
 create_archives "$build_dir/$project_name"
+cp \
+  "$repository_dir/terraform-registry-manifest.json" \
+  "$dist_dir/${project_name}_${release_version}_manifest.json"
 write_checksums
 run_check >/dev/null
+
+unexpected_sbom="${project_name}_${release_version}_linux_amd64.zip.spdx.json"
+printf '{}\n' >"$dist_dir/$unexpected_sbom"
+printf '%s  %s\n' \
+  "$(hash_file "$dist_dir/$unexpected_sbom")" \
+  "$unexpected_sbom" \
+  >>"$dist_dir/${project_name}_${release_version}_SHA256SUMS"
+expect_failure "SBOM checksum subject"
+rm "$dist_dir/$unexpected_sbom"
+write_checksums
 
 missing_archive=$(head -n 1 < <(
   jq -r --arg version "$release_version" '
