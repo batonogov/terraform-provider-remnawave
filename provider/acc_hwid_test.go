@@ -22,25 +22,21 @@ resource "remnawave_user" "hwid" {
 }
 
 resource "remnawave_hwid_device" "test" {
-  user_uuid    = remnawave_user.hwid.uuid
-  hwid         = "terraform-acceptance-device"
-  platform     = "linux"
-  os_version   = "test"
-  device_model = "terraform"
+  user_uuid = remnawave_user.hwid.uuid
+  hwid      = "terraform-acceptance-device"
 }
 `,
 			Check: resource.ComposeAggregateTestCheckFunc(
 				resource.TestCheckResourceAttrSet("remnawave_hwid_device.test", "id"),
 				resource.TestCheckResourceAttr("remnawave_hwid_device.test", "hwid", "terraform-acceptance-device"),
-				resource.TestCheckResourceAttr("remnawave_hwid_device.test", "platform", "linux"),
+				resource.TestCheckResourceAttrSet("remnawave_hwid_device.test", "user_uuid"),
 			),
 		},
 			{
-				ResourceName:            "remnawave_hwid_device.test",
-				ImportState:             true,
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"updated_at", "device_model", "os_version", "platform"},
-				ImportStateIdFunc:       resourceAttrImportStateID("remnawave_hwid_device.test", "id"),
+				ResourceName:      "remnawave_hwid_device.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateIdFunc: resourceAttrImportStateID("remnawave_hwid_device.test", "id"),
 			},
 		},
 	})
