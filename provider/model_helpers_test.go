@@ -154,8 +154,11 @@ func TestHwidCreateRequest(t *testing.T) {
 	t.Parallel()
 
 	plan := &hwidDeviceModel{
-		UserUUID:    types.StringValue("user-id"),
-		Hwid:        types.StringValue("device-id"),
+		UserUUID: types.StringValue("user-id"),
+		Hwid:     types.StringValue("device-id"),
+		// Metadata is panel-owned/Computed: even if a value were present it must
+		// never be sent on create (there is no Update endpoint and the backend
+		// overwrites it on the next client connection).
 		Platform:    types.StringValue("ios"),
 		OsVersion:   types.StringUnknown(),
 		UserAgent:   types.StringValue("app/1.0"),
@@ -163,11 +166,8 @@ func TestHwidCreateRequest(t *testing.T) {
 		DeviceModel: types.StringValue("phone"),
 	}
 	want := map[string]any{
-		"userUuid":    "user-id",
-		"hwid":        "device-id",
-		"platform":    "ios",
-		"deviceModel": "phone",
-		"userAgent":   "app/1.0",
+		"userUuid": "user-id",
+		"hwid":     "device-id",
 	}
 	if got := hwidCreateReq(plan); !reflect.DeepEqual(got, want) {
 		t.Errorf("hwidCreateReq() = %#v, want %#v", got, want)

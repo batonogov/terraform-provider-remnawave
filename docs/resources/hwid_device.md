@@ -27,14 +27,11 @@ resource "remnawave_hwid_device" "phone" {
 - `hwid` (String) Hardware identifier string for the device.
 - `user_uuid` (String) UUID of the user this device belongs to.
 
-### Optional
+### Read-Only
 
 - `device_model` (String) Device model name.
+- `id` (String) Unique identifier (user_uuid:hwid).
 - `os_version` (String) Operating system version.
 - `platform` (String) Device platform (e.g. android, ios, windows).
 - `request_ip` (String) Request IP address.
 - `user_agent` (String) User agent string.
-
-### Read-Only
-
-- `id` (String) Unique identifier (user_uuid:hwid).
