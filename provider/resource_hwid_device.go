@@ -52,40 +52,31 @@ func (r *hwidDeviceResource) Schema(_ context.Context, _ resource.SchemaRequest,
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
+			// The following metadata attributes are panel-collected when a client
+			// connects (device fingerprint, OS, IP, user agent). The operator cannot
+			// know them ahead of time and the backend has no Update endpoint, so they
+			// are read-only (Computed). Setting them in HCL is rejected; the backend
+			// would overwrite them on the next client connection anyway. Only the
+			// identity pair (user_uuid + hwid) triggers replacement.
 			"platform": schema.StringAttribute{
-				Optional:    true,
+				Computed:    true,
 				Description: "Device platform (e.g. android, ios, windows).",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 			},
 			"os_version": schema.StringAttribute{
-				Optional:    true,
+				Computed:    true,
 				Description: "Operating system version.",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 			},
 			"device_model": schema.StringAttribute{
-				Optional:    true,
+				Computed:    true,
 				Description: "Device model name.",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 			},
 			"user_agent": schema.StringAttribute{
-				Optional:    true,
+				Computed:    true,
 				Description: "User agent string.",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 			},
 			"request_ip": schema.StringAttribute{
-				Optional:    true,
+				Computed:    true,
 				Description: "Request IP address.",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 			},
 			"id": schema.StringAttribute{
 				Computed:    true,
@@ -110,27 +101,16 @@ func (r *hwidDeviceResource) Configure(_ context.Context, req resource.Configure
 	r.client = client
 }
 
+// hwidCreateReq builds the create request. Only the identity pair is sent:
+// the metadata attributes are Computed (panel-owned) and never settable in
+// config, so they are always null/unknown in the plan and have no source
+// value. The backend does not offer an Update endpoint, so sending them would
+// be pointless — the panel overwrites them on the next client connection.
 func hwidCreateReq(plan *hwidDeviceModel) map[string]any {
-	req := map[string]any{
+	return map[string]any{
 		"userUuid": plan.UserUUID.ValueString(),
 		"hwid":     plan.Hwid.ValueString(),
 	}
-	if !plan.Platform.IsNull() && !plan.Platform.IsUnknown() {
-		req["platform"] = plan.Platform.ValueString()
-	}
-	if !plan.OsVersion.IsNull() && !plan.OsVersion.IsUnknown() {
-		req["osVersion"] = plan.OsVersion.ValueString()
-	}
-	if !plan.DeviceModel.IsNull() && !plan.DeviceModel.IsUnknown() {
-		req["deviceModel"] = plan.DeviceModel.ValueString()
-	}
-	if !plan.UserAgent.IsNull() && !plan.UserAgent.IsUnknown() {
-		req["userAgent"] = plan.UserAgent.ValueString()
-	}
-	if !plan.RequestIp.IsNull() && !plan.RequestIp.IsUnknown() {
-		req["requestIp"] = plan.RequestIp.ValueString()
-	}
-	return req
 }
 
 func (r *hwidDeviceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -215,7 +195,8 @@ func (r *hwidDeviceResource) Read(ctx context.Context, req resource.ReadRequest,
 }
 
 func (r *hwidDeviceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	// All attributes use RequiresReplace, so Update is never invoked.
+	// All configurable attributes (user_uuid, hwid) use RequiresReplace and the
+	// metadata fields are read-only (Computed), so Update is never invoked.
 	var plan hwidDeviceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
