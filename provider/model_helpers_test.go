@@ -8,6 +8,8 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -171,6 +173,43 @@ func TestHwidCreateRequest(t *testing.T) {
 	}
 	if got := hwidCreateReq(plan); !reflect.DeepEqual(got, want) {
 		t.Errorf("hwidCreateReq() = %#v, want %#v", got, want)
+	}
+}
+
+func TestHwidDeviceSchema(t *testing.T) {
+	t.Parallel()
+
+	r := NewHwidDeviceResource()
+	var resp resource.SchemaResponse
+	r.Schema(t.Context(), resource.SchemaRequest{}, &resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("hwid_device schema diagnostics: %v", resp.Diagnostics)
+	}
+
+	// The identity pair is the only user input and forces replacement on change.
+	for _, name := range []string{"user_uuid", "hwid"} {
+		attr, ok := resp.Schema.Attributes[name].(schema.StringAttribute)
+		if !ok {
+			t.Fatalf("%s is not a schema.StringAttribute", name)
+		}
+		if !attr.Required || attr.Computed || attr.Optional {
+			t.Errorf("%s: want Required-only, got Required=%v Computed=%v Optional=%v", name, attr.Required, attr.Computed, attr.Optional)
+		}
+	}
+
+	// Metadata fields are panel-collected (Computed) and must never be set in
+	// config: the backend has no Update endpoint and overwrites them on the next
+	// client connection. Asserting Computed-only here keeps Terraform from
+	// accepting them in HCL without depending on plan-error wording, which
+	// differs across Terraform versions and previously broke the acc suite.
+	for _, name := range []string{"platform", "os_version", "device_model", "user_agent", "request_ip"} {
+		attr, ok := resp.Schema.Attributes[name].(schema.StringAttribute)
+		if !ok {
+			t.Fatalf("%s is not a schema.StringAttribute", name)
+		}
+		if !attr.Computed || attr.Optional || attr.Required {
+			t.Errorf("%s: want Computed-only (read-only), got Computed=%v Optional=%v Required=%v", name, attr.Computed, attr.Optional, attr.Required)
+		}
 	}
 }
 

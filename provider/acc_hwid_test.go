@@ -2,7 +2,6 @@ package provider
 
 import (
 	"fmt"
-	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -38,24 +37,6 @@ resource "remnawave_hwid_device" "test" {
 				ImportState:       true,
 				ImportStateVerify: true,
 				ImportStateIdFunc: resourceAttrImportStateID("remnawave_hwid_device.test", "id"),
-			},
-			{
-				// Metadata fields are Computed-only (panel-owned; no Update endpoint).
-				// Setting any of them in config must be rejected at validation time.
-				Config: providerCfg + `
-resource "remnawave_user" "hwid" {
-  username          = "hwid-acc-user"
-  expire_at         = "2028-01-01T00:00:00.000Z"
-  hwid_device_limit = 2
-}
-
-resource "remnawave_hwid_device" "test" {
-  user_uuid  = remnawave_user.hwid.uuid
-  hwid       = "terraform-acceptance-device"
-  user_agent = "must-not-be-settable"
-}
-`,
-				ExpectError: regexp.MustCompile(`(?i)value for unconfigurable|cannot be set|can't configure|calculated by the provider`),
 			},
 		},
 	})
