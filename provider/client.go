@@ -1104,6 +1104,22 @@ func (c *Client) GetInternalSquadAccessibleNodes(ctx context.Context, uuid strin
 	return &out, nil
 }
 
+// internalSquadsListResponse mirrors the inner object of
+// GET /api/internal-squads ({ response: { total, internalSquads } }); the outer
+// envelope is stripped automatically by decodeResponse.
+type internalSquadsListResponse struct {
+	Total          int             `json:"total"`
+	InternalSquads []InternalSquad `json:"internalSquads"`
+}
+
+func (c *Client) GetAllInternalSquads(ctx context.Context) ([]InternalSquad, error) {
+	var out internalSquadsListResponse
+	if err := c.doRequest(ctx, http.MethodGet, "/api/internal-squads", nil, &out); err != nil {
+		return nil, err
+	}
+	return out.InternalSquads, nil
+}
+
 // ─── External Squad API ───
 
 func (c *Client) CreateExternalSquad(ctx context.Context, squad *ExternalSquad) (*ExternalSquad, error) {
@@ -1132,6 +1148,22 @@ func (c *Client) UpdateExternalSquad(ctx context.Context, squad *ExternalSquad) 
 
 func (c *Client) DeleteExternalSquad(ctx context.Context, uuid string) error {
 	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/external-squads/%s", uuid), nil, nil)
+}
+
+// externalSquadsListResponse mirrors the inner object of
+// GET /api/external-squads ({ response: { total, externalSquads } }); the outer
+// envelope is stripped automatically by decodeResponse.
+type externalSquadsListResponse struct {
+	Total          int             `json:"total"`
+	ExternalSquads []ExternalSquad `json:"externalSquads"`
+}
+
+func (c *Client) GetAllExternalSquads(ctx context.Context) ([]ExternalSquad, error) {
+	var out externalSquadsListResponse
+	if err := c.doRequest(ctx, http.MethodGet, "/api/external-squads", nil, &out); err != nil {
+		return nil, err
+	}
+	return out.ExternalSquads, nil
 }
 
 // ─── Subscription Template API ───

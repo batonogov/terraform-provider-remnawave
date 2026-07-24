@@ -76,11 +76,13 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "UpdateInternalSquad", method: http.MethodPatch, path: "/api/internal-squads", args: []any{&InternalSquad{UUID: "item-id", Name: "squad"}}},
 		{name: "DeleteInternalSquad", method: http.MethodDelete, path: "/api/internal-squads/item-id", args: []any{"item-id"}},
 		{name: "GetInternalSquadAccessibleNodes", method: http.MethodGet, path: "/api/internal-squads/item-id/accessible-nodes", args: []any{"item-id"}},
+		{name: "GetAllInternalSquads", method: http.MethodGet, path: "/api/internal-squads"},
 
 		{name: "CreateExternalSquad", method: http.MethodPost, path: "/api/external-squads", args: []any{&ExternalSquad{Name: "squad"}}},
 		{name: "GetExternalSquadByUUID", method: http.MethodGet, path: "/api/external-squads/item-id", args: []any{"item-id"}},
 		{name: "UpdateExternalSquad", method: http.MethodPatch, path: "/api/external-squads", args: []any{&ExternalSquad{UUID: "item-id", Name: "squad"}}},
 		{name: "DeleteExternalSquad", method: http.MethodDelete, path: "/api/external-squads/item-id", args: []any{"item-id"}},
+		{name: "GetAllExternalSquads", method: http.MethodGet, path: "/api/external-squads"},
 
 		{name: "CreateSubscriptionTemplate", method: http.MethodPost, path: "/api/subscription-templates", args: []any{&SubscriptionTemplate{Name: "template"}}},
 		{name: "GetSubscriptionTemplateByUUID", method: http.MethodGet, path: "/api/subscription-templates/item-id", args: []any{"item-id"}},

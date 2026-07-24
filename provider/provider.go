@@ -255,6 +255,8 @@ func (p *RemnawaveProvider) DataSources(_ context.Context) []func() datasource.D
 		NewHostTagsDataSource,
 		NewUserIPsDataSource,
 		NewPasskeysDataSource,
+		NewInternalSquadsDataSource,
+		NewExternalSquadsDataSource,
 	}
 }
 
