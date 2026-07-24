@@ -1112,6 +1112,12 @@ type internalSquadsListResponse struct {
 	InternalSquads []InternalSquad `json:"internalSquads"`
 }
 
+// GetAllInternalSquads lists every internal squad. Unlike the endpoints
+// fixed in #106 (/api/users, /api/subscription-request-history, /api/hwid/*)
+// these are NOT subject to TanstackQueryRequestQuerySchema: the backend's
+// getInternalSquads controller takes no @Query() and the repository applies no
+// LIMIT/OFFSET, so the full result set is returned in one response. Hence no
+// ?size= query is appended here — see #206 for the contract verification.
 func (c *Client) GetAllInternalSquads(ctx context.Context) ([]InternalSquad, error) {
 	var out internalSquadsListResponse
 	if err := c.doRequest(ctx, http.MethodGet, "/api/internal-squads", nil, &out); err != nil {
@@ -1158,6 +1164,10 @@ type externalSquadsListResponse struct {
 	ExternalSquads []ExternalSquad `json:"externalSquads"`
 }
 
+// GetAllExternalSquads lists every external squad. Same rationale as
+// GetAllInternalSquads above: the backend endpoint is not paginated
+// (getExternalSquads takes no @Query(), repository has no LIMIT/OFFSET), so the
+// full list is returned without a ?size= query. See #106 and #206.
 func (c *Client) GetAllExternalSquads(ctx context.Context) ([]ExternalSquad, error) {
 	var out externalSquadsListResponse
 	if err := c.doRequest(ctx, http.MethodGet, "/api/external-squads", nil, &out); err != nil {
