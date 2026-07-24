@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.0.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.7.2...v1.0.0) (2026-07-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* **hwid_device:** remnawave_hwid_device metadata fields (device_model, os_version, platform, request_ip, user_agent) are now read-only (Computed). They are panel-collected; the provider has no Update endpoint, so setting them in HCL never persisted. Remove them from your configuration.
+
+### Features
+
+* **data-source:** add remnawave_internal_squads and remnawave_external_squads ([#204](https://github.com/batonogov/terraform-provider-remnawave/issues/204)) ([d1e3a9c](https://github.com/batonogov/terraform-provider-remnawave/commit/d1e3a9cdbd84d6c097f881418276c4c7579b79ba))
+
+
+### Bug Fixes
+
+* **hwid_device:** metadata fields are read-only (Computed) ([#207](https://github.com/batonogov/terraform-provider-remnawave/issues/207)) ([26f8d5c](https://github.com/batonogov/terraform-provider-remnawave/commit/26f8d5ce9155a9c51853e56bbbd8873cafd90dd1))
+
 ## [0.7.2](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.6.1...v0.7.2) (2026-07-23)
 
 Terraform Registry currently ends at v0.6.1: v0.6.2 was rejected during
