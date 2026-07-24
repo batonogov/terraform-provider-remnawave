@@ -103,9 +103,9 @@ func (r *hwidDeviceResource) Configure(_ context.Context, req resource.Configure
 
 // hwidCreateReq builds the create request. Only the identity pair is sent:
 // the metadata attributes are Computed (panel-owned) and never settable in
-// config, so they are always null/unknown in the plan and have no source
-// value. The backend does not offer an Update endpoint, so sending them would
-// be pointless — the panel overwrites them on the next client connection.
+// config, so they have no source value in the plan. The backend does not offer
+// an Update endpoint, so sending them would be pointless — the panel
+// overwrites them on the next client connection.
 func hwidCreateReq(plan *hwidDeviceModel) map[string]any {
 	return map[string]any{
 		"userUuid": plan.UserUUID.ValueString(),
@@ -126,6 +126,19 @@ func (r *hwidDeviceResource) Create(ctx context.Context, req resource.CreateRequ
 	}
 
 	plan.Id = types.StringValue(fmt.Sprintf("%s:%s", plan.UserUUID.ValueString(), plan.Hwid.ValueString()))
+
+	// The metadata fields are Computed and have no config source, so they arrive
+	// from the plan as unknown markers. Terraform rejects unknown values in the
+	// post-apply state ("provider still indicated an unknown value"), so
+	// materialize them as null here. The panel populates them asynchronously on
+	// the next client connection, at which point Read refreshes them; until then
+	// null is the correct value (the device was just registered).
+	plan.Platform = types.StringNull()
+	plan.OsVersion = types.StringNull()
+	plan.DeviceModel = types.StringNull()
+	plan.UserAgent = types.StringNull()
+	plan.RequestIp = types.StringNull()
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
