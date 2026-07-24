@@ -21,10 +21,13 @@ func TestAccInternalSquadsDataSource(t *testing.T) {
 			{
 				Config: providerCfg + `
 resource "remnawave_internal_squad" "test" {
-  name = "ds-test-internal-squad"
+  name     = "ds-test-internal-squad"
+  inbounds = []
 }
 
-data "remnawave_internal_squads" "all" {}
+data "remnawave_internal_squads" "all" {
+  depends_on = [remnawave_internal_squad.test]
+}
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("data.remnawave_internal_squads.all", "internal_squads.#"),
@@ -55,7 +58,9 @@ resource "remnawave_external_squad" "test" {
   name = "ds-test-external-squad"
 }
 
-data "remnawave_external_squads" "all" {}
+data "remnawave_external_squads" "all" {
+  depends_on = [remnawave_external_squad.test]
+}
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("data.remnawave_external_squads.all", "external_squads.#"),
