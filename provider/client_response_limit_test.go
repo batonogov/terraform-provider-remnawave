@@ -49,6 +49,99 @@ func TestDecodeResponseBodyLimit(t *testing.T) {
 	})
 }
 
+func TestDecodeResponseRejectsEveryNon2xxWithoutReadingBody(t *testing.T) {
+	t.Parallel()
+
+	for _, status := range []int{
+		http.StatusSwitchingProtocols,
+		199,
+		http.StatusMultipleChoices,
+		http.StatusNotModified,
+		http.StatusBadRequest,
+		http.StatusInternalServerError,
+	} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			body := &trackingReadCloser{Reader: strings.NewReader("reflected-response-secret")}
+			err := (&Client{}).decodeResponse(&http.Response{
+				StatusCode: status,
+				Body:       body,
+			}, nil)
+
+			var statusErr *HTTPStatusError
+			if !errors.As(err, &statusErr) || statusErr.StatusCode != status {
+				t.Fatalf("decodeResponse() error = %v, want status-only %d error", err, status)
+			}
+			if body.read {
+				t.Fatal("non-2xx response body was read")
+			}
+			if strings.Contains(err.Error(), "reflected-response-secret") {
+				t.Fatalf("non-2xx error disclosed response body: %v", err)
+			}
+		})
+	}
+}
+
+func TestRedirectWithoutLocationIsAnHTTPError(t *testing.T) {
+	t.Parallel()
+
+	for _, status := range []int{
+		http.StatusMovedPermanently,
+		http.StatusFound,
+		http.StatusTemporaryRedirect,
+		http.StatusPermanentRedirect,
+	} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(status)
+				_, _ = io.WriteString(w, "reflected-redirect-secret")
+			}))
+			t.Cleanup(server.Close)
+
+			client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "static-token"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = client.GetSystemHealth(context.Background())
+			var statusErr *HTTPStatusError
+			if !errors.As(err, &statusErr) || statusErr.StatusCode != status {
+				t.Fatalf("GetSystemHealth() error = %v, want status-only %d error", err, status)
+			}
+			if strings.Contains(err.Error(), "reflected-redirect-secret") {
+				t.Fatalf("redirect error disclosed response body: %v", err)
+			}
+		})
+	}
+}
+
+func TestRequestWithNilOutputRejectsNon2xx(t *testing.T) {
+	t.Parallel()
+
+	client, err := NewClient(ClientConfig{
+		Endpoint: "http://example.test",
+		APIToken: "static-token",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client.httpClient.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusNotModified,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader("reflected-action-secret")),
+			Request:    req,
+		}, nil
+	})
+
+	err = client.doRequest(context.Background(), http.MethodDelete, "/api/nodes/node-id", nil, nil)
+	var statusErr *HTTPStatusError
+	if !errors.As(err, &statusErr) || statusErr.StatusCode != http.StatusNotModified {
+		t.Fatalf("doRequest() error = %v, want status-only 304 error", err)
+	}
+	if strings.Contains(err.Error(), "reflected-action-secret") {
+		t.Fatalf("action error disclosed response body: %v", err)
+	}
+}
+
 func TestChunkedResponseBodyLimit(t *testing.T) {
 	t.Parallel()
 

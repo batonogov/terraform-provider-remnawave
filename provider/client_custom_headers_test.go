@@ -428,11 +428,11 @@ func TestCustomHeaderValuesAreRedactedFromRequestErrors(t *testing.T) {
 	})
 
 	_, err = client.GetSystemHealth(context.Background())
-	if err == nil || strings.Contains(err.Error(), secret) || !strings.Contains(err.Error(), "[REDACTED]") {
-		t.Fatalf("GetSystemHealth() error = %v, want redacted transport error", err)
+	if !errors.Is(err, errHTTPRequestFailed) || strings.Contains(err.Error(), secret) {
+		t.Fatalf("GetSystemHealth() error = %v, want opaque transport error", err)
 	}
 	if errors.Is(err, transportErr) {
-		t.Errorf("redacted request error exposed the secret-bearing transport error")
+		t.Errorf("opaque request error exposed the secret-bearing transport error")
 	}
 }
 
@@ -695,8 +695,8 @@ func TestCustomHeaderRedirects(t *testing.T) {
 		if strings.Contains(err.Error(), secret) || strings.Contains(err.Error(), escapedSecret) {
 			t.Fatalf("same-origin redirect error disclosed reflected header value: %v", err)
 		}
-		if !strings.Contains(err.Error(), "connection closed") {
-			t.Errorf("sanitized error lost safe transport detail: %v", err)
+		if !errors.Is(err, errHTTPRequestFailed) {
+			t.Errorf("sanitized error = %v, want opaque transport error", err)
 		}
 		var urlErr *url.Error
 		if errors.As(err, &urlErr) {
