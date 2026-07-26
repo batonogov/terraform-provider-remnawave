@@ -520,8 +520,11 @@ func TestRequestErrors(t *testing.T) {
 		return nil, want
 	})
 	_, err = client.GetSystemHealth(context.Background())
-	if !errors.Is(err, want) {
-		t.Fatalf("transport error = %v, want %v", err, want)
+	if !errors.Is(err, errHTTPRequestFailed) {
+		t.Fatalf("transport error = %v, want opaque request error", err)
+	}
+	if errors.Is(err, want) {
+		t.Fatalf("transport error retained unsafe cause %v", want)
 	}
 }
 

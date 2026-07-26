@@ -10,7 +10,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -83,16 +82,11 @@ func (e *HTTPStatusError) Error() string {
 	return fmt.Sprintf("request failed: status %d, body: %s", e.StatusCode, e.Body)
 }
 
-type redactedRequestError struct {
-	message string
-}
-
-func (e *redactedRequestError) Error() string { return e.message }
-
 var (
 	errCrossOriginRedirect         = errors.New("refusing to redirect to a different origin")
 	errRedirectLimit               = errors.New("stopped after 10 redirects")
 	errInvalidRedirectLocation     = errors.New("redirect response contained an invalid Location header")
+	errHTTPRequestFailed           = errors.New("HTTP request failed")
 	errResponseBodyRead            = errors.New("failed to read HTTP response body")
 	errResponseBodyTooLarge        = errors.New("HTTP response body exceeds 32 MiB limit")
 	errMutatingRequestUnauthorized = errors.New("request failed: status 401; authentication expired and mutating request was not retried")
@@ -429,7 +423,7 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, o
 	// POST, PUT, PATCH, or DELETE could apply the operation twice.
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return c.redactRequestError(err)
+		return c.sanitizeRequestError(err)
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized && c.apiToken == "" {
@@ -455,7 +449,7 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, o
 		}
 		resp, err = c.httpClient.Do(req2)
 		if err != nil {
-			return c.redactRequestError(err)
+			return c.sanitizeRequestError(err)
 		}
 	}
 
@@ -465,7 +459,7 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any, o
 func (c *Client) sendRequest(req *http.Request, out any) error {
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return c.redactRequestError(err)
+		return c.sanitizeRequestError(err)
 	}
 	return c.decodeResponse(resp, out)
 }
@@ -479,7 +473,7 @@ func (c *Client) decodeResponse(resp *http.Response, out any) error {
 	// Error response bodies are untrusted and can reflect credentials, custom
 	// headers, or request payloads in encodings that cannot be exhaustively
 	// redacted. Return status-only diagnostics without reading the body.
-	if resp.StatusCode >= 400 {
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		return &HTTPStatusError{StatusCode: resp.StatusCode}
 	}
 
@@ -519,53 +513,7 @@ func (c *Client) setCustomHeaders(req *http.Request) {
 	}
 }
 
-func (c *Client) redactCustomHeaderValues(value string) string {
-	if value == "" || len(c.customHeaders) == 0 {
-		return value
-	}
-
-	unique := make(map[string]struct{}, len(c.customHeaders)*2)
-	secrets := make([]string, 0, len(c.customHeaders)*2)
-	addPattern := func(pattern string) {
-		if pattern == "" {
-			return
-		}
-		if _, exists := unique[pattern]; exists {
-			return
-		}
-		unique[pattern] = struct{}{}
-		secrets = append(secrets, pattern)
-	}
-	for _, secret := range c.customHeaders {
-		if secret == "" {
-			continue
-		}
-		addPattern(secret)
-		// Reverse proxies commonly return structured JSON error bodies. Include
-		// the JSON string-content representation so quotes, backslashes, tabs,
-		// and encoding/json's HTML escapes cannot reveal a reversible secret.
-		if encoded, err := json.Marshal(secret); err == nil && len(encoded) >= 2 {
-			addPattern(string(encoded[1 : len(encoded)-1]))
-		}
-	}
-	if len(secrets) == 0 {
-		return value
-	}
-
-	sort.Slice(secrets, func(i, j int) bool {
-		if len(secrets[i]) == len(secrets[j]) {
-			return secrets[i] < secrets[j]
-		}
-		return len(secrets[i]) > len(secrets[j])
-	})
-	replacements := make([]string, 0, len(secrets)*2)
-	for _, secret := range secrets {
-		replacements = append(replacements, secret, "[REDACTED]")
-	}
-	return strings.NewReplacer(replacements...).Replace(value)
-}
-
-func (c *Client) redactRequestError(err error) error {
+func (*Client) sanitizeRequestError(err error) error {
 	if err == nil {
 		return nil
 	}
@@ -575,34 +523,21 @@ func (c *Client) redactRequestError(err error) error {
 	if errors.Is(err, errRedirectLimit) {
 		return errRedirectLimit
 	}
+	if errors.Is(err, context.Canceled) {
+		return context.Canceled
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return context.DeadlineExceeded
+	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Err != nil && strings.Contains(urlErr.Err.Error(), "failed to parse Location header") {
 		return errInvalidRedirectLocation
 	}
-	if len(c.customHeaders) > 0 {
-		if errors.As(err, &urlErr) {
-			message := "HTTP request failed"
-			if urlErr.Op != "" {
-				message = urlErr.Op + " request failed"
-			}
-			if urlErr.Err != nil {
-				message += ": " + c.redactCustomHeaderValues(urlErr.Err.Error())
-			}
-			// url.Error.URL may be a same-origin redirect URL containing a
-			// percent-encoded reflection of a secret. Omit it, and do not expose
-			// the original url.Error through an unwrap-able cause.
-			return &redactedRequestError{message: message}
-		}
-	}
-	rawMessage := err.Error()
-	message := c.redactCustomHeaderValues(rawMessage)
-	if message == rawMessage {
-		return err
-	}
-	// Do not retain an unwrap-able cause here: redirect and transport errors
-	// can themselves contain the reflected secret. Returning that cause would
-	// let callers recover the value through errors.Unwrap/errors.As.
-	return &redactedRequestError{message: message}
+	// Transport and protocol errors can contain the complete request URL,
+	// reflected credentials, request payload values, or remote-controlled
+	// parser text. Collapse every remaining failure to a static sentinel and
+	// deliberately do not retain an unwrap-able cause.
+	return errHTTPRequestFailed
 }
 
 func (c *Client) resolvePath(path string) string {
