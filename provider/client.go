@@ -118,6 +118,9 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 		return nil, err
 	}
 
+	if cfg.Timeout < 0 {
+		return nil, errors.New("timeout must not be negative")
+	}
 	timeout := cfg.Timeout
 	if timeout == 0 {
 		timeout = 30 * time.Second

@@ -22,6 +22,7 @@ func TestNewClientValidation(t *testing.T) {
 	tests := []struct {
 		name     string
 		endpoint string
+		timeout  time.Duration
 		wantErr  string
 	}{
 		{name: "empty", wantErr: "endpoint is required"},
@@ -31,12 +32,13 @@ func TestNewClientValidation(t *testing.T) {
 		{name: "missing host", endpoint: "http:///api", wantErr: "endpoint must include a host"},
 		{name: "query string", endpoint: "https://example.com?debug=true", wantErr: "must not include a query string or fragment"},
 		{name: "fragment", endpoint: "https://example.com/#docs", wantErr: "must not include a query string or fragment"},
+		{name: "negative timeout", endpoint: "https://example.com", timeout: -time.Second, wantErr: "timeout must not be negative"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := NewClient(ClientConfig{Endpoint: tt.endpoint})
+			_, err := NewClient(ClientConfig{Endpoint: tt.endpoint, Timeout: tt.timeout})
 			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
 				t.Fatalf("NewClient() error = %v, want error containing %q", err, tt.wantErr)
 			}

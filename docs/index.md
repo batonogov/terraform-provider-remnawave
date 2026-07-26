@@ -61,5 +61,5 @@ provider "remnawave" {
 - `insecure_skip_verify` (Boolean) Skip TLS certificate verification (useful for self-signed certs). Can also be set via REMNAWAVE_INSECURE_SKIP_VERIFY env var.
 - `password` (String, Sensitive) Remnawave admin password for login. Can also be set via REMNAWAVE_PASSWORD env var.
 - `proxy_headers` (Boolean) Send X-Forwarded-For/X-Forwarded-Proto headers to bypass ProxyCheckMiddleware when connecting without a reverse proxy. Can also be set via REMNAWAVE_PROXY_HEADERS env var.
-- `request_timeout` (String) HTTP request timeout (e.g. 30s, 1m). Default: 30s. Can also be set via REMNAWAVE_REQUEST_TIMEOUT env var.
+- `request_timeout` (String) Positive HTTP request timeout (e.g. 30s, 1m). Default: 30s. Can also be set via REMNAWAVE_REQUEST_TIMEOUT env var.
 - `username` (String) Remnawave admin username for login. Can also be set via REMNAWAVE_USERNAME env var.

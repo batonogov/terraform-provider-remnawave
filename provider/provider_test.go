@@ -10,10 +10,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	datasourceschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	frameworkprovider "github.com/hashicorp/terraform-plugin-framework/provider"
 	providerschema "github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	resourceschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	schemavalidator "github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
@@ -62,6 +64,45 @@ func TestProviderMetadataAndSchema(t *testing.T) {
 	}
 	if !customHeaders.ElementType.Equal(types.StringType) {
 		t.Errorf("custom_headers element type = %s, want %s", customHeaders.ElementType, types.StringType)
+	}
+
+	requestTimeout, ok := schemaResp.Schema.Attributes["request_timeout"].(providerschema.StringAttribute)
+	if !ok {
+		t.Fatalf("request_timeout attribute type = %T", schemaResp.Schema.Attributes["request_timeout"])
+	}
+	if len(requestTimeout.Validators) != 1 {
+		t.Fatalf("request_timeout validators = %d, want 1", len(requestTimeout.Validators))
+	}
+}
+
+func TestRequestTimeoutSchemaValidator(t *testing.T) {
+	t.Parallel()
+
+	validator := positiveDurationValidator{}
+	tests := []struct {
+		name      string
+		value     types.String
+		wantError bool
+	}{
+		{name: "null", value: types.StringNull()},
+		{name: "unknown", value: types.StringUnknown()},
+		{name: "positive", value: types.StringValue("250ms")},
+		{name: "zero", value: types.StringValue("0s"), wantError: true},
+		{name: "negative", value: types.StringValue("-1ns"), wantError: true},
+		{name: "invalid", value: types.StringValue("tomorrow"), wantError: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var resp schemavalidator.StringResponse
+			validator.ValidateString(context.Background(), schemavalidator.StringRequest{
+				Path:        path.Root("request_timeout"),
+				ConfigValue: tt.value,
+			}, &resp)
+			if resp.Diagnostics.HasError() != tt.wantError {
+				t.Fatalf("ValidateString() diagnostics = %v, wantError = %v", resp.Diagnostics, tt.wantError)
+			}
+		})
 	}
 }
 
@@ -463,6 +504,54 @@ func TestProviderConfigure(t *testing.T) {
 			}),
 		}, &resp)
 		assertDiagnosticSummary(t, resp.Diagnostics, "Invalid request_timeout")
+	})
+
+	t.Run("non-positive configured timeout", func(t *testing.T) {
+		for _, timeout := range []string{"0s", "-1s"} {
+			t.Run(timeout, func(t *testing.T) {
+				var resp frameworkprovider.ConfigureResponse
+				p.Configure(context.Background(), frameworkprovider.ConfigureRequest{
+					Config: testProviderConfig(schemaResp.Schema, map[string]any{
+						"endpoint":        "https://panel.example.com",
+						"api_token":       "token",
+						"request_timeout": timeout,
+					}),
+				}, &resp)
+				assertDiagnosticSummary(t, resp.Diagnostics, "Invalid request_timeout")
+			})
+		}
+	})
+
+	t.Run("non-positive timeout environment", func(t *testing.T) {
+		for _, timeout := range []string{"0s", "-1s"} {
+			t.Run(timeout, func(t *testing.T) {
+				t.Setenv(envEndpoint, "https://panel.example.com")
+				t.Setenv(envAPIToken, "token")
+				t.Setenv(envRequestTimeout, timeout)
+				var resp frameworkprovider.ConfigureResponse
+				p.Configure(context.Background(), frameworkprovider.ConfigureRequest{
+					Config: testProviderConfig(schemaResp.Schema, nil),
+				}, &resp)
+				assertDiagnosticSummary(t, resp.Diagnostics, "Invalid request_timeout")
+			})
+		}
+	})
+
+	t.Run("omitted timeout uses default", func(t *testing.T) {
+		var resp frameworkprovider.ConfigureResponse
+		p.Configure(context.Background(), frameworkprovider.ConfigureRequest{
+			Config: testProviderConfig(schemaResp.Schema, map[string]any{
+				"endpoint":  "https://panel.example.com",
+				"api_token": "token",
+			}),
+		}, &resp)
+		if resp.Diagnostics.HasError() {
+			t.Fatalf("Configure() diagnostics: %v", resp.Diagnostics)
+		}
+		client := resp.ResourceData.(*Client)
+		if client.httpClient.Timeout != 30*time.Second {
+			t.Errorf("timeout = %s, want 30s", client.httpClient.Timeout)
+		}
 	})
 
 	t.Run("invalid endpoint", func(t *testing.T) {

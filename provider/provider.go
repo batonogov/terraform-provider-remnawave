@@ -8,12 +8,12 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -84,7 +84,10 @@ func (p *RemnawaveProvider) Schema(_ context.Context, _ provider.SchemaRequest, 
 			},
 			"request_timeout": schema.StringAttribute{
 				Optional:    true,
-				Description: "HTTP request timeout (e.g. 30s, 1m). Default: 30s. Can also be set via REMNAWAVE_REQUEST_TIMEOUT env var.",
+				Description: "Positive HTTP request timeout (e.g. 30s, 1m). Default: 30s. Can also be set via REMNAWAVE_REQUEST_TIMEOUT env var.",
+				Validators: []validator.String{
+					positiveDurationValidator{},
+				},
 			},
 			"proxy_headers": schema.BoolAttribute{
 				Optional:    true,
@@ -150,7 +153,7 @@ func (p *RemnawaveProvider) Configure(ctx context.Context, req provider.Configur
 	}
 
 	timeoutStr := envString(config.RequestTimeout, envRequestTimeout, "30s")
-	timeout, err := time.ParseDuration(timeoutStr)
+	timeout, err := parsePositiveDuration(timeoutStr)
 	if err != nil {
 		resp.Diagnostics.AddError("Invalid request_timeout", err.Error())
 		return
