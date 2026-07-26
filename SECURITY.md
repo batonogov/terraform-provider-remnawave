@@ -61,3 +61,8 @@ Releases include a per-archive SPDX SBOM, GPG-signed checksums, and a
 GitHub/Sigstore provenance bundle. The release remains a draft until every
 archive/SBOM pair and attestation has been verified. Consumer verification
 steps are documented in `docs/release-verification.md`.
+
+The current release-key fingerprint is
+`CB77 A603 7F6C A36D 514C 8DC5 B6D2 12FC 24D5 A5B1`. Treat any replacement
+fingerprint as an explicit key rotation and follow the bootstrap, rotation, and
+revocation procedure in the verification guide.

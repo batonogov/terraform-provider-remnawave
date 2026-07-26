@@ -129,6 +129,7 @@ jobs:
         run: |
           ./scripts/test-verify-release-supply-chain.sh
           ./scripts/test-publish-release-draft.sh
+          ./scripts/test-smoke-verify-published-release.sh
 
   repository-policy-tests:
     name: Repository Policy Tests
