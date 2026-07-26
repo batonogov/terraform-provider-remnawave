@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.1](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.0.0...v1.0.1) (2026-07-26)
+
+
+### Bug Fixes
+
+* **client:** harden HTTP failure handling ([#215](https://github.com/batonogov/terraform-provider-remnawave/issues/215)) ([074ee3b](https://github.com/batonogov/terraform-provider-remnawave/commit/074ee3b2f2dfacce2ec5560d20f76873c47c2be8))
+* **provider:** reject non-positive request timeouts ([#217](https://github.com/batonogov/terraform-provider-remnawave/issues/217)) ([83abe90](https://github.com/batonogov/terraform-provider-remnawave/commit/83abe90483b1c97fda26312bdcce21387a982486))
+* **repo:** enforce solo-maintainer security controls ([#216](https://github.com/batonogov/terraform-provider-remnawave/issues/216)) ([f9cae6f](https://github.com/batonogov/terraform-provider-remnawave/commit/f9cae6fd1f9c5a33ef7a011417a7471781d9ea6d))
+
 ## [1.0.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v0.7.2...v1.0.0) (2026-07-24)
 
 
