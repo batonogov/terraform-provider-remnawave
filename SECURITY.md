@@ -25,6 +25,11 @@ does not encrypt or remove them from state. Store state in a protected backend,
 restrict access to state snapshots and backups, and avoid publishing state as a
 CI artifact.
 
+Terraform also propagates sensitivity through expressions. A root output that
+intentionally exposes a Sensitive provider attribute must declare
+`sensitive = true`; existing configurations may need that annotation after a
+provider upgrade marks an attribute as Sensitive.
+
 ## Vulnerability Gate
 
 CI runs the pinned `govulncheck` source scan and blocks changes when provider

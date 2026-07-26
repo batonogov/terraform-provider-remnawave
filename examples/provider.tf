@@ -1,8 +1,7 @@
 terraform {
   required_providers {
     remnawave = {
-      source  = "batonogov/remnawave"
-      version = "~> 0.6.0"
+      source = "batonogov/remnawave"
     }
   }
 }
@@ -50,7 +49,8 @@ resource "remnawave_user" "example" {
 data "remnawave_nodes" "all" {}
 
 output "subscription_url" {
-  value = remnawave_user.example.subscription_url
+  value     = remnawave_user.example.subscription_url
+  sensitive = true
 }
 
 output "nodes" {

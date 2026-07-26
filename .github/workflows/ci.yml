@@ -85,6 +85,8 @@ jobs:
           terraform_wrapper: false
       - name: Check example formatting
         run: terraform fmt -check -recursive examples
+      - name: Validate examples against the local provider schema
+        run: ./scripts/validate-provider-examples.sh
       - name: Regenerate and validate provider documentation
         run: |
           go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.24.0 generate --provider-dir .

@@ -15,8 +15,7 @@ A Terraform provider for Remnawave — a proxy management panel built on Xray-co
 terraform {
   required_providers {
     remnawave = {
-      source  = "batonogov/remnawave"
-      version = "~> 0.6.0"
+      source = "batonogov/remnawave"
     }
   }
 }
