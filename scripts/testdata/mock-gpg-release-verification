@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+case " $* " in
+  *" --show-keys "*)
+    printf 'fpr:::::::::%s:\n' \
+      "${MOCK_GPG_FINGERPRINT:-CB77A6037F6CA36D514C8DC5B6D212FC24D5A5B1}"
+    ;;
+  *" --import "* | *" --verify "*)
+    ;;
+  *)
+    echo "mock gpg: unsupported command: $*" >&2
+    exit 1
+    ;;
+esac

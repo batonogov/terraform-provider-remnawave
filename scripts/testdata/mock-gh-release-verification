@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "${1:-}" in
+  api)
+    printf '%040d\n' 1
+    ;;
+  attestation)
+    printf '%s\n' "$*" >>"$GH_MOCK_LOG"
+    ;;
+  release)
+    echo "mock gh: release download must not run in offline tests" >&2
+    exit 1
+    ;;
+  *)
+    echo "mock gh: unsupported command: $*" >&2
+    exit 1
+    ;;
+esac

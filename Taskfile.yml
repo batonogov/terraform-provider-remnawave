@@ -72,6 +72,7 @@ tasks:
     cmds:
       - ./scripts/test-verify-release-supply-chain.sh
       - ./scripts/test-publish-release-draft.sh
+      - ./scripts/test-smoke-verify-published-release.sh
 
   test:acc:
     desc: Run acceptance tests (needs Docker)
