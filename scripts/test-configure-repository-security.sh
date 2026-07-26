@@ -16,6 +16,7 @@ cp "$repository_dir/.github/repository-settings/actions-permissions.json" \
 cp "$repository_dir/.github/repository-settings/workflow-permissions.json" \
   "$temporary_dir/fixtures/workflow.json"
 jq '{
+  can_admins_bypass: false,
   protection_rules: [{
     type: "required_reviewers",
     prevent_self_review: .prevent_self_review,
@@ -24,6 +25,14 @@ jq '{
   deployment_branch_policy: .deployment_branch_policy
 }' "$repository_dir/.github/repository-settings/release-environment.json" \
   >"$temporary_dir/fixtures/environment.json"
+printf '%s\n' '{"enabled":true}' \
+  >"$temporary_dir/fixtures/immutable-releases.json"
+printf '%s\n' \
+  '{"secrets":[{"name":"REPOSITORY_SECURITY_AUDIT_TOKEN"}]}' \
+  >"$temporary_dir/fixtures/repository-secrets.json"
+printf '%s\n' \
+  '{"secrets":[{"name":"RELEASE_GPG_PRIVATE_KEY"},{"name":"RELEASE_GPG_PASSPHRASE"}]}' \
+  >"$temporary_dir/fixtures/environment-secrets.json"
 
 cp "$script_dir/testdata/mock-gh-repository-security" "$temporary_dir/bin/gh"
 chmod +x "$temporary_dir/bin/gh"
@@ -51,13 +60,45 @@ for expected in \
   }
 done
 
+jq '
+  (.rules[]
+    | select(.type == "pull_request")
+    | .parameters.required_approving_review_count) = 0
+  | (.rules[]
+    | select(.type == "pull_request")
+    | .parameters.require_last_push_approval) = false
+' "$repository_dir/.github/repository-settings/main-ruleset.json" \
+  >"$temporary_dir/fixtures/main.json"
+jq '{
+  can_admins_bypass: true,
+  protection_rules: [],
+  deployment_branch_policy: .deployment_branch_policy
+}' "$repository_dir/.github/repository-settings/release-environment.json" \
+  >"$temporary_dir/fixtures/environment.json"
+
+run_policy --check-solo >/dev/null
+run_policy --apply-solo >/dev/null
+
+printf '%s\n' \
+  '{"secrets":[{"name":"RELEASE_GPG_PRIVATE_KEY"}]}' \
+  >"$temporary_dir/fixtures/repository-secrets.json"
+if run_policy --check-solo >/dev/null 2>&1; then
+  echo "policy audit unexpectedly accepted a repository-level release secret" >&2
+  exit 1
+fi
+printf '%s\n' \
+  '{"secrets":[{"name":"REPOSITORY_SECURITY_AUDIT_TOKEN"}]}' \
+  >"$temporary_dir/fixtures/repository-secrets.json"
+
 jq '(.rules[]
   | select(.type == "required_status_checks")
   | .parameters.required_status_checks) |=
   map(select(.context != "Unit Tests"))' \
-  "$repository_dir/.github/repository-settings/main-ruleset.json" \
-  >"$temporary_dir/fixtures/main.json"
-if run_policy --check >/dev/null 2>&1; then
+  "$temporary_dir/fixtures/main.json" \
+  >"$temporary_dir/fixtures/main-with-missing-check.json"
+mv "$temporary_dir/fixtures/main-with-missing-check.json" \
+  "$temporary_dir/fixtures/main.json"
+if run_policy --check-solo >/dev/null 2>&1; then
   echo "policy audit unexpectedly accepted a missing required check" >&2
   exit 1
 fi

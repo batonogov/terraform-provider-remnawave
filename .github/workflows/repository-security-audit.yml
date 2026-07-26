@@ -1,0 +1,23 @@
+name: Repository Security Audit
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Live Repository Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Compare live settings with the committed solo policy
+        env:
+          GH_TOKEN: ${{ secrets.REPOSITORY_SECURITY_AUDIT_TOKEN }}
+        run: |
+          test -n "$GH_TOKEN"
+          ./scripts/configure-repository-security.sh --check-solo

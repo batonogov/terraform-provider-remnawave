@@ -52,7 +52,12 @@ tasks:
       - ./scripts/check-docs-drift.sh
 
   repo:security:check:
-    desc: Audit GitHub repository and release security settings
+    desc: Audit GitHub repository and release security settings in solo-maintainer mode
+    cmds:
+      - ./scripts/configure-repository-security.sh --check-solo
+
+  repo:security:check:strict:
+    desc: Audit GitHub repository security with independent release review
     cmds:
       - ./scripts/configure-repository-security.sh --check
 
