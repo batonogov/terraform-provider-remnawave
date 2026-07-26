@@ -43,40 +43,52 @@
         "strict_required_status_checks_policy": true,
         "required_status_checks": [
           {
-            "context": "Lint"
+            "context": "Lint",
+            "integration_id": 15368
           },
           {
-            "context": "Build"
+            "context": "Build",
+            "integration_id": 15368
           },
           {
-            "context": "Unit Tests"
+            "context": "Unit Tests",
+            "integration_id": 15368
           },
           {
-            "context": "Documentation"
+            "context": "Documentation",
+            "integration_id": 15368
           },
           {
-            "context": "Prepare Compatibility Matrix"
+            "context": "Prepare Compatibility Matrix",
+            "integration_id": 15368
           },
           {
-            "context": "Release Gate Tests"
+            "context": "Release Gate Tests",
+            "integration_id": 15368
           },
           {
-            "context": "Release Artifact Tests"
+            "context": "Release Artifact Tests",
+            "integration_id": 15368
           },
           {
-            "context": "Release Supply Chain Tests"
+            "context": "Release Supply Chain Tests",
+            "integration_id": 15368
           },
           {
-            "context": "Repository Policy Tests"
+            "context": "Repository Policy Tests",
+            "integration_id": 15368
           },
           {
-            "context": "Vulnerability Scan"
+            "context": "Vulnerability Scan",
+            "integration_id": 15368
           },
           {
-            "context": "Acceptance Tests (2.8.1)"
+            "context": "Acceptance Tests (2.8.1)",
+            "integration_id": 15368
           },
           {
-            "context": "Acceptance Tests (2.7.4)"
+            "context": "Acceptance Tests (2.7.4)",
+            "integration_id": 15368
           }
         ]
       }

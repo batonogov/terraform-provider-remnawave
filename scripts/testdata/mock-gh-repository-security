@@ -73,6 +73,15 @@ case "$endpoint" in
   repos/owner/repository/environments/release)
     cat "$MOCK_FIXTURE_DIR/environment.json"
     ;;
+  repos/owner/repository/immutable-releases)
+    cat "$MOCK_FIXTURE_DIR/immutable-releases.json"
+    ;;
+  repos/owner/repository/actions/secrets)
+    cat "$MOCK_FIXTURE_DIR/repository-secrets.json"
+    ;;
+  repos/owner/repository/environments/release/secrets)
+    cat "$MOCK_FIXTURE_DIR/environment-secrets.json"
+    ;;
   *)
     echo "mock gh: unsupported endpoint: $endpoint" >&2
     exit 1
