@@ -66,8 +66,7 @@ versions. No configuration is required.
 terraform {
   required_providers {
     remnawave = {
-      source  = "batonogov/remnawave"
-      version = "~> 0.6.0"
+      source = "batonogov/remnawave"
     }
   }
 }
@@ -391,14 +390,17 @@ terraform init -upgrade
 Review the [CHANGELOG](CHANGELOG.md) for breaking changes and migration notes
 before upgrading across major versions.
 
-### Version Constraints
+### Provider Selection
+
+Documentation examples intentionally omit a provider version so they do not
+become stale. Production configurations should choose a constraint that matches
+their own upgrade and compatibility policy.
 
 ```hcl
 terraform {
   required_providers {
     remnawave = {
-      source  = "batonogov/remnawave"
-      version = "~> 0.6.0" # Allow 0.6.x patch releases
+      source = "batonogov/remnawave"
     }
   }
 }
