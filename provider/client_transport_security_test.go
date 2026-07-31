@@ -9,8 +9,10 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -264,4 +266,103 @@ func serveRawHTTPConnection(
 		return fmt.Errorf("write response: %w", err)
 	}
 	return nil
+}
+
+// TestConnectionRefusedTransportErrorIsOpaque verifies that a connection
+// refused (port freed by a closed server) collapses to the opaque
+// errHTTPRequestFailed sentinel without leaking the host:port or URL.
+func TestConnectionRefusedTransportErrorIsOpaque(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	addr := server.URL
+	server.Close() // free the port so the next dial is refused
+
+	client, err := NewClient(ClientConfig{Endpoint: addr, APIToken: "refused-secret"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = client.GetSystemHealth(context.Background())
+	if err == nil {
+		t.Fatal("GetSystemHealth() error = nil, want connection-refused error")
+	}
+	if !errors.Is(err, errHTTPRequestFailed) {
+		t.Fatalf("GetSystemHealth() error = %v, want opaque errHTTPRequestFailed", err)
+	}
+	// The closed server's host:port and full URL must not appear in the error.
+	host := addr[len("http://"):]
+	if strings.Contains(err.Error(), host) {
+		t.Errorf("error disclosed closed-server host:port %q: %v", host, err)
+	}
+	if strings.Contains(err.Error(), addr) {
+		t.Errorf("error disclosed closed-server URL %q: %v", addr, err)
+	}
+}
+
+// TestClient_5xx_NoRetry_Intentional documents and locks the intentional
+// design: the client performs NO retry or backoff on 5xx server errors. A
+// single failing attempt surfaces as HTTPStatusError{StatusCode:500}.
+func TestClient_5xx_NoRetry_Intentional(t *testing.T) {
+	t.Parallel()
+
+	var attempts atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts.Add(1)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "test-token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = client.GetSystemHealth(context.Background())
+	if err == nil {
+		t.Fatal("GetSystemHealth() error = nil, want 500 error")
+	}
+	var statusErr *HTTPStatusError
+	if !errors.As(err, &statusErr) || statusErr.StatusCode != http.StatusInternalServerError {
+		t.Errorf("error = %v, want HTTPStatusError{StatusCode:500}", err)
+	}
+	if got := attempts.Load(); got != 1 {
+		t.Errorf("server attempts = %d, want 1 (no retry on 5xx)", got)
+	}
+}
+
+// TestClient_Timeout_SlowBackend_PropagatesAsDeadlineExceeded verifies that a
+// request which exceeds the client's configured timeout surfaces as a context
+// deadline error (or an opaque error that does not leak the URL).
+func TestClient_Timeout_SlowBackend_PropagatesAsDeadlineExceeded(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Block well past the client timeout.
+		time.Sleep(300 * time.Millisecond)
+	}))
+	defer server.Close()
+
+	client, err := NewClient(ClientConfig{
+		Endpoint: server.URL,
+		APIToken: "timeout-secret",
+		Timeout:  50 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = client.GetSystemHealth(context.Background())
+	if err == nil {
+		t.Fatal("GetSystemHealth() error = nil, want timeout error")
+	}
+	// The http.Client timeout wraps the dial/read/write deadlines as a
+	// context.DeadlineExceeded, which sanitizeRequestError passes through.
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("error = %v, want context.DeadlineExceeded", err)
+	}
+	// The endpoint URL and secret must never leak via the timeout error.
+	if strings.Contains(err.Error(), server.URL) {
+		t.Errorf("timeout error disclosed endpoint URL: %v", err)
+	}
 }

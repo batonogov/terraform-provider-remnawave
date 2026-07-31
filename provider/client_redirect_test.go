@@ -159,3 +159,42 @@ func TestRedirectPolicyWithoutCustomHeaders(t *testing.T) {
 		}
 	})
 }
+
+// TestRedirectLimitStopsAfter10 verifies the same-origin redirect cap: after
+// 10 redirects the client stops with errRedirectLimit, the request secret does
+// not leak into the error, and the redirect target path does not leak either.
+func TestRedirectLimitStopsAfter10(t *testing.T) {
+	t.Parallel()
+
+	const token = "redirect-loop-secret-token"
+	client, err := NewClient(ClientConfig{Endpoint: "http://example.test", APIToken: token})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var roundTrips atomic.Int32
+	client.httpClient.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		roundTrips.Add(1)
+		// Same-origin redirect that always points back at the server, forming a
+		// loop until the redirect cap is hit.
+		return redirectResponse(req, "http://example.test/loop"), nil
+	})
+
+	_, err = client.GetSystemHealth(context.Background())
+	if !errors.Is(err, errRedirectLimit) {
+		t.Fatalf("GetSystemHealth() error = %v, want errRedirectLimit", err)
+	}
+	// Neither the bearer secret nor the redirect location may leak.
+	if strings.Contains(err.Error(), token) {
+		t.Errorf("redirect-limit error disclosed bearer token: %v", err)
+	}
+	if strings.Contains(err.Error(), "/loop") {
+		t.Errorf("redirect-limit error disclosed redirect location: %v", err)
+	}
+	// CheckRedirect returns errRedirectLimit once via reaches 10 prior
+	// requests (len(via) >= 10), so exactly 10 round-trips are performed
+	// before the 11th redirect is refused.
+	if got := roundTrips.Load(); got != 10 {
+		t.Errorf("round trips = %d, want 10 (one per redirect up to the cap)", got)
+	}
+}
