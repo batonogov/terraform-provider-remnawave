@@ -573,7 +573,7 @@ func TestRequestContextCancellationPropagates(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 		defer cancel()
 		_, err = client.GetSystemHealth(ctx)
 		if !errors.Is(err, context.DeadlineExceeded) {

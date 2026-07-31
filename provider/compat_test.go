@@ -502,10 +502,10 @@ func TestVersionDetectionNetworkFailureDefaultsTo28(t *testing.T) {
 	}
 }
 
-// TestClient_HostRequestV27_FlattensMultiTagOnUpdate complements the existing
+// TestClient_HostRequestV27_ZeroTagsOmitsTagFieldOnUpdate complements the existing
 // 1-tag and >1-tag cases by verifying that a host with ZERO tags omits the
 // singular "tag" field entirely on the 2.7 PATCH path.
-func TestClient_HostRequestV27_FlattensMultiTagOnUpdate(t *testing.T) {
+func TestClient_HostRequestV27_ZeroTagsOmitsTagFieldOnUpdate(t *testing.T) {
 	t.Parallel()
 
 	var updateBody []byte
