@@ -539,3 +539,86 @@ func TestSetProxyHeadersDisabled(t *testing.T) {
 		t.Errorf("proxy headers unexpectedly set: %#v", req.Header)
 	}
 }
+
+// TestRequestContextCancellationPropagates verifies end-to-end that a cancelled
+// or timed-out request context surfaces as the corresponding context error
+// (not just a sanitized opaque error), proving cancellation is wired through.
+func TestRequestContextCancellationPropagates(t *testing.T) {
+	t.Parallel()
+
+	// Handler blocks until the request context is done, simulating a slow
+	// backend that respects client cancellation.
+	slowHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+		w.Header().Set("Content-Type", "application/json")
+	})
+	server := httptest.NewServer(slowHandler)
+	defer server.Close()
+
+	t.Run("cancellation", func(t *testing.T) {
+		client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "test-token"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel() // cancel before the call
+		_, err = client.GetSystemHealth(ctx)
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("GetSystemHealth() error = %v, want context.Canceled", err)
+		}
+	})
+
+	t.Run("deadline", func(t *testing.T) {
+		client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "test-token"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+		defer cancel()
+		_, err = client.GetSystemHealth(ctx)
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("GetSystemHealth() error = %v, want context.DeadlineExceeded", err)
+		}
+	})
+}
+
+// TestLoginUnauthorized401Surfaces verifies that a 401 from the login endpoint
+// surfaces as an error whose message carries the "login failed" prefix and the
+// underlying HTTPStatusError status, without leaking the password.
+func TestLoginUnauthorized401Surfaces(t *testing.T) {
+	t.Parallel()
+
+	const password = "login-unauthorized-secret"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Every request, including /api/auth/login, returns 401.
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer server.Close()
+
+	client, err := NewClient(ClientConfig{
+		Endpoint: server.URL,
+		Username: "admin",
+		Password: password,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = client.GetSystemHealth(context.Background())
+	if err == nil {
+		t.Fatal("GetSystemHealth() error = nil, want login failure")
+	}
+	// authenticate() wraps doRaw's HTTPStatusError in "login failed: %w".
+	if !strings.HasPrefix(err.Error(), "login failed:") {
+		t.Errorf("error = %q, want prefix %q", err, "login failed:")
+	}
+	// The underlying cause must carry the 401 status so callers can detect it.
+	var statusErr *HTTPStatusError
+	if !errors.As(err, &statusErr) || statusErr.StatusCode != http.StatusUnauthorized {
+		t.Errorf("error = %v, want unwrappable to HTTPStatusError{StatusCode:401}", err)
+	}
+	// The password must never appear in the surfaced error.
+	if strings.Contains(err.Error(), password) {
+		t.Errorf("login error disclosed password: %v", err)
+	}
+}

@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -347,5 +349,260 @@ func TestCreateApiTokenV28(t *testing.T) {
 	}
 	if token.ExpireAt != "2027-01-01T00:00:00Z" {
 		t.Errorf("ExpireAt = %q, want \"2027-01-01T00:00:00Z\"", token.ExpireAt)
+	}
+}
+
+// TestParseMajorMinor_PreReleaseAndBuild extends the semver-extraction
+// coverage to pre-release/build metadata and the documented v-prefix quirk.
+// parseMajorMinor splits on "." and takes the first two parts, so non-numeric
+// or v-prefixed inputs are preserved verbatim.
+func TestParseMajorMinor_PreReleaseAndBuild(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		in, want string
+	}{
+		{in: "2.8.1", want: "2.8"},
+		{in: "2.7.4", want: "2.7"},
+		{in: "2.8.1-rc.1+build", want: "2.8"},
+		{in: "2.10.0", want: "2.10"},
+		{in: "2.8", want: "2.8"},
+		{in: "2", want: ""},
+		{in: "", want: ""},
+		// Documents the v-prefix quirk: the prefix is not stripped, so a backend
+		// that returns "v2.8.0" would be treated as version "v2.8" (not "2.8").
+		{in: "v2.8.0", want: "v2.8"},
+		// Two non-numeric parts are still returned as-is.
+		{in: "abc.def", want: "abc.def"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.in, func(t *testing.T) {
+			if got := parseMajorMinor(tt.in); got != tt.want {
+				t.Errorf("parseMajorMinor(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestConcurrentVersionDetectionIsRaceFree verifies that a burst of requests
+// on a fresh client triggers exactly one /api/system/metadata call and that
+// detection is correctly serialized under the version mutex.
+func TestConcurrentVersionDetectionIsRaceFree(t *testing.T) {
+	t.Parallel()
+
+	var metadataCalls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/system/metadata" {
+			metadataCalls.Add(1)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"response":{"version":"2.7.4"}}`)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"response":{}}`)
+	}))
+	defer server.Close()
+
+	client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "test-token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const goroutines = 20
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	wg.Add(goroutines)
+	for i := 0; i < goroutines; i++ {
+		go func() {
+			defer wg.Done()
+			<-start
+			_ = client.isVersion2_7(context.Background())
+		}()
+	}
+	close(start)
+	wg.Wait()
+
+	if got := client.serverVersion; got != "2.7" {
+		t.Errorf("serverVersion = %q, want %q", got, "2.7")
+	}
+	if n := metadataCalls.Load(); n != 1 {
+		t.Errorf("/api/system/metadata called %d times, want 1 (must be detected once)", n)
+	}
+}
+
+// TestVersionDetectionMalformedVersionField verifies that a 200 response with a
+// non-semver "version" field is rejected: serverMinorVersion falls back to "",
+// isVersion2_7 returns false, and detectVersion surfaces an explicit error.
+func TestVersionDetectionMalformedVersionField(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/system/metadata" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"response":{"version":"garbage"}}`)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"response":{}}`)
+	}))
+	defer server.Close()
+
+	t.Run("serverMinorVersion and isVersion2_7 fall back", func(t *testing.T) {
+		client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "test-token"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := client.serverMinorVersion(context.Background()); got != "" {
+			t.Errorf("serverMinorVersion() = %q, want empty", got)
+		}
+		if client.isVersion2_7(context.Background()) {
+			t.Error("isVersion2_7() = true, want false for malformed version")
+		}
+	})
+
+	t.Run("detectVersion surfaces unexpected-format error", func(t *testing.T) {
+		client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "test-token"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = client.detectVersion(context.Background())
+		if err == nil {
+			t.Fatal("detectVersion() error = nil, want error")
+		}
+		if !strings.Contains(err.Error(), "unexpected version format") {
+			t.Errorf("detectVersion() error = %q, want it to contain unexpected version format", err)
+		}
+	})
+}
+
+// TestVersionDetectionNetworkFailureDefaultsTo28 verifies that a transport
+// failure on /api/system/metadata does not crash the client: the error is
+// swallowed by serverMinorVersion, version stays empty and isVersion2_7 is
+// false (2.8 behaviour), with no leaked error.
+func TestVersionDetectionNetworkFailureDefaultsTo28(t *testing.T) {
+	t.Parallel()
+
+	client, err := NewClient(ClientConfig{Endpoint: "https://example.test", APIToken: "test-token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Transport returns a network failure for every request (metadata is the
+	// only endpoint exercised here). It must not propagate out of
+	// serverMinorVersion/isVersion2_7.
+	client.httpClient.Transport = roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return nil, errHTTPRequestFailed
+	})
+
+	if got := client.serverMinorVersion(context.Background()); got != "" {
+		t.Errorf("serverMinorVersion() = %q, want empty on transport failure", got)
+	}
+	if client.isVersion2_7(context.Background()) {
+		t.Error("isVersion2_7() = true after transport failure, want false")
+	}
+}
+
+// TestClient_HostRequestV27_FlattensMultiTagOnUpdate complements the existing
+// 1-tag and >1-tag cases by verifying that a host with ZERO tags omits the
+// singular "tag" field entirely on the 2.7 PATCH path.
+func TestClient_HostRequestV27_FlattensMultiTagOnUpdate(t *testing.T) {
+	t.Parallel()
+
+	var updateBody []byte
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/api/system/metadata" {
+			_, _ = io.WriteString(w, `{"response":{"version":"2.7.4"}}`)
+			return
+		}
+		if r.Method == http.MethodPatch && r.URL.Path == "/api/hosts" {
+			updateBody, _ = io.ReadAll(r.Body)
+			_, _ = io.WriteString(w, `{"response":{"uuid":"host-id","remark":"host","address":"host.example.com","port":443}}`)
+			return
+		}
+		_, _ = io.WriteString(w, `{"response":{}}`)
+	}))
+	defer server.Close()
+
+	client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "test-token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = client.UpdateHost(context.Background(), &Host{
+		Remark:  "host",
+		Address: "host.example.com",
+		Port:    443,
+		Tags:    nil, // zero tags
+	})
+	if err != nil {
+		t.Fatalf("UpdateHost() error = %v", err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(updateBody, &got); err != nil {
+		t.Fatalf("decode PATCH body: %v", err)
+	}
+	if v, ok := got["tag"]; ok {
+		t.Errorf("2.7 PATCH body contained singular tag field with zero tags: %v", v)
+	}
+	if v, ok := got["tags"]; ok {
+		t.Errorf("2.7 PATCH body contained plural tags field: %v", v)
+	}
+}
+
+// TestClient_CreateApiTokenV27_EmptyScopesDefault verifies the 2.7.x token
+// creation path when Scopes is empty: the request uses only tokenName (no
+// scopes field is sent) and the returned ApiToken defaults Scopes to ["*"].
+func TestClient_CreateApiTokenV27_EmptyScopesDefault(t *testing.T) {
+	t.Parallel()
+
+	var requestBody []byte
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/api/system/metadata" {
+			_, _ = io.WriteString(w, `{"response":{"version":"2.7.4"}}`)
+			return
+		}
+		if r.URL.Path == "/api/tokens" && r.Method == http.MethodPost {
+			requestBody, _ = io.ReadAll(r.Body)
+			_, _ = io.WriteString(w, `{"response":{"uuid":"tok-uuid","token":"jwt-value","tokenName":"scoped"}}`)
+			return
+		}
+		_, _ = io.WriteString(w, `{"response":{}}`)
+	}))
+	defer server.Close()
+
+	client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "test-token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	token, err := client.CreateApiToken(context.Background(), &ApiToken{
+		Name:   "scoped",
+		Scopes: nil, // empty scopes
+	})
+	if err != nil {
+		t.Fatalf("CreateApiToken() error = %v", err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(requestBody, &got); err != nil {
+		t.Fatalf("decode request body: %v", err)
+	}
+	// 2.7 sends only tokenName; scopes must not appear in the request body.
+	if v, ok := got["tokenName"]; !ok || v != "scoped" {
+		t.Errorf("request tokenName = %v, want scoped", v)
+	}
+	if v, ok := got["scopes"]; ok {
+		t.Errorf("2.7 request must not contain scopes field: %v", v)
+	}
+
+	// The client hard-codes Scopes to ["*"] for 2.7.x responses.
+	if len(token.Scopes) != 1 || token.Scopes[0] != "*" {
+		t.Errorf("token Scopes = %v, want [*]", token.Scopes)
+	}
+	if token.UUID != "tok-uuid" || token.Token != "jwt-value" {
+		t.Errorf("token = %+v, want uuid=tok-uuid token=jwt-value", token)
 	}
 }
