@@ -176,14 +176,17 @@ resource "remnawave_node" "test" {
 						t.Fatalf("fetch node for drift mutation: %v", err)
 					}
 					node.Name = "drift-node-mutated"
+					consumptionMultiplier := 2.5
+					node.ConsumptionMultiplier = &consumptionMultiplier
 					if _, err := client.UpdateNode(ctx, node); err != nil {
-						t.Fatalf("mutate node name out-of-band: %v", err)
+						t.Fatalf("mutate node out-of-band: %v", err)
 					}
 				},
 				RefreshState:       true,
 				ExpectNonEmptyPlan: true,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("remnawave_node.test", "name", "drift-node-mutated"),
+					resource.TestCheckResourceAttr("remnawave_node.test", "consumption_multiplier", "2.5"),
 				),
 			},
 		},
