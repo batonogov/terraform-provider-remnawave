@@ -191,8 +191,11 @@ resource "remnawave_node_action" "reset" {
 // TestAccNodeAction_EnableDisable covers the previously-untested enable and
 // disable node actions. It creates a node, disables it (verifying the backend
 // reports isDisabled=true), then re-enables it (verifying isDisabled=false) so
-// the node is left enabled. Both actions are verified via the backend rather
-// than state because the node resource does not expose a status attribute.
+// the node is left enabled. Both actions are verified by reading the backend
+// directly (GetNodeByUUID) rather than the Terraform state: although the node
+// resource exposes the computed `is_disabled` attribute, an independent backend
+// read proves the server actually applied the action and is not just echoing
+// what the provider wrote.
 func TestAccNodeAction_EnableDisable(t *testing.T) {
 	testAccPreCheck(t)
 
