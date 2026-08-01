@@ -68,7 +68,7 @@ func (r *userBulkActionResource) Schema(_ context.Context, _ resource.SchemaRequ
 			"uuids": schema.ListAttribute{
 				Required:    true,
 				ElementType: types.StringType,
-				Description: "List of user UUIDs to operate on.",
+				Description: "List of user identifiers: UUIDs on Remnawave 2.x, numeric IDs encoded as strings on 3.0+.",
 				Validators: []validator.List{
 					listvalidator.SizeBetween(1, 500),
 				},

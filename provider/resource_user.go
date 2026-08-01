@@ -3,7 +3,10 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -68,7 +71,7 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 		Attributes: map[string]schema.Attribute{
 			"uuid": schema.StringAttribute{
 				Computed:    true,
-				Description: "UUID of the user (assigned by the panel).",
+				Description: "User identifier: UUID on v2.x backends, numeric ID as string on v3.0+ (the id attribute is preferred).",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
@@ -89,6 +92,9 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"username": schema.StringAttribute{
 				Required:    true,
 				Description: "Unique username (3-36 chars, alphanumeric + _ -).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 				Validators: []validator.String{
 					stringvalidator.RegexMatches(
 						regexp.MustCompile(`^[a-zA-Z0-9_-]+$`),
@@ -102,7 +108,7 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Computed:    true,
 				Description: "User status: ACTIVE or DISABLED. LIMITED/EXPIRED are managed by the panel.",
 				Validators: []validator.String{
-					stringvalidator.OneOf("ACTIVE", "DISABLED", "LIMITED", "EXPIRED"),
+					stringvalidator.OneOf("ACTIVE", "DISABLED"),
 				},
 			},
 			"traffic_limit_bytes": schema.Int64Attribute{
@@ -272,15 +278,20 @@ func (r *userResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	uuid := state.UUID.ValueString()
-	if uuid == "" {
+	// v3.0+: use numeric user ID; v2.x: use UUID
+	identifier, err := userStateIdentifier(ctx, r.client, &state)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to determine user identifier", err.Error())
+		return
+	}
+	if identifier == "" {
 		return
 	}
 
-	user, err := r.client.GetUserByUUID(ctx, uuid)
+	user, err := r.client.GetUserByUUID(ctx, identifier)
 	if err != nil {
 		if isNotFound(err) {
-			tflog.Warn(ctx, "user not found, removing from state", map[string]any{"uuid": uuid})
+			tflog.Warn(ctx, "user not found, removing from state", map[string]any{"identifier": identifier})
 			resp.State.RemoveResource(ctx)
 			return
 		}
@@ -299,44 +310,15 @@ func (r *userResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	user := planToUser(&plan)
-	user.UUID = plan.UUID.ValueString()
-	// These fields are accepted only by CreateUserCommand in Remnawave 2.8.
-	user.CreatedAt = ""
-	user.LastTrafficResetAt = nil
-	// Credential fields are not accepted by UpdateUserCommand — strip them
-	// from the PATCH payload to avoid sending data the backend will silently
-	// discard (and to future-proof against potential strict-mode validation).
-	user.TrojanPassword = ""
-	user.VlessUUID = ""
-	user.SsPassword = ""
-
-	// Issue #108: when the user explicitly sets external_squad_uuid or
-	// active_internal_squads to null in HCL, planToUser leaves the
-	// corresponding pointer/slice empty. User has `omitempty` on both fields
-	// (correct for Create where omitted means "panel default"). For PATCH the
-	// backend treats an *absent* field as "no change", so an explicit null must
-	// be sent as a literal JSON value. When that is needed we rebuild the
-	// request body as a map to force the keys to appear.
-	var body any = user
-	if plan.ExternalSquadUUID.IsNull() || plan.ActiveInternalSquads.IsNull() {
-		raw, err := json.Marshal(user)
-		if err != nil {
-			resp.Diagnostics.AddError("Failed to marshal user update", err.Error())
-			return
-		}
-		m := map[string]any{}
-		if err := json.Unmarshal(raw, &m); err != nil {
-			resp.Diagnostics.AddError("Failed to unmarshal user update", err.Error())
-			return
-		}
-		if plan.ExternalSquadUUID.IsNull() {
-			m["externalSquadUuid"] = nil
-		}
-		if plan.ActiveInternalSquads.IsNull() {
-			m["activeInternalSquads"] = []any{}
-		}
-		body = m
+	v3, err := r.client.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to determine backend version", err.Error())
+		return
+	}
+	body, err := userUpdateBody(&plan, v3)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to prepare user update", err.Error())
+		return
 	}
 
 	updated, err := r.client.UpdateUser(ctx, body)
@@ -356,15 +338,53 @@ func (r *userResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		return
 	}
 
-	uuid := state.UUID.ValueString()
-	if err := r.client.DeleteUser(ctx, uuid); err != nil {
+	// v3.0+: use numeric user ID; v2.x: use UUID
+	identifier, err := userStateIdentifier(ctx, r.client, &state)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to determine user identifier", err.Error())
+		return
+	}
+	if err := r.client.DeleteUser(ctx, identifier); err != nil {
 		resp.Diagnostics.AddError("Failed to delete user", err.Error())
 		return
 	}
 }
 
 func (r *userResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	// v3.0+: accept numeric ID for import. We store it in the uuid attribute
+	// for backward compatibility — the Read method resolves it to the correct
+	// identifier automatically.
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("uuid"), types.StringValue(req.ID))...)
+}
+
+// userStateIdentifier returns the correct identifier for user-scoped API calls.
+// On v3.0+ backends, routes use the numeric user ID; on v2.x, routes use UUID.
+// On v3.0+, the numeric ID from the id attribute is preferred. If it is missing
+// (e.g. after import where the user supplied the ID as a string in the uuid
+// attribute), the uuid attribute is used as-is — it already contains the
+// numeric ID as a string on v3.0+.
+// A stale or invalid fallback value is rejected before an API request is sent.
+func userStateIdentifier(ctx context.Context, client *Client, state *userResourceModel) (string, error) {
+	v3, err := client.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		return "", err
+	}
+	if v3 {
+		if !state.ID.IsNull() && !state.ID.IsUnknown() && state.ID.ValueInt64() > 0 {
+			return strconv.FormatInt(state.ID.ValueInt64(), 10), nil
+		}
+		// Fallback: on v3.0+ the uuid attribute may hold the numeric ID as a
+		// string (e.g. after import). Return it as-is — the route accepts it.
+		uuid := state.UUID.ValueString()
+		if uuid != "" {
+			id, err := strconv.ParseInt(uuid, 10, 64)
+			if err != nil || id <= 0 {
+				return "", fmt.Errorf("uuid attribute %q is not a positive numeric user ID required by Remnawave 3.0+; refresh or import the resource with its numeric ID", uuid)
+			}
+		}
+		return uuid, nil
+	}
+	return state.UUID.ValueString(), nil
 }
 
 // ─── Conversions ───
@@ -420,8 +440,73 @@ func planToUser(p *userResourceModel) *User {
 	return u
 }
 
+func userUpdateBody(plan *userResourceModel, v3 bool) (any, error) {
+	user := planToUser(plan)
+	if v3 {
+		if plan.ID.IsNull() || plan.ID.IsUnknown() || plan.ID.ValueInt64() <= 0 {
+			return nil, errors.New("remnawave 3.0+ requires a positive numeric user ID for updates; refresh or re-import the resource before retrying")
+		}
+		user.ID = plan.ID.ValueInt64()
+	} else {
+		user.UUID = plan.UUID.ValueString()
+	}
+
+	// These fields are accepted only by CreateUserCommand.
+	user.CreatedAt = ""
+	user.LastTrafficResetAt = nil
+	// Credential fields are not accepted by UpdateUserCommand.
+	user.TrojanPassword = ""
+	user.VlessUUID = ""
+	user.SsPassword = ""
+
+	raw, err := json.Marshal(user)
+	if err != nil {
+		return nil, fmt.Errorf("marshal user update: %w", err)
+	}
+	body := map[string]any{}
+	if err := json.Unmarshal(raw, &body); err != nil {
+		return nil, fmt.Errorf("unmarshal user update: %w", err)
+	}
+	// Username is an alternative lookup key, not a mutable field. The numeric
+	// ID/UUID above is the unambiguous resource identity, so send exactly one.
+	delete(body, "username")
+	// Zero is meaningful (unlimited) and must not be lost to omitempty.
+	if !plan.TrafficLimitBytes.IsUnknown() && !plan.TrafficLimitBytes.IsNull() {
+		body["trafficLimitBytes"] = plan.TrafficLimitBytes.ValueInt64()
+	}
+	// LIMITED and EXPIRED are backend-managed states and are rejected by the
+	// update contract when they arrive from computed state.
+	if status, ok := body["status"].(string); ok && status != "ACTIVE" && status != "DISABLED" {
+		delete(body, "status")
+	}
+
+	// Explicit nulls clear nullable fields. Omitting them means "no change".
+	if plan.Description.IsNull() {
+		body["description"] = nil
+	}
+	if plan.Tag.IsNull() {
+		body["tag"] = nil
+	}
+	if plan.TelegramID.IsNull() {
+		body["telegramId"] = nil
+	}
+	if plan.Email.IsNull() {
+		body["email"] = nil
+	}
+	if plan.HwidDeviceLimit.IsNull() {
+		body["hwidDeviceLimit"] = nil
+	}
+	if plan.ExternalSquadUUID.IsNull() {
+		body["externalSquadUuid"] = nil
+	}
+	if plan.ActiveInternalSquads.IsNull() || (!plan.ActiveInternalSquads.IsUnknown() && len(plan.ActiveInternalSquads.Elements()) == 0) {
+		body["activeInternalSquads"] = []any{}
+	}
+	return body, nil
+}
+
 func userToPlan(u *User, p *userResourceModel) {
-	p.UUID = types.StringValue(u.UUID)
+	p.UUID = types.StringValue(userResponseIdentifier(u))
 	p.ID = types.Int64Value(u.ID)
 	p.ShortUUID = types.StringValue(u.ShortUUID)
 	p.Username = types.StringValue(u.Username)
@@ -519,6 +604,19 @@ func userToPlan(u *User, p *userResourceModel) {
 	} else {
 		p.ExternalSquadUUID = types.StringNull()
 	}
+}
+
+// userResponseIdentifier preserves the provider's historical string
+// identifier surface across backend generations: UUID on v2.x and numeric ID
+// encoded as a string on v3.0+.
+func userResponseIdentifier(u *User) string {
+	if u.UUID != "" {
+		return u.UUID
+	}
+	if u.ID > 0 {
+		return strconv.FormatInt(u.ID, 10)
+	}
+	return ""
 }
 
 // isNotFound checks if the error is a 404 or record-not-found response.

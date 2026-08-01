@@ -40,7 +40,7 @@ func (r *hwidDeviceResource) Schema(_ context.Context, _ resource.SchemaRequest,
 		Attributes: map[string]schema.Attribute{
 			"user_uuid": schema.StringAttribute{
 				Required:    true,
-				Description: "UUID of the user this device belongs to.",
+				Description: "Identifier of the user this device belongs to: UUID on Remnawave 2.x, numeric ID on 3.0+.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -106,11 +106,27 @@ func (r *hwidDeviceResource) Configure(_ context.Context, req resource.Configure
 // config, so they have no source value in the plan. The backend does not offer
 // an Update endpoint, so sending them would be pointless — the panel
 // overwrites them on the next client connection.
-func hwidCreateReq(plan *hwidDeviceModel) map[string]any {
-	return map[string]any{
-		"userUuid": plan.UserUUID.ValueString(),
-		"hwid":     plan.Hwid.ValueString(),
+// v3.0+: the request body key is "userId" (number), not "userUuid" (string).
+func hwidCreateReq(ctx context.Context, client *Client, plan *hwidDeviceModel) (map[string]any, error) {
+	id := plan.UserUUID.ValueString()
+	v3, err := client.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		return nil, err
 	}
+	if v3 {
+		ids, err := stringsToIDs([]string{id})
+		if err != nil {
+			return nil, fmt.Errorf("user_uuid must be a numeric ID on Remnawave 3.0+, got %q", id)
+		}
+		return map[string]any{
+			"userId": ids[0],
+			"hwid":   plan.Hwid.ValueString(),
+		}, nil
+	}
+	return map[string]any{
+		"userUuid": id,
+		"hwid":     plan.Hwid.ValueString(),
+	}, nil
 }
 
 func (r *hwidDeviceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -120,7 +136,12 @@ func (r *hwidDeviceResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
-	if _, err := r.client.CreateHwidDevice(ctx, hwidCreateReq(&plan)); err != nil {
+	createReq, err := hwidCreateReq(ctx, r.client, &plan)
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid user identifier", err.Error())
+		return
+	}
+	if _, err := r.client.CreateHwidDevice(ctx, createReq); err != nil {
 		resp.Diagnostics.AddError("Failed to create HWID device", err.Error())
 		return
 	}
@@ -226,8 +247,22 @@ func (r *hwidDeviceResource) Delete(ctx context.Context, req resource.DeleteRequ
 	}
 
 	deleteReq := map[string]any{
-		"userUuid": state.UserUUID.ValueString(),
-		"hwid":     state.Hwid.ValueString(),
+		"hwid": state.Hwid.ValueString(),
+	}
+	v3, err := r.client.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to determine backend version", err.Error())
+		return
+	}
+	if v3 {
+		ids, err := stringsToIDs([]string{state.UserUUID.ValueString()})
+		if err != nil {
+			resp.Diagnostics.AddError("Invalid user identifier", fmt.Sprintf("user_uuid must be a numeric ID on Remnawave 3.0+, got %q", state.UserUUID.ValueString()))
+			return
+		}
+		deleteReq["userId"] = ids[0]
+	} else {
+		deleteReq["userUuid"] = state.UserUUID.ValueString()
 	}
 
 	if err := r.client.DeleteHwidDevice(ctx, deleteReq); err != nil {

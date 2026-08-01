@@ -12,21 +12,31 @@ Registry: `batonogov/remnawave`. All provider code lives in `provider/`.
 The Remnawave backend (`github.com/remnawave/backend`) is a NestJS TypeScript
 application with a clean REST API. The panel uses PostgreSQL + Redis (Valkey).
 
-**Compatibility:** Remnawave v2.7.x and v2.8.x. Docker Compose and
-acceptance tests default to the `remnawave/backend:2.8.1` image pinned by
-digest; CI runs a second matrix entry against `remnawave/backend:2.7.4`.
-All compose images are pinned by `sha256` digest for reproducibility. To
-run an explicit compatibility check against a different build, override
-both the tag and its digest, e.g. `REMNAWAVE_VERSION=2.9.0
-REMNAWAVE_DIGEST=sha256:<digest>`.
+**Compatibility:** Remnawave v2.7.x, v2.8.x, and v3.0.x. Docker Compose and
+acceptance tests default to the `remnawave/backend:3.0.0` image pinned by
+digest; CI runs matrix entries against `remnawave/backend:2.8.1` and
+`remnawave/backend:2.7.4`. All compose images are pinned by `sha256`
+digest for reproducibility. To run an explicit compatibility check
+against a different build, override both the tag and its digest, e.g.
+`REMNAWAVE_VERSION=3.1.0 REMNAWAVE_DIGEST=sha256:<digest>`.
 
 The client auto-detects the server version via `/api/system/metadata` on
-the first API-token operation. On 2.7.x backends the `remnawave_api_token`
-resource transparently uses the legacy `tokenName` request field and
-`apiKeys[]` response shape instead of the 2.8.x `name`/`expiresInDays`/
-`scopes` request and `tokens[]` response. No user configuration is
-required. All other resources/data sources are forward-compatible: 2.7.x
-Zod validation strips unknown 2.8.x fields without error.
+the first version-dependent operation. Version-specific behaviour:
+
+- **2.7.x**: `remnawave_api_token` uses legacy `tokenName` request field
+  and `apiKeys[]` response shape. Hosts limited to a single `tag` field.
+- **2.8.x**: `name`/`expiresInDays`/`scopes` token request. Hosts use
+  `tags[]` array. All 2.7.x fields remain available.
+- **3.0.x**: User routes use numeric `id` instead of `uuid`. The
+  `ip-control` module is renamed to `connections` (paths changed).
+  Subscription settings dropped 6 fields (`profileTitle`, `supportLink`,
+  `profileUpdateInterval`, `isProfileWebpageUrlEnabled`, `happAnnounce`,
+  `happRouting`). External squad `responseHeaders` split into
+  `responseHeadersAdd` + `responseHeadersRemove`. The provider exposes the new
+  user action `extend_expiration`; other backend-only endpoints introduced in
+  3.0 are not part of the provider surface yet.
+
+No user configuration is required — the provider transparently adapts.
 
 ## Commands
 

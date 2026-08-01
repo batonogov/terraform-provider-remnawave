@@ -3,12 +3,12 @@
 page_title: "remnawave_user_ips Data Source - terraform-provider-remnawave"
 subcategory: ""
 description: |-
-  Fetches the list of IPs that a user is currently connected from, via the Remnawave IP Control module. This is an asynchronous operation (the panel queues a job and results are polled for).
+  Fetches the list of IPs that a user is currently connected from, via the version-appropriate Remnawave connections API. This is an asynchronous operation (the panel queues a job and results are polled for).
 ---
 
 # remnawave_user_ips (Data Source)
 
-Fetches the list of IPs that a user is currently connected from, via the Remnawave IP Control module. This is an asynchronous operation (the panel queues a job and results are polled for).
+Fetches the list of IPs that a user is currently connected from, via the version-appropriate Remnawave connections API. This is an asynchronous operation (the panel queues a job and results are polled for).
 
 ## Example Usage
 
@@ -23,7 +23,7 @@ data "remnawave_user_ips" "connected" {
 
 ### Required
 
-- `uuid` (String) UUID of the user to fetch connection IPs for.
+- `uuid` (String) User identifier: UUID on Remnawave 2.x, numeric ID on 3.0+.
 
 ### Read-Only
 

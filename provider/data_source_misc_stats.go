@@ -275,11 +275,11 @@ func (d *connectionKeysDataSource) Metadata(_ context.Context, _ datasource.Meta
 
 func (d *connectionKeysDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Returns connection keys for a subscription from the Remnawave panel.",
+		Description: "Returns connection keys for a user subscription from the Remnawave panel.",
 		Attributes: map[string]schema.Attribute{
 			"uuid": schema.StringAttribute{
 				Required:    true,
-				Description: "UUID of the subscription.",
+				Description: "User identifier: UUID on Remnawave 2.x, numeric ID on 3.0+.",
 			},
 			"response": schema.StringAttribute{
 				Computed:    true,

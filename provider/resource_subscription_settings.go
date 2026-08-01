@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 type subscriptionSettingsResource struct {
@@ -51,22 +52,22 @@ func (r *subscriptionSettingsResource) Schema(_ context.Context, _ resource.Sche
 			"profile_title": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "Subscription profile title shown in VPN clients.",
+				Description: "Subscription profile title shown in VPN clients. Supported on Remnawave 2.x; retained as a no-op in state on 3.0+.",
 			},
 			"support_link": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "Support link shown in subscription page.",
+				Description: "Support link shown in subscription page. Supported on Remnawave 2.x; retained as a no-op in state on 3.0+.",
 			},
 			"profile_update_interval": schema.Int64Attribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "Subscription update interval in minutes.",
+				Description: "Subscription update interval in minutes. Supported on Remnawave 2.x; retained as a no-op in state on 3.0+.",
 			},
 			"is_profile_webpage_url_enabled": schema.BoolAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "Enable profile webpage URL.",
+				Description: "Enable profile webpage URL. Supported on Remnawave 2.x; retained as a no-op in state on 3.0+.",
 			},
 			"serve_json_at_base_subscription": schema.BoolAttribute{
 				Optional:    true,
@@ -81,12 +82,12 @@ func (r *subscriptionSettingsResource) Schema(_ context.Context, _ resource.Sche
 			"happ_announce": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "Happ announce message (max 200 chars).",
+				Description: "Happ announce message (max 200 chars). Supported on Remnawave 2.x; retained as a no-op in state on 3.0+.",
 			},
 			"happ_routing": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "Happ routing config.",
+				Description: "Happ routing config. Supported on Remnawave 2.x; retained as a no-op in state on 3.0+.",
 			},
 			"randomize_hosts": schema.BoolAttribute{
 				Optional:    true,
@@ -102,8 +103,8 @@ func (r *subscriptionSettingsResource) Schema(_ context.Context, _ resource.Sche
 			"custom_response_headers": schema.StringAttribute{
 				Optional:      true,
 				Computed:      true,
-				PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}},
-				Description:   "Custom subscription response headers as JSON object.",
+				PlanModifiers: []planmodifier.String{canonicalHeaderMapJSONPlanModifier{}},
+				Description:   "Custom subscription response headers as a JSON object. Header names are treated case-insensitively.",
 			},
 			"response_rules": schema.StringAttribute{
 				Optional:      true,
@@ -139,6 +140,12 @@ func (r *subscriptionSettingsResource) Create(ctx context.Context, req resource.
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	v3, err := r.client.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to determine backend version", err.Error())
+		return
+	}
+	configured := plan
 
 	// GET current settings to obtain UUID (required for PATCH)
 	current, err := r.client.GetSubscriptionSettings(ctx)
@@ -149,6 +156,10 @@ func (r *subscriptionSettingsResource) Create(ctx context.Context, req resource.
 
 	settings := planToSubscriptionSettings(&plan)
 	settings.UUID = current.UUID
+	if v3 {
+		stripRemovedSubscriptionSettings(settings)
+		warnRemovedSubscriptionSettings(ctx, &plan)
+	}
 	updated, err := r.client.UpdateSubscriptionSettings(ctx, settings)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to set subscription settings", err.Error())
@@ -156,6 +167,13 @@ func (r *subscriptionSettingsResource) Create(ctx context.Context, req resource.
 	}
 
 	subscriptionSettingsToPlan(updated, &plan)
+	if v3 {
+		preserveRemovedSubscriptionSettings(&configured, &plan)
+	}
+	if err := preserveNormalizedSubscriptionSettings(&configured, &plan); err != nil {
+		resp.Diagnostics.AddError("Failed to reconcile subscription settings response", err.Error())
+		return
+	}
 	plan.ID = types.StringValue("settings")
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
@@ -166,6 +184,12 @@ func (r *subscriptionSettingsResource) Read(ctx context.Context, req resource.Re
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	v3, err := r.client.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to determine backend version", err.Error())
+		return
+	}
+	previous := state
 
 	settings, err := r.client.GetSubscriptionSettings(ctx)
 	if err != nil {
@@ -174,6 +198,13 @@ func (r *subscriptionSettingsResource) Read(ctx context.Context, req resource.Re
 	}
 
 	subscriptionSettingsToPlan(settings, &state)
+	if v3 {
+		preserveRemovedSubscriptionSettings(&previous, &state)
+	}
+	if err := preserveNormalizedSubscriptionSettings(&previous, &state); err != nil {
+		resp.Diagnostics.AddError("Failed to reconcile subscription settings response", err.Error())
+		return
+	}
 	state.ID = types.StringValue("settings")
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -184,6 +215,12 @@ func (r *subscriptionSettingsResource) Update(ctx context.Context, req resource.
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	v3, err := r.client.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to determine backend version", err.Error())
+		return
+	}
+	configured := plan
 
 	// GET current to obtain UUID (required for PATCH)
 	current, err := r.client.GetSubscriptionSettings(ctx)
@@ -194,6 +231,10 @@ func (r *subscriptionSettingsResource) Update(ctx context.Context, req resource.
 
 	settings := planToSubscriptionSettings(&plan)
 	settings.UUID = current.UUID
+	if v3 {
+		stripRemovedSubscriptionSettings(settings)
+		warnRemovedSubscriptionSettings(ctx, &plan)
+	}
 	updated, err := r.client.UpdateSubscriptionSettings(ctx, settings)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to update subscription settings", err.Error())
@@ -201,6 +242,13 @@ func (r *subscriptionSettingsResource) Update(ctx context.Context, req resource.
 	}
 
 	subscriptionSettingsToPlan(updated, &plan)
+	if v3 {
+		preserveRemovedSubscriptionSettings(&configured, &plan)
+	}
+	if err := preserveNormalizedSubscriptionSettings(&configured, &plan); err != nil {
+		resp.Diagnostics.AddError("Failed to reconcile subscription settings response", err.Error())
+		return
+	}
 	plan.ID = types.StringValue("settings")
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
@@ -218,39 +266,39 @@ func (r *subscriptionSettingsResource) ImportState(ctx context.Context, req reso
 
 func planToSubscriptionSettings(p *subscriptionSettingsModel) *SubscriptionSettings {
 	s := &SubscriptionSettings{}
-	if !p.ProfileTitle.IsNull() {
+	if !p.ProfileTitle.IsNull() && !p.ProfileTitle.IsUnknown() {
 		v := p.ProfileTitle.ValueString()
 		s.ProfileTitle = &v
 	}
-	if !p.SupportLink.IsNull() {
+	if !p.SupportLink.IsNull() && !p.SupportLink.IsUnknown() {
 		v := p.SupportLink.ValueString()
 		s.SupportLink = &v
 	}
-	if !p.ProfileUpdateInterval.IsNull() {
+	if !p.ProfileUpdateInterval.IsNull() && !p.ProfileUpdateInterval.IsUnknown() {
 		v := int(p.ProfileUpdateInterval.ValueInt64())
 		s.ProfileUpdateInterval = &v
 	}
-	if !p.IsProfileWebpageURLEnabled.IsNull() {
+	if !p.IsProfileWebpageURLEnabled.IsNull() && !p.IsProfileWebpageURLEnabled.IsUnknown() {
 		v := p.IsProfileWebpageURLEnabled.ValueBool()
 		s.IsProfileWebpageURLEnabled = &v
 	}
-	if !p.ServeJsonAtBaseSubscription.IsNull() {
+	if !p.ServeJsonAtBaseSubscription.IsNull() && !p.ServeJsonAtBaseSubscription.IsUnknown() {
 		v := p.ServeJsonAtBaseSubscription.ValueBool()
 		s.ServeJsonAtBaseSubscription = &v
 	}
-	if !p.IsShowCustomRemarks.IsNull() {
+	if !p.IsShowCustomRemarks.IsNull() && !p.IsShowCustomRemarks.IsUnknown() {
 		v := p.IsShowCustomRemarks.ValueBool()
 		s.IsShowCustomRemarks = &v
 	}
-	if !p.HappAnnounce.IsNull() {
+	if !p.HappAnnounce.IsNull() && !p.HappAnnounce.IsUnknown() {
 		v := p.HappAnnounce.ValueString()
 		s.HappAnnounce = &v
 	}
-	if !p.HappRouting.IsNull() {
+	if !p.HappRouting.IsNull() && !p.HappRouting.IsUnknown() {
 		v := p.HappRouting.ValueString()
 		s.HappRouting = &v
 	}
-	if !p.RandomizeHosts.IsNull() {
+	if !p.RandomizeHosts.IsNull() && !p.RandomizeHosts.IsUnknown() {
 		v := p.RandomizeHosts.ValueBool()
 		s.RandomizeHosts = &v
 	}
@@ -334,4 +382,67 @@ func rawJSONToString(value json.RawMessage) types.String {
 		return types.StringValue(string(value))
 	}
 	return types.StringValue(string(b))
+}
+
+func stripRemovedSubscriptionSettings(s *SubscriptionSettings) {
+	s.ProfileTitle = nil
+	s.SupportLink = nil
+	s.ProfileUpdateInterval = nil
+	s.IsProfileWebpageURLEnabled = nil
+	s.HappAnnounce = nil
+	s.HappRouting = nil
+}
+
+func preserveRemovedSubscriptionSettings(previous, current *subscriptionSettingsModel) {
+	if !previous.ProfileTitle.IsUnknown() {
+		current.ProfileTitle = previous.ProfileTitle
+	}
+	if !previous.SupportLink.IsUnknown() {
+		current.SupportLink = previous.SupportLink
+	}
+	if !previous.ProfileUpdateInterval.IsUnknown() {
+		current.ProfileUpdateInterval = previous.ProfileUpdateInterval
+	}
+	if !previous.IsProfileWebpageURLEnabled.IsUnknown() {
+		current.IsProfileWebpageURLEnabled = previous.IsProfileWebpageURLEnabled
+	}
+	if !previous.HappAnnounce.IsUnknown() {
+		current.HappAnnounce = previous.HappAnnounce
+	}
+	if !previous.HappRouting.IsUnknown() {
+		current.HappRouting = previous.HappRouting
+	}
+}
+
+func preserveNormalizedSubscriptionSettings(previous, current *subscriptionSettingsModel) error {
+	value, err := preserveEquivalentHeaderMap(previous.CustomResponseHeaders, current.CustomResponseHeaders)
+	if err != nil {
+		return err
+	}
+	current.CustomResponseHeaders = value
+	return nil
+}
+
+// warnRemovedSubscriptionSettings emits a warning for each configured field
+// that Remnawave 3.0 removed. Values are retained in Terraform state to keep
+// upgrades stable, but they are deliberately omitted from the API payload.
+func warnRemovedSubscriptionSettings(ctx context.Context, p *subscriptionSettingsModel) {
+	checks := []struct {
+		name string
+		set  bool
+	}{
+		{"profile_title", !p.ProfileTitle.IsNull() && !p.ProfileTitle.IsUnknown()},
+		{"support_link", !p.SupportLink.IsNull() && !p.SupportLink.IsUnknown()},
+		{"profile_update_interval", !p.ProfileUpdateInterval.IsNull() && !p.ProfileUpdateInterval.IsUnknown()},
+		{"is_profile_webpage_url_enabled", !p.IsProfileWebpageURLEnabled.IsNull() && !p.IsProfileWebpageURLEnabled.IsUnknown()},
+		{"happ_announce", !p.HappAnnounce.IsNull() && !p.HappAnnounce.IsUnknown()},
+		{"happ_routing", !p.HappRouting.IsNull() && !p.HappRouting.IsUnknown()},
+	}
+	for _, c := range checks {
+		if c.set {
+			tflog.Warn(ctx, "subscription_settings field has no effect on Remnawave 3.0+ — field was removed", map[string]any{
+				"field": c.name,
+			})
+		}
+	}
 }

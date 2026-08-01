@@ -10,3 +10,11 @@ resource "remnawave_user_action" "reset" {
   action    = "reset_traffic"
   triggers  = [timestamp()]
 }
+
+# Extend expiration by 30 days (v3.0+ only).
+resource "remnawave_user_action" "extend" {
+  user_uuid = remnawave_user.test.uuid
+  action    = "extend_expiration"
+  days      = 30
+  triggers  = [timestamp()]
+}

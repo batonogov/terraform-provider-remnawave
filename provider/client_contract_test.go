@@ -158,6 +158,7 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "GetHwidStats", method: http.MethodGet, path: "/api/hwid/devices/stats"},
 		{name: "GetHwidTopUsers", method: http.MethodGet, path: "/api/hwid/devices/top-users"},
 		{name: "UserAction", method: http.MethodPost, path: "/api/users/item-id/actions/reset-traffic", args: []any{"item-id", "reset_traffic"}, noBody: true},
+		{name: "ExtendUserExpiration", method: http.MethodPost, path: "/api/users/42/actions/extend", args: []any{int64(42), 7}, wantJSON: map[string]any{"days": float64(7)}},
 		{name: "FetchUserIPs", method: http.MethodPost, path: "/api/ip-control/fetch-ips/item-id", args: []any{"item-id"}, noBody: true, mockResponse: `{"response":{"jobId":"job-1"}}`},
 		{name: "DropConnections", method: http.MethodPost, path: "/api/ip-control/drop-connections", args: []any{"item-id"}, wantJSON: map[string]any{"userUuid": "item-id"}},
 		{name: "DropConnectionsV2", method: http.MethodPost, path: "/api/ip-control/drop-connections", args: []any{map[string]any{"dropBy": map[string]any{"by": "userUuids", "userUuids": []any{"item-id"}}, "targetNodes": map[string]any{"target": "allNodes"}}}, wantJSON: map[string]any{"dropBy": map[string]any{"by": "userUuids", "userUuids": []any{"item-id"}}, "targetNodes": map[string]any{"target": "allNodes"}}},
@@ -520,5 +521,52 @@ func TestSubscriptionSettingsUpdateContract(t *testing.T) {
 	}
 	if v, ok := got["supportLink"].(string); !ok || v != "https://t.me/support" {
 		t.Errorf("supportLink = %v, want \"https://t.me/support\"", got["supportLink"])
+	}
+}
+
+// TestClientV3Paths verifies that version-gated paths route correctly when
+// the backend reports version 3.0+.
+func TestClientV3Paths(t *testing.T) {
+	tests := []struct {
+		name     string
+		method   string
+		path     string
+		callFunc func(c *Client) error
+	}{
+		{
+			name:   "GetSubscriptionByUUID_v3_uses_by_id",
+			method: http.MethodGet,
+			path:   "/api/subscriptions/by-id/42",
+			callFunc: func(c *Client) error {
+				_, err := c.GetSubscriptionByUUID(context.Background(), "42")
+				return err
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/api/system/metadata" {
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = io.WriteString(w, `{"response":{"version":"3.0.0"}}`)
+					return
+				}
+				if r.Method != tt.method {
+					t.Errorf("method = %s, want %s", r.Method, tt.method)
+				}
+				if r.URL.Path != tt.path {
+					t.Errorf("path = %q, want %q", r.URL.Path, tt.path)
+				}
+				_, _ = io.WriteString(w, `{"response":{}}`)
+			}))
+			defer server.Close()
+			c, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "contract-token"})
+			if err != nil {
+				t.Fatalf("NewClient: %v", err)
+			}
+			if err := tt.callFunc(c); err != nil {
+				t.Errorf("call returned error: %v", err)
+			}
+		})
 	}
 }

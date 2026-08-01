@@ -14,8 +14,6 @@ Manages Remnawave subscription settings (singleton). Delete only removes from Te
 
 ```terraform
 resource "remnawave_subscription_settings" "main" {
-  profile_title   = "My VPN"
-  support_link    = "https://t.me/support"
   randomize_hosts = true
 }
 ```
@@ -26,18 +24,18 @@ resource "remnawave_subscription_settings" "main" {
 ### Optional
 
 - `custom_remarks` (String) Custom user-state remarks as JSON.
-- `custom_response_headers` (String) Custom subscription response headers as JSON object.
-- `happ_announce` (String) Happ announce message (max 200 chars).
-- `happ_routing` (String) Happ routing config.
+- `custom_response_headers` (String) Custom subscription response headers as a JSON object. Header names are treated case-insensitively.
+- `happ_announce` (String) Happ announce message (max 200 chars). Supported on Remnawave 2.x; retained as a no-op in state on 3.0+.
+- `happ_routing` (String) Happ routing config. Supported on Remnawave 2.x; retained as a no-op in state on 3.0+.
 - `hwid_settings` (String) HWID enforcement settings as JSON.
-- `is_profile_webpage_url_enabled` (Boolean) Enable profile webpage URL.
+- `is_profile_webpage_url_enabled` (Boolean) Enable profile webpage URL. Supported on Remnawave 2.x; retained as a no-op in state on 3.0+.
 - `is_show_custom_remarks` (Boolean) Show custom remarks for users.
-- `profile_title` (String) Subscription profile title shown in VPN clients.
-- `profile_update_interval` (Number) Subscription update interval in minutes.
+- `profile_title` (String) Subscription profile title shown in VPN clients. Supported on Remnawave 2.x; retained as a no-op in state on 3.0+.
+- `profile_update_interval` (Number) Subscription update interval in minutes. Supported on Remnawave 2.x; retained as a no-op in state on 3.0+.
 - `randomize_hosts` (Boolean) Randomize host order in subscription.
 - `response_rules` (String) Subscription response-rules configuration as JSON.
 - `serve_json_at_base_subscription` (Boolean) Serve JSON at base subscription URL.
-- `support_link` (String) Support link shown in subscription page.
+- `support_link` (String) Support link shown in subscription page. Supported on Remnawave 2.x; retained as a no-op in state on 3.0+.
 
 ### Read-Only
 

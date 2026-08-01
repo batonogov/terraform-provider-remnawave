@@ -32,7 +32,7 @@ type Client struct {
 	customHeaders map[string]string
 
 	// serverVersion is the major.minor of the Remnawave backend (e.g. "2.7",
-	// "2.8"), detected lazily on the first request via /api/system/metadata.
+	// "2.8", "3.0"), detected lazily via /api/system/metadata.
 	// A value of "" means detection has not yet been attempted.
 	versionMu     sync.Mutex
 	serverVersion string
@@ -575,8 +575,8 @@ func (c *Client) setProxyHeaders(req *http.Request) {
 // ─── Version detection ───
 
 // detectVersion queries /api/system/metadata and caches the server's
-// major.minor version (e.g. "2.7", "2.8"). It is called lazily on the
-// first API-token operation and is safe to call concurrently.
+// major.minor version (e.g. "2.7", "2.8", "3.0"). It is called lazily by
+// version-dependent operations and is safe to call concurrently.
 func (c *Client) detectVersion(ctx context.Context) error {
 	c.versionMu.Lock()
 	defer c.versionMu.Unlock()
@@ -600,6 +600,10 @@ func (c *Client) detectVersion(ctx context.Context) error {
 }
 
 // serverMinorVersion returns the cached major.minor, detecting if needed.
+// Legacy 2.7 compatibility predates the v3 API split and intentionally keeps
+// its historical best-effort fallback. New version-dependent operations must
+// use isVersionAtLeast3_0 so detection failures are surfaced to callers rather
+// than risking a request against the wrong API contract.
 func (c *Client) serverMinorVersion(ctx context.Context) string {
 	c.versionMu.Lock()
 	v := c.serverVersion
@@ -618,14 +622,45 @@ func (c *Client) isVersion2_7(ctx context.Context) bool {
 	return c.serverMinorVersion(ctx) == "2.7"
 }
 
+// isVersionAtLeast3_0 returns true if the connected backend reports version
+// 3.0.x or higher (major >= 3). Detection errors are returned because silently
+// falling back to a v2 route or payload can make mutating operations unsafe.
+func (c *Client) isVersionAtLeast3_0(ctx context.Context) (bool, error) {
+	if err := c.detectVersion(ctx); err != nil {
+		return false, err
+	}
+
+	c.versionMu.Lock()
+	v := c.serverVersion
+	c.versionMu.Unlock()
+
+	major, _, ok := strings.Cut(v, ".")
+	if !ok {
+		return false, fmt.Errorf("invalid cached server version %q", v)
+	}
+	n, err := strconv.Atoi(major)
+	if err != nil {
+		return false, fmt.Errorf("invalid cached server version %q: %w", v, err)
+	}
+	return n >= 3, nil
+}
+
 // parseMajorMinor extracts "major.minor" from a semver-like string.
-// e.g. "2.7.4" → "2.7", "2.8.0" → "2.8", "garbage" → "".
+// e.g. "2.7.4" → "2.7", "v3.0.0" → "3.0", "garbage" → "".
 func parseMajorMinor(version string) string {
-	parts := strings.SplitN(version, ".", 3)
+	parts := strings.SplitN(strings.TrimPrefix(version, "v"), ".", 3)
 	if len(parts) < 2 {
 		return ""
 	}
-	return parts[0] + "." + parts[1]
+	major, err := strconv.Atoi(parts[0])
+	if err != nil || major < 0 {
+		return ""
+	}
+	minor, err := strconv.Atoi(parts[1])
+	if err != nil || minor < 0 {
+		return ""
+	}
+	return strconv.Itoa(major) + "." + strconv.Itoa(minor)
 }
 
 // ─── User API ───
@@ -638,9 +673,11 @@ func (c *Client) CreateUser(ctx context.Context, user *User) (*User, error) {
 	return &out, nil
 }
 
-func (c *Client) GetUserByUUID(ctx context.Context, uuid string) (*User, error) {
+// GetUserByUUID fetches a user by identifier (UUID on v2.x, numeric ID on v3.0+).
+// The route path is the same; v3.0 backends accept numeric IDs via this path.
+func (c *Client) GetUserByUUID(ctx context.Context, identifier string) (*User, error) {
 	var out User
-	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/users/%s", uuid), nil, &out); err != nil {
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/users/%s", identifier), nil, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -685,15 +722,30 @@ var userActionEndpoint = map[string]string{
 }
 
 // UserAction performs an imperative action (enable, disable, reset_traffic,
-// revoke_subscription) on a user via POST /api/users/:uuid/actions/:action.
+// revoke_subscription) on a user.
+// v2.x: POST /api/users/:uuid/actions/:action
+// v3.0: POST /api/users/:userId/actions/:action
 // The action "reset-traffic" is accepted as an alias for "reset_traffic".
-func (c *Client) UserAction(ctx context.Context, userUUID, action string) error {
+// Use ExtendUserExpiration for the v3-only extend action, which requires a
+// request body.
+func (c *Client) UserAction(ctx context.Context, userIdentifier, action string) error {
 	suffix, ok := userActionEndpoint[action]
 	if !ok {
 		return fmt.Errorf("unknown user action %q: must be one of enable, disable, reset_traffic, revoke_subscription", action)
 	}
-	path := fmt.Sprintf("/api/users/%s/actions/%s", userUUID, suffix)
+	path := fmt.Sprintf("/api/users/%s/actions/%s", userIdentifier, suffix)
 	return c.doRequest(ctx, http.MethodPost, path, nil, nil)
+}
+
+// ExtendUserExpiration extends a user's expiration date (v3.0+).
+// POST /api/users/:userId/actions/extend with {"days": N}
+// where N is the number of days to add (1-9999). If the user is EXPIRED,
+// the new date is calculated from the current date. If ACTIVE, days are
+// added to the existing expiration date.
+func (c *Client) ExtendUserExpiration(ctx context.Context, userID int64, days int) error {
+	body := map[string]int{"days": days}
+	path := fmt.Sprintf("/api/users/%s/actions/extend", strconv.FormatInt(userID, 10))
+	return c.doRequest(ctx, http.MethodPost, path, body, nil)
 }
 
 // ─── Node API ───
@@ -883,28 +935,82 @@ var bulkUserActionEndpoint = map[string]string{
 }
 
 // BulkUserAction performs a bulk action (reset_traffic, revoke_subscription, or
-// delete) on the given user UUIDs. All three endpoints accept a POST with a
-// {"uuids": [...]} JSON body — the backend intentionally routes bulk delete via
-// POST rather than the HTTP DELETE method.
-func (c *Client) BulkUserAction(ctx context.Context, action string, uuids []string) error {
+// delete) on the given user identifiers. All three endpoints accept a POST with
+// a JSON body.
+// v2.x: {"uuids": ["uuid1", ...]} (string UUIDs)
+// v3.0: {"userIds": [1, 2, ...]} (numeric IDs)
+// The backend intentionally routes bulk delete via POST rather than HTTP DELETE.
+func (c *Client) BulkUserAction(ctx context.Context, action string, identifiers []string) error {
 	suffix, ok := bulkUserActionEndpoint[action]
 	if !ok {
 		return fmt.Errorf("unknown user bulk action %q: must be one of reset_traffic, revoke_subscription, delete", action)
 	}
 	path := "/api/users/bulk/" + suffix
-	return c.doRequest(ctx, http.MethodPost, path, map[string][]string{"uuids": uuids}, nil)
+	body, err := c.bulkUserBody(ctx, identifiers)
+	if err != nil {
+		return err
+	}
+	return c.doRequest(ctx, http.MethodPost, path, body, nil)
 }
 
 // BulkUserExtendExpiration extends the subscription expiration of the given
-// users by the specified number of days via
-// POST /api/users/bulk/extend-expiration-date with
-// {"uuids": [...], "extendDays": N}.
-func (c *Client) BulkUserExtendExpiration(ctx context.Context, uuids []string, extendDays int) error {
+// users by the specified number of days.
+// v2.x: POST /api/users/bulk/extend-expiration-date {"uuids": [...], "extendDays": N}
+// v3.0: POST /api/users/bulk/extend-expiration-date {"userIds": [...], "extendDays": N}
+func (c *Client) BulkUserExtendExpiration(ctx context.Context, identifiers []string, extendDays int) error {
 	body := map[string]any{
-		"uuids":      uuids,
 		"extendDays": extendDays,
 	}
+	v3, err := c.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		return err
+	}
+	if v3 {
+		ids, err := stringsToIDs(identifiers)
+		if err != nil {
+			return err
+		}
+		body["userIds"] = ids
+	} else {
+		body["uuids"] = identifiers
+	}
 	return c.doRequest(ctx, http.MethodPost, "/api/users/bulk/extend-expiration-date", body, nil)
+}
+
+// bulkUserBody builds the request body for bulk user actions.
+// v2.x uses {"uuids": [...]} with string UUIDs.
+// v3.0 uses {"userIds": [...]} with numeric IDs.
+func (c *Client) bulkUserBody(ctx context.Context, identifiers []string) (map[string]any, error) {
+	v3, err := c.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if v3 {
+		ids, err := stringsToIDs(identifiers)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"userIds": ids}, nil
+	}
+	return map[string]any{"uuids": identifiers}, nil
+}
+
+// stringsToIDs converts a slice of numeric strings to int64 values.
+// Returns an error if any string is not a valid integer — callers must
+// surface this as a Terraform diagnostic.
+func stringsToIDs(ids []string) ([]int64, error) {
+	out := make([]int64, 0, len(ids))
+	for _, s := range ids {
+		n, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid numeric user identifier %q: %w", s, err)
+		}
+		if n <= 0 {
+			return nil, fmt.Errorf("user identifier must be a positive number, got %d", n)
+		}
+		out = append(out, n)
+	}
+	return out, nil
 }
 
 // ─── Bulk Node Actions API ───
@@ -1478,9 +1584,20 @@ func (c *Client) DeleteBillingHistory(ctx context.Context, uuid string) error {
 
 // ─── Subscriptions API ───
 
-func (c *Client) GetSubscriptionByUUID(ctx context.Context, uuid string) (map[string]any, error) {
+// GetSubscriptionByUUID fetches subscription info.
+// v2.x: GET /api/subscriptions/by-uuid/:uuid
+// v3.0: GET /api/subscriptions/by-id/:userId (by-uuid route removed)
+func (c *Client) GetSubscriptionByUUID(ctx context.Context, identifier string) (map[string]any, error) {
 	var out map[string]any
-	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/subscriptions/by-uuid/%s", uuid), nil, &out); err != nil {
+	path := fmt.Sprintf("/api/subscriptions/by-uuid/%s", identifier)
+	v3, err := c.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if v3 {
+		path = fmt.Sprintf("/api/subscriptions/by-id/%s", identifier)
+	}
+	if err := c.doRequest(ctx, http.MethodGet, path, nil, &out); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -1527,12 +1644,15 @@ func (c *Client) GetBandwidthStatsNodes(ctx context.Context, start, end string, 
 	return out, nil
 }
 
-func (c *Client) GetBandwidthStatsUser(ctx context.Context, uuid, start, end string, topNodesLimit int) (map[string]any, error) {
+// GetBandwidthStatsUser fetches bandwidth stats for a user.
+// v2.x: GET /api/bandwidth-stats/users/:uuid
+// v3.0: GET /api/bandwidth-stats/users/:userId (numeric)
+func (c *Client) GetBandwidthStatsUser(ctx context.Context, identifier, start, end string, topNodesLimit int) (map[string]any, error) {
 	query := url.Values{"start": {start}, "end": {end}}
 	if topNodesLimit > 0 {
 		query.Set("topNodesLimit", strconv.Itoa(topNodesLimit))
 	}
-	path := fmt.Sprintf("/api/bandwidth-stats/users/%s?%s", uuid, query.Encode())
+	path := fmt.Sprintf("/api/bandwidth-stats/users/%s?%s", identifier, query.Encode())
 	var out map[string]any
 	if err := c.doRequest(ctx, http.MethodGet, path, nil, &out); err != nil {
 		return nil, err
@@ -1709,10 +1829,8 @@ type ipControlJobProgress struct {
 
 // ipControlJobResultDat is the nullable result payload.
 type ipControlJobResultDat struct {
-	Success  bool            `json:"success"`
-	UserUUID string          `json:"userUuid"`
-	UserID   string          `json:"userId"`
-	Nodes    []ipControlNode `json:"nodes"`
+	Success bool            `json:"success"`
+	Nodes   []ipControlNode `json:"nodes"`
 }
 
 type ipControlNode struct {
@@ -1730,10 +1848,26 @@ type ipControlIP struct {
 // FetchUserIPs initiates an async job to fetch the IPs a user is connected
 // from, then polls for the result until it completes or the context is
 // cancelled. It returns the list of IPs.
-func (c *Client) FetchUserIPs(ctx context.Context, userUUID string) ([]string, error) {
+// v2.x: POST /api/ip-control/fetch-ips/:uuid + GET /api/ip-control/fetch-ips/result/:jobId
+// v3.0: POST /api/connections/by-user/:userId + GET /api/connections/by-user/:jobId
+func (c *Client) FetchUserIPs(ctx context.Context, userIdentifier string) ([]string, error) {
+	// Build version-aware path prefixes — jobId is appended during polling.
+	var startPath, resultPrefix string
+	v3, err := c.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine connections API version: %w", err)
+	}
+	if v3 {
+		startPath = fmt.Sprintf("/api/connections/by-user/%s", userIdentifier)
+		resultPrefix = "/api/connections/by-user/"
+	} else {
+		startPath = fmt.Sprintf("/api/ip-control/fetch-ips/%s", userIdentifier)
+		resultPrefix = "/api/ip-control/fetch-ips/result/"
+	}
+
 	// 1. Start the job
 	var jobResp ipControlJobResponse
-	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/ip-control/fetch-ips/%s", userUUID), nil, &jobResp); err != nil {
+	if err := c.doRequest(ctx, http.MethodPost, startPath, nil, &jobResp); err != nil {
 		return nil, fmt.Errorf("failed to start fetch-ips job: %w", err)
 	}
 	if jobResp.JobID == "" {
@@ -1748,7 +1882,7 @@ func (c *Client) FetchUserIPs(ctx context.Context, userUUID string) ([]string, e
 	deadline := time.Now().Add(pollTimeout)
 	for {
 		var result ipControlJobResult
-		if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/ip-control/fetch-ips/result/%s", jobResp.JobID), nil, &result); err != nil {
+		if err := c.doRequest(ctx, http.MethodGet, resultPrefix+jobResp.JobID, nil, &result); err != nil {
 			return nil, fmt.Errorf("failed to fetch-ips result for jobId %s: %w", jobResp.JobID, err)
 		}
 
@@ -1778,22 +1912,123 @@ func (c *Client) FetchUserIPs(ctx context.Context, userUUID string) ([]string, e
 	}
 }
 
-// DropConnections drops all active connections for the given user UUID.
-//
-// Deprecated: use DropConnectionsV2 for the full API schema (drop by IP, target nodes).
-func (c *Client) DropConnections(ctx context.Context, userUUID string) error {
-	body := map[string]string{"userUuid": userUUID}
-	return c.doRequest(ctx, http.MethodPost, "/api/ip-control/drop-connections", body, nil)
+// connectionsPath returns the drop-connections API path for the supplied
+// backend generation.
+// v2.x: /api/ip-control/drop-connections
+// v3.0: /api/connections/drop
+func connectionsPath(v3 bool) string {
+	if v3 {
+		return "/api/connections/drop"
+	}
+	return "/api/ip-control/drop-connections"
 }
 
-// DropConnectionsV2 drops connections using the full IP Control API schema.
-// body must match { dropBy: { by: "userUuids"|"ipAddresses", ... }, targetNodes: { target: "allNodes"|"specificNodes", ... } }.
+// DropConnections drops all active connections for the given user.
+//
+// Deprecated: use DropConnectionsV2 for the full API schema (drop by IP, target nodes).
+// On v3.0+ this uses the V2 schema internally to send the correct userIds body.
+func (c *Client) DropConnections(ctx context.Context, userIdentifier string) error {
+	v3, err := c.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to determine connections API version: %w", err)
+	}
+	if v3 {
+		// v3.0: the drop endpoint expects {dropBy:{by:"userIds",userIds:[N]}}
+		ids, err := stringsToIDs([]string{userIdentifier})
+		if err != nil {
+			return fmt.Errorf("DropConnections on v3.0+ requires a numeric user ID: %w", err)
+		}
+		body := map[string]any{
+			"dropBy": map[string]any{
+				"by":      "userIds",
+				"userIds": ids,
+			},
+			"targetNodes": map[string]any{"target": "allNodes"},
+		}
+		return c.doRequest(ctx, http.MethodPost, connectionsPath(v3), body, nil)
+	}
+	body := map[string]string{"userUuid": userIdentifier}
+	return c.doRequest(ctx, http.MethodPost, connectionsPath(v3), body, nil)
+}
+
+// DropConnectionsV2 drops connections using the full connections API schema.
+// v2.x: {"dropBy":{"by":"userUuids","userUuids":["..."]}, ...}
+// v3.0: {"dropBy":{"by":"userIds","userIds":[1,2]}, ...}
+// The caller passes identifiers as strings; the client translates the body
+// based on the detected backend version.
 func (c *Client) DropConnectionsV2(ctx context.Context, body map[string]any) (bool, error) {
+	v3, err := c.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		return false, fmt.Errorf("failed to determine connections API version: %w", err)
+	}
+	adapted, err := adaptDropConnectionsBody(body, v3)
+	if err != nil {
+		return false, err
+	}
+	if v3 {
+		// Remnawave 3.0 returns 202 No Content. Reaching a successful status is
+		// the only acknowledgement that the event was accepted.
+		if err := c.doRequest(ctx, http.MethodPost, connectionsPath(v3), adapted, nil); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
 	var out struct {
 		EventSent bool `json:"eventSent"`
 	}
-	if err := c.doRequest(ctx, http.MethodPost, "/api/ip-control/drop-connections", body, &out); err != nil {
+	if err := c.doRequest(ctx, http.MethodPost, connectionsPath(v3), adapted, &out); err != nil {
 		return false, err
 	}
 	return out.EventSent, nil
+}
+
+// adaptDropConnectionsBody translates the drop-connections request body for
+// v3.0+ backends: "userUuids" (string array) becomes "userIds" (int64 array).
+// IP-based drops and node targeting are unchanged. The input map is never
+// mutated.
+func adaptDropConnectionsBody(body map[string]any, v3 bool) (map[string]any, error) {
+	if !v3 {
+		return body, nil
+	}
+	adapted := make(map[string]any, len(body))
+	for key, value := range body {
+		adapted[key] = value
+	}
+	dropBy, ok := body["dropBy"].(map[string]any)
+	if !ok {
+		return nil, errors.New("dropBy must be an object")
+	}
+	adaptedDropBy := make(map[string]any, len(dropBy))
+	for key, value := range dropBy {
+		adaptedDropBy[key] = value
+	}
+	adapted["dropBy"] = adaptedDropBy
+	by, _ := dropBy["by"].(string)
+	if by != "userUuids" {
+		return adapted, nil
+	}
+	uuids, ok := dropBy["userUuids"].([]string)
+	if !ok {
+		// Also handle []any (e.g. from JSON round-trip)
+		if anySlice, ok2 := dropBy["userUuids"].([]any); ok2 {
+			uuids = make([]string, 0, len(anySlice))
+			for _, v := range anySlice {
+				s, ok3 := v.(string)
+				if !ok3 {
+					return nil, errors.New("dropBy.userUuids must contain only strings")
+				}
+				uuids = append(uuids, s)
+			}
+		} else {
+			return nil, errors.New("dropBy.userUuids must be an array of strings")
+		}
+	}
+	ids, err := stringsToIDs(uuids)
+	if err != nil {
+		return nil, err
+	}
+	adaptedDropBy["by"] = "userIds"
+	adaptedDropBy["userIds"] = ids
+	delete(adaptedDropBy, "userUuids")
+	return adapted, nil
 }

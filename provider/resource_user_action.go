@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
@@ -18,12 +21,14 @@ import (
 // validUserActions is the set of actions accepted by the resource.
 // "reset-traffic" is accepted as a backward-compatible alias for the
 // canonical "reset_traffic" form (see normalizeUserAction).
+// "extend_expiration" is v3.0+ only.
 var validUserActions = map[string]struct{}{
 	"enable":              {},
 	"disable":             {},
 	"reset_traffic":       {},
 	"reset-traffic":       {}, // alias, deprecated
 	"revoke_subscription": {},
+	"extend_expiration":   {}, // v3.0+ only
 }
 
 // userActionAliases maps deprecated/alias action names to their canonical
@@ -51,6 +56,7 @@ type userActionModel struct {
 	ID       types.String `tfsdk:"id"`
 	UserUUID types.String `tfsdk:"user_uuid"`
 	Action   types.String `tfsdk:"action"`
+	Days     types.Int64  `tfsdk:"days"`
 	Triggers types.List   `tfsdk:"triggers"`
 }
 
@@ -64,9 +70,10 @@ func (r *userActionResource) Metadata(_ context.Context, _ resource.MetadataRequ
 
 func (r *userActionResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Performs an imperative one-shot action on a Remnawave user (enable, disable, reset_traffic, or revoke_subscription). " +
+		Description: "Performs an imperative one-shot action on a Remnawave user (enable, disable, reset_traffic, revoke_subscription, extend_expiration). " +
 			"The action is re-executed whenever the triggers list changes value, making it suitable for recurring operations such as periodic traffic resets. " +
-			"reset-traffic is accepted as a backward-compatible alias for reset_traffic (prefer the underscore form).",
+			"reset-traffic is accepted as a backward-compatible alias for reset_traffic (prefer the underscore form). " +
+			"extend_expiration is available on Remnawave 3.0+ only.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:    true,
@@ -77,16 +84,26 @@ func (r *userActionResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			},
 			"user_uuid": schema.StringAttribute{
 				Required:    true,
-				Description: "UUID of the target user.",
+				Description: "Identifier of the target user (UUID on v2.x, numeric ID on v3.0+).",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"action": schema.StringAttribute{
 				Required:    true,
-				Description: "Action to perform. One of: enable, disable, reset_traffic, revoke_subscription. reset-traffic is accepted as a backward-compatible alias.",
+				Description: "Action to perform. One of: enable, disable, reset_traffic, revoke_subscription, extend_expiration. reset-traffic is accepted as a backward-compatible alias. extend_expiration is v3.0+ only and requires the days attribute.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"days": schema.Int64Attribute{
+				Optional:    true,
+				Description: "Number of days (1-9999) to extend the user's expiration date. Required when action is extend_expiration; ignored for all other actions.",
+				Validators: []validator.Int64{
+					int64validator.Between(1, 9999),
+				},
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.RequiresReplace(),
 				},
 			},
 			"triggers": schema.ListAttribute{
@@ -125,7 +142,7 @@ func (r *userActionResource) Create(ctx context.Context, req resource.CreateRequ
 	if !isValidUserAction(action) {
 		resp.Diagnostics.AddError(
 			"Invalid action",
-			fmt.Sprintf("action must be one of: enable, disable, reset_traffic, revoke_subscription — got %q", action),
+			fmt.Sprintf("action must be one of: enable, disable, reset_traffic, revoke_subscription, extend_expiration — got %q", action),
 		)
 		return
 	}
@@ -145,15 +162,59 @@ func (r *userActionResource) Create(ctx context.Context, req resource.CreateRequ
 	// and only normalized for the API call.
 	action = canonicalAction
 
+	// Validate days is provided for extend_expiration
+	if action == "extend_expiration" {
+		if plan.Days.IsNull() || plan.Days.IsUnknown() {
+			resp.Diagnostics.AddError(
+				"Missing days attribute",
+				"days is required when action is extend_expiration",
+			)
+			return
+		}
+		days := plan.Days.ValueInt64()
+		if days < 1 || days > 9999 {
+			resp.Diagnostics.AddError(
+				"Invalid days value",
+				fmt.Sprintf("days must be between 1 and 9999, got %d", days),
+			)
+			return
+		}
+	}
+
 	userUUID := plan.UserUUID.ValueString()
 	tflog.Info(ctx, "performing user action", map[string]any{
 		"user_uuid": userUUID,
 		"action":    action,
 	})
 
-	if err := r.client.UserAction(ctx, userUUID, action); err != nil {
-		resp.Diagnostics.AddError("Failed to perform user action", err.Error())
-		return
+	if action == "extend_expiration" {
+		// v3.0+ only: extend requires a body with {days: N}
+		v3, err := r.client.isVersionAtLeast3_0(ctx)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to determine backend version", err.Error())
+			return
+		}
+		if !v3 {
+			resp.Diagnostics.AddError("Unsupported action", "extend_expiration requires Remnawave 3.0 or newer")
+			return
+		}
+		userIDs, err := stringsToIDs([]string{userUUID})
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Invalid user identifier for extend_expiration",
+				"extend_expiration requires a numeric user ID (v3.0+). The user_uuid attribute must contain the numeric ID.",
+			)
+			return
+		}
+		if err := r.client.ExtendUserExpiration(ctx, userIDs[0], int(plan.Days.ValueInt64())); err != nil {
+			resp.Diagnostics.AddError("Failed to extend user expiration", err.Error())
+			return
+		}
+	} else {
+		if err := r.client.UserAction(ctx, userUUID, action); err != nil {
+			resp.Diagnostics.AddError("Failed to perform user action", err.Error())
+			return
+		}
 	}
 
 	plan.ID = types.StringValue(fmt.Sprintf("%s:%s", userUUID, action))
@@ -213,7 +274,7 @@ func (r *userActionResource) ImportState(ctx context.Context, req resource.Impor
 	if !isValidUserAction(action) {
 		resp.Diagnostics.AddError(
 			"Invalid action in import ID",
-			fmt.Sprintf("action must be one of: enable, disable, reset_traffic, revoke_subscription — got %q", action),
+			fmt.Sprintf("action must be one of: enable, disable, reset_traffic, revoke_subscription, extend_expiration — got %q", action),
 		)
 		return
 	}

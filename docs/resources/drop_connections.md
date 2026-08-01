@@ -3,12 +3,12 @@
 page_title: "remnawave_drop_connections Resource - terraform-provider-remnawave"
 subcategory: ""
 description: |-
-  Drops active connections for users or IP addresses via the Remnawave IP Control module. Supports targeting all nodes or specific nodes. This is an imperative action resource: applying it sends a drop-connections request to the panel. Use the optional triggers map to force re-execution when its values change.
+  Drops active connections for users or IP addresses via the version-appropriate Remnawave connections API. Supports targeting all nodes or specific nodes. This is an imperative action resource: applying it sends a drop-connections request to the panel. Use the optional triggers map to force re-execution when its values change.
 ---
 
 # remnawave_drop_connections (Resource)
 
-Drops active connections for users or IP addresses via the Remnawave IP Control module. Supports targeting all nodes or specific nodes. This is an imperative action resource: applying it sends a drop-connections request to the panel. Use the optional triggers map to force re-execution when its values change.
+Drops active connections for users or IP addresses via the version-appropriate Remnawave connections API. Supports targeting all nodes or specific nodes. This is an imperative action resource: applying it sends a drop-connections request to the panel. Use the optional triggers map to force re-execution when its values change.
 
 ## Example Usage
 
@@ -33,7 +33,7 @@ resource "remnawave_drop_connections" "stale" {
 - `node_uuids` (List of String) List of node UUIDs to target. Required when target = specific_nodes.
 - `target` (String) Node targeting: `all_nodes` (default) or `specific_nodes`. When `specific_nodes`, provide `node_uuids` list.
 - `triggers` (Map of String) A map of arbitrary string values. When any value changes, the resource is replaced and the drop-connections action is re-executed.
-- `user_uuids` (List of String) List of user UUIDs to drop connections for. Required when drop_by = user_uuids.
+- `user_uuids` (List of String) List of user identifiers to drop connections for: UUIDs on Remnawave 2.x, numeric IDs encoded as strings on 3.0+. Required when drop_by = user_uuids.
 
 ### Read-Only
 

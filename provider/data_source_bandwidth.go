@@ -219,7 +219,7 @@ func bandwidthStatsSchema(includeUUID bool) schema.Schema {
 	if includeUUID {
 		attrs["uuid"] = schema.StringAttribute{
 			Required:    true,
-			Description: "User UUID to fetch bandwidth stats for.",
+			Description: "User identifier for bandwidth stats: UUID on Remnawave 2.x, numeric ID on 3.0+.",
 		}
 	}
 

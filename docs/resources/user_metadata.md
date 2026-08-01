@@ -28,8 +28,8 @@ resource "remnawave_user_metadata" "info" {
 ### Required
 
 - `metadata` (String) Free-form metadata as a JSON object string, e.g. jsonencode({ department = "engineering" }).
-- `user_uuid` (String) UUID of the user whose metadata is managed.
+- `user_uuid` (String) Identifier of the user whose metadata is managed: UUID on Remnawave 2.x, numeric ID on 3.0+.
 
 ### Read-Only
 
-- `uuid` (String) UUID of the user this metadata belongs to (equals user_uuid).
+- `uuid` (String) User identifier for this metadata (equals user_uuid): UUID on Remnawave 2.x, numeric ID on 3.0+.

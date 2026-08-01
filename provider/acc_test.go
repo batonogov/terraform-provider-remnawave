@@ -2,11 +2,23 @@ package provider
 
 import (
 	"os"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 )
+
+func isBackendAtLeast3() bool {
+	version := strings.TrimPrefix(os.Getenv("REMNAWAVE_VERSION"), "v")
+	if version == "" {
+		return true // docker-compose.yaml defaults to Remnawave 3.0.0
+	}
+	major, _, ok := strings.Cut(version, ".")
+	majorNumber, err := strconv.Atoi(major)
+	return ok && err == nil && majorNumber >= 3
+}
 
 const (
 	// testAccProviderConfig returns the provider configuration block for
