@@ -666,11 +666,6 @@ func (c *Client) GetUserByUUID(ctx context.Context, identifier string) (*User, e
 	return &out, nil
 }
 
-// GetUserByID fetches a user by numeric ID (v3.0+).
-func (c *Client) GetUserByID(ctx context.Context, userID int64) (*User, error) {
-	return c.GetUserByUUID(ctx, strconv.FormatInt(userID, 10))
-}
-
 func (c *Client) UpdateUser(ctx context.Context, user any) (*User, error) {
 	var out User
 	if err := c.doRequest(ctx, http.MethodPatch, "/api/users", user, &out); err != nil {
@@ -1899,11 +1894,29 @@ func (c *Client) connectionsPath(ctx context.Context) string {
 	return "/api/ip-control/drop-connections"
 }
 
-// DropConnections drops all active connections for the given user UUID.
+// DropConnections drops all active connections for the given user.
 //
 // Deprecated: use DropConnectionsV2 for the full API schema (drop by IP, target nodes).
-func (c *Client) DropConnections(ctx context.Context, userUUID string) error {
-	body := map[string]string{"userUuid": userUUID}
+// On v3.0+ this uses the V2 schema internally to send the correct userIds body.
+func (c *Client) DropConnections(ctx context.Context, userIdentifier string) error {
+	if c.isVersionAtLeast3_0(ctx) {
+		// v3.0: the drop endpoint expects {dropBy:{by:"userIds",userIds:[N]}}
+		body := map[string]any{
+			"dropBy": map[string]any{
+				"by":      "userIds",
+				"userIds": []int64{0}, // placeholder — will be overwritten
+			},
+			"targetNodes": map[string]any{"target": "allNodes"},
+		}
+		// Parse the identifier to int64
+		n, err := strconv.ParseInt(userIdentifier, 10, 64)
+		if err != nil {
+			return fmt.Errorf("DropConnections on v3.0+ requires a numeric user ID, got %q: %w", userIdentifier, err)
+		}
+		body["dropBy"].(map[string]any)["userIds"] = []int64{n}
+		return c.doRequest(ctx, http.MethodPost, c.connectionsPath(ctx), body, nil)
+	}
+	body := map[string]string{"userUuid": userIdentifier}
 	return c.doRequest(ctx, http.MethodPost, c.connectionsPath(ctx), body, nil)
 }
 

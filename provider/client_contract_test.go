@@ -29,7 +29,6 @@ func TestClientAPIContracts(t *testing.T) {
 	tests := []clientContractCase{
 		{name: "CreateUser", method: http.MethodPost, path: "/api/users", args: []any{&User{Username: "alice", ExpireAt: "2027-01-01T00:00:00Z"}}},
 		{name: "GetUserByUUID", method: http.MethodGet, path: "/api/users/item-id", args: []any{"item-id"}},
-		{name: "GetUserByID", method: http.MethodGet, path: "/api/users/42", args: []any{int64(42)}},
 		{name: "UpdateUser", method: http.MethodPatch, path: "/api/users", args: []any{&User{UUID: "item-id", Username: "alice", ExpireAt: "2027-01-01T00:00:00Z"}}},
 		{name: "DeleteUser", method: http.MethodDelete, path: "/api/users/item-id", args: []any{"item-id"}},
 		{name: "GetAllUsers", method: http.MethodGet, path: "/api/users", query: map[string]string{"size": "1000"}},
@@ -522,5 +521,52 @@ func TestSubscriptionSettingsUpdateContract(t *testing.T) {
 	}
 	if v, ok := got["supportLink"].(string); !ok || v != "https://t.me/support" {
 		t.Errorf("supportLink = %v, want \"https://t.me/support\"", got["supportLink"])
+	}
+}
+
+// TestClientV3Paths verifies that version-gated paths route correctly when
+// the backend reports version 3.0+.
+func TestClientV3Paths(t *testing.T) {
+	tests := []struct {
+		name     string
+		method   string
+		path     string
+		callFunc func(c *Client) error
+	}{
+		{
+			name:   "GetSubscriptionByUUID_v3_uses_by_id",
+			method: http.MethodGet,
+			path:   "/api/subscriptions/by-id/42",
+			callFunc: func(c *Client) error {
+				_, err := c.GetSubscriptionByUUID(context.Background(), "42")
+				return err
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/api/system/metadata" {
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = io.WriteString(w, `{"response":{"version":"3.0.0"}}`)
+					return
+				}
+				if r.Method != tt.method {
+					t.Errorf("method = %s, want %s", r.Method, tt.method)
+				}
+				if r.URL.Path != tt.path {
+					t.Errorf("path = %q, want %q", r.URL.Path, tt.path)
+				}
+				_, _ = io.WriteString(w, `{"response":{}}`)
+			}))
+			defer server.Close()
+			c, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "contract-token"})
+			if err != nil {
+				t.Fatalf("NewClient: %v", err)
+			}
+			if err := tt.callFunc(c); err != nil {
+				t.Errorf("call returned error: %v", err)
+			}
+		})
 	}
 }

@@ -379,6 +379,8 @@ func (r *userResource) ImportState(ctx context.Context, req resource.ImportState
 // (e.g. after import where the user supplied the ID as a string in the uuid
 // attribute), the uuid attribute is used as-is — it already contains the
 // numeric ID as a string on v3.0+.
+// If the uuid attribute on v3.0+ contains a non-numeric value (e.g. a v2.x
+// state migrated to v3.0 without terraform import), a warning is logged.
 func userStateIdentifier(ctx context.Context, client *Client, state *userResourceModel) string {
 	if client.isVersionAtLeast3_0(ctx) {
 		if !state.ID.IsNull() && !state.ID.IsUnknown() && state.ID.ValueInt64() != 0 {
@@ -386,6 +388,14 @@ func userStateIdentifier(ctx context.Context, client *Client, state *userResourc
 		}
 		// Fallback: on v3.0+ the uuid attribute may hold the numeric ID as a
 		// string (e.g. after import). Return it as-is — the route accepts it.
+		uuid := state.UUID.ValueString()
+		if uuid != "" {
+			if _, err := strconv.ParseInt(uuid, 10, 64); err != nil {
+				tflog.Warn(ctx, "uuid attribute contains a non-numeric value on a v3.0+ backend — the route will likely 404. Run terraform import with the numeric user ID to fix state.", map[string]any{
+					"uuid": uuid,
+				})
+			}
+		}
 	}
 	return state.UUID.ValueString()
 }
