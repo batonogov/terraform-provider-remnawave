@@ -63,7 +63,7 @@ resource "remnawave_user" "example" {
 - `subscription_url` (String, Sensitive) Subscription URL for the user.
 - `updated_at` (String) Last update timestamp.
 - `used_traffic_bytes` (Number) Traffic used in the current reset period.
-- `uuid` (String) UUID of the user (assigned by the panel).
+- `uuid` (String) User identifier: UUID on v2.x backends, numeric ID as string on v3.0+ (the id attribute is preferred).
 
 ## Import
 
