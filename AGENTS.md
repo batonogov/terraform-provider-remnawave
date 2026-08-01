@@ -20,9 +20,6 @@ digest for reproducibility. To run an explicit compatibility check
 against a different build, override both the tag and its digest, e.g.
 `REMNAWAVE_VERSION=3.1.0 REMNAWAVE_DIGEST=sha256:<digest>`.
 
-Remnawave 3.0.0 requires the `I_UNDERSTAND_REST_API_BREAKING_CHANGES=true`
-environment variable to start — it is set in docker-compose.yaml.
-
 The client auto-detects the server version via `/api/system/metadata` on
 the first API-token operation. Version-specific behaviour:
 

@@ -656,10 +656,8 @@ func (c *Client) CreateUser(ctx context.Context, user *User) (*User, error) {
 	return &out, nil
 }
 
-// GetUserByUUID fetches a user. On v3.0+ the route uses the numeric ID;
-// on v2.x it uses the UUID. The caller passes whichever identifier it has.
-// For forward compatibility this method is renamed to GetUserByIdentifier
-// internally but keeps the public name for callers that still pass UUID.
+// GetUserByUUID fetches a user by identifier (UUID on v2.x, numeric ID on v3.0+).
+// The route path is the same; v3.0 backends accept numeric IDs via this path.
 func (c *Client) GetUserByUUID(ctx context.Context, identifier string) (*User, error) {
 	var out User
 	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/users/%s", identifier), nil, &out); err != nil {
@@ -938,7 +936,10 @@ func (c *Client) BulkUserAction(ctx context.Context, action string, identifiers 
 		return fmt.Errorf("unknown user bulk action %q: must be one of reset_traffic, revoke_subscription, delete", action)
 	}
 	path := "/api/users/bulk/" + suffix
-	body := c.bulkUserBody(ctx, identifiers)
+	body, err := c.bulkUserBody(ctx, identifiers)
+	if err != nil {
+		return err
+	}
 	return c.doRequest(ctx, http.MethodPost, path, body, nil)
 }
 
@@ -951,7 +952,11 @@ func (c *Client) BulkUserExtendExpiration(ctx context.Context, identifiers []str
 		"extendDays": extendDays,
 	}
 	if c.isVersionAtLeast3_0(ctx) {
-		body["userIds"] = stringsToIDs(identifiers)
+		ids, err := stringsToIDs(identifiers)
+		if err != nil {
+			return err
+		}
+		body["userIds"] = ids
 	} else {
 		body["uuids"] = identifiers
 	}
@@ -961,28 +966,33 @@ func (c *Client) BulkUserExtendExpiration(ctx context.Context, identifiers []str
 // bulkUserBody builds the request body for bulk user actions.
 // v2.x uses {"uuids": [...]} with string UUIDs.
 // v3.0 uses {"userIds": [...]} with numeric IDs.
-func (c *Client) bulkUserBody(ctx context.Context, identifiers []string) map[string]any {
+func (c *Client) bulkUserBody(ctx context.Context, identifiers []string) (map[string]any, error) {
 	if c.isVersionAtLeast3_0(ctx) {
-		return map[string]any{"userIds": stringsToIDs(identifiers)}
+		ids, err := stringsToIDs(identifiers)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"userIds": ids}, nil
 	}
-	return map[string]any{"uuids": identifiers}
+	return map[string]any{"uuids": identifiers}, nil
 }
 
 // stringsToIDs converts a slice of numeric strings to int64 values.
-// Panics if a string is not a valid integer — callers must ensure identifiers
-// are numeric when calling v3.0+ endpoints.
-func stringsToIDs(ids []string) []int64 {
+// Returns an error if any string is not a valid integer — callers must
+// surface this as a Terraform diagnostic.
+func stringsToIDs(ids []string) ([]int64, error) {
 	out := make([]int64, 0, len(ids))
 	for _, s := range ids {
 		n, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
-			// Fallback: keep 0 for invalid values so the backend can reject them.
-			// This should not happen — resources must validate identifiers.
-			n = 0
+			return nil, fmt.Errorf("invalid numeric user identifier %q: %w", s, err)
+		}
+		if n <= 0 {
+			return nil, fmt.Errorf("user identifier must be a positive number, got %d", n)
 		}
 		out = append(out, n)
 	}
-	return out
+	return out, nil
 }
 
 // ─── Bulk Node Actions API ───
@@ -1556,9 +1566,16 @@ func (c *Client) DeleteBillingHistory(ctx context.Context, uuid string) error {
 
 // ─── Subscriptions API ───
 
-func (c *Client) GetSubscriptionByUUID(ctx context.Context, uuid string) (map[string]any, error) {
+// GetSubscriptionByUUID fetches subscription info.
+// v2.x: GET /api/subscriptions/by-uuid/:uuid
+// v3.0: GET /api/subscriptions/by-id/:userId (by-uuid route removed)
+func (c *Client) GetSubscriptionByUUID(ctx context.Context, identifier string) (map[string]any, error) {
 	var out map[string]any
-	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/subscriptions/by-uuid/%s", uuid), nil, &out); err != nil {
+	path := fmt.Sprintf("/api/subscriptions/by-uuid/%s", identifier)
+	if c.isVersionAtLeast3_0(ctx) {
+		path = fmt.Sprintf("/api/subscriptions/by-id/%s", identifier)
+	}
+	if err := c.doRequest(ctx, http.MethodGet, path, nil, &out); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -1605,12 +1622,15 @@ func (c *Client) GetBandwidthStatsNodes(ctx context.Context, start, end string, 
 	return out, nil
 }
 
-func (c *Client) GetBandwidthStatsUser(ctx context.Context, uuid, start, end string, topNodesLimit int) (map[string]any, error) {
+// GetBandwidthStatsUser fetches bandwidth stats for a user.
+// v2.x: GET /api/bandwidth-stats/users/:uuid
+// v3.0: GET /api/bandwidth-stats/users/:userId (numeric)
+func (c *Client) GetBandwidthStatsUser(ctx context.Context, identifier, start, end string, topNodesLimit int) (map[string]any, error) {
 	query := url.Values{"start": {start}, "end": {end}}
 	if topNodesLimit > 0 {
 		query.Set("topNodesLimit", strconv.Itoa(topNodesLimit))
 	}
-	path := fmt.Sprintf("/api/bandwidth-stats/users/%s?%s", uuid, query.Encode())
+	path := fmt.Sprintf("/api/bandwidth-stats/users/%s?%s", identifier, query.Encode())
 	var out map[string]any
 	if err := c.doRequest(ctx, http.MethodGet, path, nil, &out); err != nil {
 		return nil, err
@@ -1920,10 +1940,26 @@ func (c *Client) adaptDropConnectionsBody(ctx context.Context, body map[string]a
 	}
 	uuids, ok := dropBy["userUuids"].([]string)
 	if !ok {
+		// Also handle []any (e.g. from JSON round-trip)
+		if anySlice, ok2 := dropBy["userUuids"].([]any); ok2 {
+			uuids = make([]string, 0, len(anySlice))
+			for _, v := range anySlice {
+				s, ok3 := v.(string)
+				if !ok3 {
+					return body
+				}
+				uuids = append(uuids, s)
+			}
+		} else {
+			return body
+		}
+	}
+	ids, err := stringsToIDs(uuids)
+	if err != nil {
 		return body
 	}
 	dropBy["by"] = "userIds"
-	dropBy["userIds"] = stringsToIDs(uuids)
+	dropBy["userIds"] = ids
 	delete(dropBy, "userUuids")
 	return body
 }

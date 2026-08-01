@@ -108,19 +108,22 @@ func (r *hwidDeviceResource) Configure(_ context.Context, req resource.Configure
 // an Update endpoint, so sending them would be pointless — the panel
 // overwrites them on the next client connection.
 // v3.0+: the request body key is "userId" (number), not "userUuid" (string).
-func hwidCreateReq(ctx context.Context, client *Client, plan *hwidDeviceModel) map[string]any {
+func hwidCreateReq(ctx context.Context, client *Client, plan *hwidDeviceModel) (map[string]any, error) {
 	id := plan.UserUUID.ValueString()
 	if client.isVersionAtLeast3_0(ctx) {
-		n, _ := strconv.ParseInt(id, 10, 64)
+		n, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("user_uuid must be a numeric ID on Remnawave 3.0+, got %q", id)
+		}
 		return map[string]any{
 			"userId": n,
 			"hwid":   plan.Hwid.ValueString(),
-		}
+		}, nil
 	}
 	return map[string]any{
 		"userUuid": id,
 		"hwid":     plan.Hwid.ValueString(),
-	}
+	}, nil
 }
 
 func (r *hwidDeviceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -130,7 +133,12 @@ func (r *hwidDeviceResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
-	if _, err := r.client.CreateHwidDevice(ctx, hwidCreateReq(ctx, r.client, &plan)); err != nil {
+	createReq, err := hwidCreateReq(ctx, r.client, &plan)
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid user identifier", err.Error())
+		return
+	}
+	if _, err := r.client.CreateHwidDevice(ctx, createReq); err != nil {
 		resp.Diagnostics.AddError("Failed to create HWID device", err.Error())
 		return
 	}
@@ -239,7 +247,11 @@ func (r *hwidDeviceResource) Delete(ctx context.Context, req resource.DeleteRequ
 		"hwid": state.Hwid.ValueString(),
 	}
 	if r.client.isVersionAtLeast3_0(ctx) {
-		n, _ := strconv.ParseInt(state.UserUUID.ValueString(), 10, 64)
+		n, err := strconv.ParseInt(state.UserUUID.ValueString(), 10, 64)
+		if err != nil {
+			resp.Diagnostics.AddError("Invalid user identifier", fmt.Sprintf("user_uuid must be a numeric ID on Remnawave 3.0+, got %q", state.UserUUID.ValueString()))
+			return
+		}
 		deleteReq["userId"] = n
 	} else {
 		deleteReq["userUuid"] = state.UserUUID.ValueString()

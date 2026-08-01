@@ -23,8 +23,6 @@ services:
       METRICS_USER: "admin"
       METRICS_PASS: "testmetricspass123"
       NODE_ENV: "development"
-      # Required by Remnawave 3.0.0+ — container refuses to start without this.
-      I_UNDERSTAND_REST_API_BREAKING_CHANGES: "true"
     depends_on:
       remnawave-db:
         condition: service_healthy

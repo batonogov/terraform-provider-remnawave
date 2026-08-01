@@ -52,22 +52,22 @@ func (r *subscriptionSettingsResource) Schema(_ context.Context, _ resource.Sche
 			"profile_title": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "Subscription profile title shown in VPN clients. **Removed in Remnawave 3.0** — no-op on v3.0+ backends.",
+				Description: "Subscription profile title shown in VPN clients. Removed in Remnawave 3.0 — no-op on v3.0+ backends.",
 			},
 			"support_link": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "Support link shown in subscription page. **Removed in Remnawave 3.0** — no-op on v3.0+ backends.",
+				Description: "Support link shown in subscription page. Removed in Remnawave 3.0 — no-op on v3.0+ backends.",
 			},
 			"profile_update_interval": schema.Int64Attribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "Subscription update interval in minutes. **Removed in Remnawave 3.0** — no-op on v3.0+ backends.",
+				Description: "Subscription update interval in minutes. Removed in Remnawave 3.0 — no-op on v3.0+ backends.",
 			},
 			"is_profile_webpage_url_enabled": schema.BoolAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "Enable profile webpage URL. **Removed in Remnawave 3.0** — no-op on v3.0+ backends.",
+				Description: "Enable profile webpage URL. Removed in Remnawave 3.0 — no-op on v3.0+ backends.",
 			},
 			"serve_json_at_base_subscription": schema.BoolAttribute{
 				Optional:    true,
@@ -82,12 +82,12 @@ func (r *subscriptionSettingsResource) Schema(_ context.Context, _ resource.Sche
 			"happ_announce": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "Happ announce message (max 200 chars). **Removed in Remnawave 3.0** — no-op on v3.0+ backends.",
+				Description: "Happ announce message (max 200 chars). Removed in Remnawave 3.0 — no-op on v3.0+ backends.",
 			},
 			"happ_routing": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
-				Description: "Happ routing config. **Removed in Remnawave 3.0** — no-op on v3.0+ backends.",
+				Description: "Happ routing config. Removed in Remnawave 3.0 — no-op on v3.0+ backends.",
 			},
 			"randomize_hosts": schema.BoolAttribute{
 				Optional:    true,

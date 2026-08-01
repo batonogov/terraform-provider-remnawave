@@ -172,7 +172,7 @@ func TestHwidCreateRequest(t *testing.T) {
 		"userUuid": "user-id",
 		"hwid":     "device-id",
 	}
-	if got := hwidCreateReq(context.Background(), &Client{}, plan); !reflect.DeepEqual(got, want) {
+	if got, err := hwidCreateReq(context.Background(), &Client{}, plan); err != nil || !reflect.DeepEqual(got, want) {
 		t.Errorf("hwidCreateReq() = %#v, want %#v", got, want)
 	}
 }

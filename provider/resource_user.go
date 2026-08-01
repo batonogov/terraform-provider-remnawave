@@ -69,7 +69,7 @@ func (r *userResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 		Attributes: map[string]schema.Attribute{
 			"uuid": schema.StringAttribute{
 				Computed:    true,
-				Description: "UUID of the user (assigned by the panel).",
+				Description: "User identifier: UUID on v2.x backends, numeric ID as string on v3.0+ (the id attribute is preferred).",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},

@@ -3,11 +3,13 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -53,6 +55,7 @@ type userActionModel struct {
 	ID       types.String `tfsdk:"id"`
 	UserUUID types.String `tfsdk:"user_uuid"`
 	Action   types.String `tfsdk:"action"`
+	Days     types.Int64  `tfsdk:"days"`
 	Triggers types.List   `tfsdk:"triggers"`
 }
 
@@ -80,16 +83,23 @@ func (r *userActionResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			},
 			"user_uuid": schema.StringAttribute{
 				Required:    true,
-				Description: "UUID of the target user.",
+				Description: "Identifier of the target user (UUID on v2.x, numeric ID on v3.0+).",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"action": schema.StringAttribute{
 				Required:    true,
-				Description: "Action to perform. One of: enable, disable, reset_traffic, revoke_subscription. reset-traffic is accepted as a backward-compatible alias.",
+				Description: "Action to perform. One of: enable, disable, reset_traffic, revoke_subscription, extend_expiration. reset-traffic is accepted as a backward-compatible alias. extend_expiration is v3.0+ only and requires the days attribute.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"days": schema.Int64Attribute{
+				Optional:    true,
+				Description: "Number of days (1-9999) to extend the user's expiration date. Required when action is extend_expiration; ignored for all other actions.",
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.RequiresReplace(),
 				},
 			},
 			"triggers": schema.ListAttribute{
@@ -148,15 +158,50 @@ func (r *userActionResource) Create(ctx context.Context, req resource.CreateRequ
 	// and only normalized for the API call.
 	action = canonicalAction
 
+	// Validate days is provided for extend_expiration
+	if action == "extend_expiration" {
+		if plan.Days.IsNull() || plan.Days.IsUnknown() {
+			resp.Diagnostics.AddError(
+				"Missing days attribute",
+				"days is required when action is extend_expiration",
+			)
+			return
+		}
+		days := plan.Days.ValueInt64()
+		if days < 1 || days > 9999 {
+			resp.Diagnostics.AddError(
+				"Invalid days value",
+				fmt.Sprintf("days must be between 1 and 9999, got %d", days),
+			)
+			return
+		}
+	}
+
 	userUUID := plan.UserUUID.ValueString()
 	tflog.Info(ctx, "performing user action", map[string]any{
 		"user_uuid": userUUID,
 		"action":    action,
 	})
 
-	if err := r.client.UserAction(ctx, userUUID, action); err != nil {
-		resp.Diagnostics.AddError("Failed to perform user action", err.Error())
-		return
+	if action == "extend_expiration" {
+		// v3.0+ only: extend requires a body with {days: N}
+		userID, err := strconv.ParseInt(userUUID, 10, 64)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Invalid user identifier for extend_expiration",
+				"extend_expiration requires a numeric user ID (v3.0+). The user_uuid attribute must contain the numeric ID.",
+			)
+			return
+		}
+		if err := r.client.ExtendUserExpiration(ctx, userID, int(plan.Days.ValueInt64())); err != nil {
+			resp.Diagnostics.AddError("Failed to extend user expiration", err.Error())
+			return
+		}
+	} else {
+		if err := r.client.UserAction(ctx, userUUID, action); err != nil {
+			resp.Diagnostics.AddError("Failed to perform user action", err.Error())
+			return
+		}
 	}
 
 	plan.ID = types.StringValue(fmt.Sprintf("%s:%s", userUUID, action))
