@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -272,15 +273,16 @@ func (r *userResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	uuid := state.UUID.ValueString()
-	if uuid == "" {
+	// v3.0+: use numeric user ID; v2.x: use UUID
+	identifier := userStateIdentifier(ctx, r.client, &state)
+	if identifier == "" {
 		return
 	}
 
-	user, err := r.client.GetUserByUUID(ctx, uuid)
+	user, err := r.client.GetUserByUUID(ctx, identifier)
 	if err != nil {
 		if isNotFound(err) {
-			tflog.Warn(ctx, "user not found, removing from state", map[string]any{"uuid": uuid})
+			tflog.Warn(ctx, "user not found, removing from state", map[string]any{"identifier": identifier})
 			resp.State.RemoveResource(ctx)
 			return
 		}
@@ -356,15 +358,31 @@ func (r *userResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		return
 	}
 
-	uuid := state.UUID.ValueString()
-	if err := r.client.DeleteUser(ctx, uuid); err != nil {
+	// v3.0+: use numeric user ID; v2.x: use UUID
+	identifier := userStateIdentifier(ctx, r.client, &state)
+	if err := r.client.DeleteUser(ctx, identifier); err != nil {
 		resp.Diagnostics.AddError("Failed to delete user", err.Error())
 		return
 	}
 }
 
 func (r *userResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	// v3.0+: accept numeric ID for import. We store it in the uuid attribute
+	// for backward compatibility — the Read method resolves it to the correct
+	// identifier automatically.
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("uuid"), types.StringValue(req.ID))...)
+}
+
+// userStateIdentifier returns the correct identifier for user-scoped API calls.
+// On v3.0+ backends, routes use the numeric user ID; on v2.x, routes use UUID.
+// The ID is preferred when available (v3.0+), falling back to UUID.
+func userStateIdentifier(ctx context.Context, client *Client, state *userResourceModel) string {
+	if client.isVersionAtLeast3_0(ctx) {
+		if !state.ID.IsNull() && !state.ID.IsUnknown() && state.ID.ValueInt64() != 0 {
+			return strconv.FormatInt(state.ID.ValueInt64(), 10)
+		}
+	}
+	return state.UUID.ValueString()
 }
 
 // ─── Conversions ───

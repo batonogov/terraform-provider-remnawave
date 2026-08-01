@@ -4,9 +4,10 @@ import "encoding/json"
 
 // User maps to the Remnawave Users model.
 // API: /api/users (POST create, PATCH update, DELETE /:uuid, GET /:uuid)
+// v3.0: uuid field removed; id is the primary key used in routes.
 type User struct {
-	UUID                   string         `json:"uuid,omitempty"`
-	ID                     int64          `json:"id,omitempty"`
+	UUID                   string         `json:"uuid,omitempty"` // v2.x only; removed in v3.0
+	ID                     int64          `json:"id,omitempty"`   // present in all versions, primary key in v3.0
 	ShortUUID              string         `json:"shortUuid,omitempty"`
 	Username               string         `json:"username"`
 	Status                 string         `json:"status,omitempty"`
@@ -205,16 +206,19 @@ type ConfigProfileNode struct {
 }
 
 // SubscriptionSettings is a singleton (GET/PATCH /api/subscription-settings).
+// v3.0 removed: profileTitle, supportLink, profileUpdateInterval,
+// isProfileWebpageUrlEnabled, happAnnounce, happRouting. These fields are kept
+// in the struct for v2.x compatibility — on v3.0+ the backend strips them.
 type SubscriptionSettings struct {
 	UUID                        string          `json:"uuid,omitempty"`
-	ProfileTitle                *string         `json:"profileTitle,omitempty"`
-	SupportLink                 *string         `json:"supportLink,omitempty"`
-	ProfileUpdateInterval       *int            `json:"profileUpdateInterval,omitempty"`
-	IsProfileWebpageURLEnabled  *bool           `json:"isProfileWebpageUrlEnabled,omitempty"`
+	ProfileTitle                *string         `json:"profileTitle,omitempty"`               // v2.x only
+	SupportLink                 *string         `json:"supportLink,omitempty"`                // v2.x only
+	ProfileUpdateInterval       *int            `json:"profileUpdateInterval,omitempty"`      // v2.x only
+	IsProfileWebpageURLEnabled  *bool           `json:"isProfileWebpageUrlEnabled,omitempty"` // v2.x only
 	ServeJsonAtBaseSubscription *bool           `json:"serveJsonAtBaseSubscription,omitempty"`
 	IsShowCustomRemarks         *bool           `json:"isShowCustomRemarks,omitempty"`
-	HappAnnounce                *string         `json:"happAnnounce,omitempty"`
-	HappRouting                 *string         `json:"happRouting,omitempty"`
+	HappAnnounce                *string         `json:"happAnnounce,omitempty"` // v2.x only
+	HappRouting                 *string         `json:"happRouting,omitempty"`  // v2.x only
 	RandomizeHosts              *bool           `json:"randomizeHosts,omitempty"`
 	CustomRemarks               json.RawMessage `json:"customRemarks,omitempty"`
 	CustomResponseHeaders       json.RawMessage `json:"customResponseHeaders,omitempty"`
@@ -266,16 +270,20 @@ type InternalSquadAccessibleNodes struct {
 }
 
 // ExternalSquad maps to the Remnawave ExternalSquad model.
+// v3.0: responseHeaders → responseHeadersAdd (object) + responseHeadersRemove (array).
+// The old ResponseHeaders field is kept for v2.x compatibility.
 type ExternalSquad struct {
-	UUID                 string          `json:"uuid,omitempty"`
-	Name                 string          `json:"name"`
-	Templates            json.RawMessage `json:"templates,omitempty"`
-	SubscriptionSettings json.RawMessage `json:"subscriptionSettings,omitempty"`
-	HostOverrides        json.RawMessage `json:"hostOverrides,omitempty"`
-	ResponseHeaders      json.RawMessage `json:"responseHeaders,omitempty"`
-	HwidSettings         json.RawMessage `json:"hwidSettings,omitempty"`
-	CustomRemarks        json.RawMessage `json:"customRemarks,omitempty"`
-	SubpageConfigUUID    *string         `json:"subpageConfigUuid,omitempty"`
+	UUID                  string          `json:"uuid,omitempty"`
+	Name                  string          `json:"name"`
+	Templates             json.RawMessage `json:"templates,omitempty"`
+	SubscriptionSettings  json.RawMessage `json:"subscriptionSettings,omitempty"`
+	HostOverrides         json.RawMessage `json:"hostOverrides,omitempty"`
+	ResponseHeaders       json.RawMessage `json:"responseHeaders,omitempty"`       // v2.x only
+	ResponseHeadersAdd    json.RawMessage `json:"responseHeadersAdd,omitempty"`    // v3.0+
+	ResponseHeadersRemove json.RawMessage `json:"responseHeadersRemove,omitempty"` // v3.0+
+	HwidSettings          json.RawMessage `json:"hwidSettings,omitempty"`
+	CustomRemarks         json.RawMessage `json:"customRemarks,omitempty"`
+	SubpageConfigUUID     *string         `json:"subpageConfigUuid,omitempty"`
 }
 
 // SubscriptionTemplate maps to the Remnawave SubscriptionTemplate model.

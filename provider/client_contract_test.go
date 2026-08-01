@@ -29,6 +29,7 @@ func TestClientAPIContracts(t *testing.T) {
 	tests := []clientContractCase{
 		{name: "CreateUser", method: http.MethodPost, path: "/api/users", args: []any{&User{Username: "alice", ExpireAt: "2027-01-01T00:00:00Z"}}},
 		{name: "GetUserByUUID", method: http.MethodGet, path: "/api/users/item-id", args: []any{"item-id"}},
+		{name: "GetUserByID", method: http.MethodGet, path: "/api/users/42", args: []any{int64(42)}},
 		{name: "UpdateUser", method: http.MethodPatch, path: "/api/users", args: []any{&User{UUID: "item-id", Username: "alice", ExpireAt: "2027-01-01T00:00:00Z"}}},
 		{name: "DeleteUser", method: http.MethodDelete, path: "/api/users/item-id", args: []any{"item-id"}},
 		{name: "GetAllUsers", method: http.MethodGet, path: "/api/users", query: map[string]string{"size": "1000"}},
@@ -158,6 +159,7 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "GetHwidStats", method: http.MethodGet, path: "/api/hwid/devices/stats"},
 		{name: "GetHwidTopUsers", method: http.MethodGet, path: "/api/hwid/devices/top-users"},
 		{name: "UserAction", method: http.MethodPost, path: "/api/users/item-id/actions/reset-traffic", args: []any{"item-id", "reset_traffic"}, noBody: true},
+		{name: "ExtendUserExpiration", method: http.MethodPost, path: "/api/users/42/actions/extend", args: []any{"42", "2026-12-31T23:59:59Z"}, wantJSON: map[string]any{"expireAt": "2026-12-31T23:59:59Z"}},
 		{name: "FetchUserIPs", method: http.MethodPost, path: "/api/ip-control/fetch-ips/item-id", args: []any{"item-id"}, noBody: true, mockResponse: `{"response":{"jobId":"job-1"}}`},
 		{name: "DropConnections", method: http.MethodPost, path: "/api/ip-control/drop-connections", args: []any{"item-id"}, wantJSON: map[string]any{"userUuid": "item-id"}},
 		{name: "DropConnectionsV2", method: http.MethodPost, path: "/api/ip-control/drop-connections", args: []any{map[string]any{"dropBy": map[string]any{"by": "userUuids", "userUuids": []any{"item-id"}}, "targetNodes": map[string]any{"target": "allNodes"}}}, wantJSON: map[string]any{"dropBy": map[string]any{"by": "userUuids", "userUuids": []any{"item-id"}}, "targetNodes": map[string]any{"target": "allNodes"}}},

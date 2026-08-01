@@ -16,15 +16,17 @@ import (
 
 type externalSquadResource struct{ client *Client }
 type externalSquadModel struct {
-	UUID                 types.String `tfsdk:"uuid"`
-	Name                 types.String `tfsdk:"name"`
-	Templates            types.String `tfsdk:"templates"`
-	SubscriptionSettings types.String `tfsdk:"subscription_settings"`
-	HostOverrides        types.String `tfsdk:"host_overrides"`
-	ResponseHeaders      types.String `tfsdk:"response_headers"`
-	HwidSettings         types.String `tfsdk:"hwid_settings"`
-	CustomRemarks        types.String `tfsdk:"custom_remarks"`
-	SubpageConfigUUID    types.String `tfsdk:"subpage_config_uuid"`
+	UUID                  types.String `tfsdk:"uuid"`
+	Name                  types.String `tfsdk:"name"`
+	Templates             types.String `tfsdk:"templates"`
+	SubscriptionSettings  types.String `tfsdk:"subscription_settings"`
+	HostOverrides         types.String `tfsdk:"host_overrides"`
+	ResponseHeaders       types.String `tfsdk:"response_headers"`
+	ResponseHeadersAdd    types.String `tfsdk:"response_headers_add"`
+	ResponseHeadersRemove types.String `tfsdk:"response_headers_remove"`
+	HwidSettings          types.String `tfsdk:"hwid_settings"`
+	CustomRemarks         types.String `tfsdk:"custom_remarks"`
+	SubpageConfigUUID     types.String `tfsdk:"subpage_config_uuid"`
 }
 
 func NewExternalSquadResource() resource.Resource { return &externalSquadResource{} }
@@ -37,15 +39,17 @@ func (r *externalSquadResource) Schema(_ context.Context, _ resource.SchemaReque
 	resp.Schema = schema.Schema{
 		Description: "Manages a Remnawave external squad.",
 		Attributes: map[string]schema.Attribute{
-			"uuid":                  schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
-			"name":                  schema.StringAttribute{Required: true, Description: "Squad name (2-30 chars)."},
-			"templates":             schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Template assignments as JSON array."},
-			"subscription_settings": schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Squad-specific subscription settings as JSON."},
-			"host_overrides":        schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Squad host overrides as JSON."},
-			"response_headers":      schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Squad response headers as JSON object."},
-			"hwid_settings":         schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Squad HWID settings as JSON."},
-			"custom_remarks":        schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Squad custom remarks as JSON."},
-			"subpage_config_uuid":   schema.StringAttribute{Optional: true, Computed: true, Description: "Subscription page config UUID assigned to the squad."},
+			"uuid":                    schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
+			"name":                    schema.StringAttribute{Required: true, Description: "Squad name (2-30 chars)."},
+			"templates":               schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Template assignments as JSON array."},
+			"subscription_settings":   schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Squad-specific subscription settings as JSON."},
+			"host_overrides":          schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Squad host overrides as JSON."},
+			"response_headers":        schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Squad response headers as JSON object. **Removed in Remnawave 3.0** — use `response_headers_add` and `response_headers_remove` instead."},
+			"response_headers_add":    schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Headers to add to subscription responses, as a JSON object. **Remnawave 3.0+** — replaces `response_headers`."},
+			"response_headers_remove": schema.StringAttribute{Optional: true, Computed: true, Description: "JSON array of header names to remove from subscription responses. **Remnawave 3.0+**."},
+			"hwid_settings":           schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Squad HWID settings as JSON."},
+			"custom_remarks":          schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Squad custom remarks as JSON."},
+			"subpage_config_uuid":     schema.StringAttribute{Optional: true, Computed: true, Description: "Subscription page config UUID assigned to the squad."},
 		},
 	}
 }
@@ -159,6 +163,8 @@ func externalSquadFromPlan(plan *externalSquadModel) (*ExternalSquad, error) {
 		{name: "subscription_settings", value: plan.SubscriptionSettings, dest: &squad.SubscriptionSettings},
 		{name: "host_overrides", value: plan.HostOverrides, dest: &squad.HostOverrides},
 		{name: "response_headers", value: plan.ResponseHeaders, dest: &squad.ResponseHeaders},
+		{name: "response_headers_add", value: plan.ResponseHeadersAdd, dest: &squad.ResponseHeadersAdd},
+		{name: "response_headers_remove", value: plan.ResponseHeadersRemove, dest: &squad.ResponseHeadersRemove},
 		{name: "hwid_settings", value: plan.HwidSettings, dest: &squad.HwidSettings},
 		{name: "custom_remarks", value: plan.CustomRemarks, dest: &squad.CustomRemarks},
 	}
@@ -186,6 +192,8 @@ func externalSquadToPlan(squad *ExternalSquad, plan *externalSquadModel) {
 	plan.SubscriptionSettings = rawJSONToString(squad.SubscriptionSettings)
 	plan.HostOverrides = rawJSONToString(squad.HostOverrides)
 	plan.ResponseHeaders = rawJSONToString(squad.ResponseHeaders)
+	plan.ResponseHeadersAdd = rawJSONToString(squad.ResponseHeadersAdd)
+	plan.ResponseHeadersRemove = rawJSONToString(squad.ResponseHeadersRemove)
 	plan.HwidSettings = rawJSONToString(squad.HwidSettings)
 	plan.CustomRemarks = rawJSONToString(squad.CustomRemarks)
 	if squad.SubpageConfigUUID != nil {

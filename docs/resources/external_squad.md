@@ -30,7 +30,9 @@ resource "remnawave_external_squad" "standard" {
 - `custom_remarks` (String) Squad custom remarks as JSON.
 - `host_overrides` (String) Squad host overrides as JSON.
 - `hwid_settings` (String) Squad HWID settings as JSON.
-- `response_headers` (String) Squad response headers as JSON object.
+- `response_headers` (String) Squad response headers as JSON object. **Removed in Remnawave 3.0** — use `response_headers_add` and `response_headers_remove` instead.
+- `response_headers_add` (String) Headers to add to subscription responses, as a JSON object. **Remnawave 3.0+** — replaces `response_headers`.
+- `response_headers_remove` (String) JSON array of header names to remove from subscription responses. **Remnawave 3.0+**.
 - `subpage_config_uuid` (String) Subscription page config UUID assigned to the squad.
 - `subscription_settings` (String) Squad-specific subscription settings as JSON.
 - `templates` (String) Template assignments as JSON array.

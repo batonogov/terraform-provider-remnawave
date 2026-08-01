@@ -618,6 +618,31 @@ func (c *Client) isVersion2_7(ctx context.Context) bool {
 	return c.serverMinorVersion(ctx) == "2.7"
 }
 
+// isVersion3_0 returns true if the connected backend reports version 3.0.x.
+// v3.0 is a major breaking release: user UUID → numeric ID, ip-control → connections,
+// subscription settings fields removed, external squad headers split.
+func (c *Client) isVersion3_0(ctx context.Context) bool {
+	return c.serverMinorVersion(ctx) == "3.0"
+}
+
+// isVersionAtLeast3_0 returns true if the connected backend reports version
+// 3.0.x or higher (major >= 3). Used for forward-only features.
+func (c *Client) isVersionAtLeast3_0(ctx context.Context) bool {
+	v := c.serverMinorVersion(ctx)
+	if v == "" {
+		return false
+	}
+	parts := strings.SplitN(v, ".", 2)
+	if len(parts) < 1 {
+		return false
+	}
+	n, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return false
+	}
+	return n >= 3
+}
+
 // parseMajorMinor extracts "major.minor" from a semver-like string.
 // e.g. "2.7.4" → "2.7", "2.8.0" → "2.8", "garbage" → "".
 func parseMajorMinor(version string) string {
@@ -638,12 +663,21 @@ func (c *Client) CreateUser(ctx context.Context, user *User) (*User, error) {
 	return &out, nil
 }
 
-func (c *Client) GetUserByUUID(ctx context.Context, uuid string) (*User, error) {
+// GetUserByUUID fetches a user. On v3.0+ the route uses the numeric ID;
+// on v2.x it uses the UUID. The caller passes whichever identifier it has.
+// For forward compatibility this method is renamed to GetUserByIdentifier
+// internally but keeps the public name for callers that still pass UUID.
+func (c *Client) GetUserByUUID(ctx context.Context, identifier string) (*User, error) {
 	var out User
-	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/users/%s", uuid), nil, &out); err != nil {
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/users/%s", identifier), nil, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
+}
+
+// GetUserByID fetches a user by numeric ID (v3.0+).
+func (c *Client) GetUserByID(ctx context.Context, userID int64) (*User, error) {
+	return c.GetUserByUUID(ctx, strconv.FormatInt(userID, 10))
 }
 
 func (c *Client) UpdateUser(ctx context.Context, user any) (*User, error) {
@@ -676,24 +710,38 @@ func (c *Client) GetAllUsers(ctx context.Context) ([]User, error) {
 // userActionEndpoint maps a user action string to its REST endpoint suffix.
 // "reset-traffic" is accepted as a backward-compatible alias for the canonical
 // "reset_traffic" form (both resolve to the same backend endpoint).
+// "extend_expiration" is v3.0+ only.
 var userActionEndpoint = map[string]string{
 	"enable":              "enable",
 	"disable":             "disable",
 	"reset_traffic":       "reset-traffic",
 	"reset-traffic":       "reset-traffic", // backward-compatible alias
 	"revoke_subscription": "revoke",
+	"extend_expiration":   "extend", // v3.0+ only
 }
 
 // UserAction performs an imperative action (enable, disable, reset_traffic,
-// revoke_subscription) on a user via POST /api/users/:uuid/actions/:action.
+// revoke_subscription, extend_expiration) on a user.
+// v2.x: POST /api/users/:uuid/actions/:action
+// v3.0: POST /api/users/:userId/actions/:action
 // The action "reset-traffic" is accepted as an alias for "reset_traffic".
-func (c *Client) UserAction(ctx context.Context, userUUID, action string) error {
+// "extend_expiration" is v3.0+ only and requires a request body with the new
+// expiration date — use ExtendUserExpiration for that action.
+func (c *Client) UserAction(ctx context.Context, userIdentifier, action string) error {
 	suffix, ok := userActionEndpoint[action]
 	if !ok {
-		return fmt.Errorf("unknown user action %q: must be one of enable, disable, reset_traffic, revoke_subscription", action)
+		return fmt.Errorf("unknown user action %q: must be one of enable, disable, reset_traffic, revoke_subscription, extend_expiration", action)
 	}
-	path := fmt.Sprintf("/api/users/%s/actions/%s", userUUID, suffix)
+	path := fmt.Sprintf("/api/users/%s/actions/%s", userIdentifier, suffix)
 	return c.doRequest(ctx, http.MethodPost, path, nil, nil)
+}
+
+// ExtendUserExpiration extends a user's expiration date (v3.0+).
+// POST /api/users/:userId/actions/extend with { "expireAt": "<ISO datetime>" }
+func (c *Client) ExtendUserExpiration(ctx context.Context, userID, expireAt string) error {
+	body := map[string]string{"expireAt": expireAt}
+	path := fmt.Sprintf("/api/users/%s/actions/extend", userID)
+	return c.doRequest(ctx, http.MethodPost, path, body, nil)
 }
 
 // ─── Node API ───
@@ -1730,10 +1778,22 @@ type ipControlIP struct {
 // FetchUserIPs initiates an async job to fetch the IPs a user is connected
 // from, then polls for the result until it completes or the context is
 // cancelled. It returns the list of IPs.
-func (c *Client) FetchUserIPs(ctx context.Context, userUUID string) ([]string, error) {
+// v2.x: POST /api/ip-control/fetch-ips/:uuid + GET /api/ip-control/fetch-ips/result/:jobId
+// v3.0: POST /api/connections/by-user/:userId + GET /api/connections/by-user/:jobId
+func (c *Client) FetchUserIPs(ctx context.Context, userIdentifier string) ([]string, error) {
+	// Build version-aware paths
+	var startPath, resultPath string
+	if c.isVersionAtLeast3_0(ctx) {
+		startPath = fmt.Sprintf("/api/connections/by-user/%s", userIdentifier)
+		resultPath = fmt.Sprintf("/api/connections/by-user/%s", "%s")
+	} else {
+		startPath = fmt.Sprintf("/api/ip-control/fetch-ips/%s", userIdentifier)
+		resultPath = fmt.Sprintf("/api/ip-control/fetch-ips/result/%s", "%s")
+	}
+
 	// 1. Start the job
 	var jobResp ipControlJobResponse
-	if err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/ip-control/fetch-ips/%s", userUUID), nil, &jobResp); err != nil {
+	if err := c.doRequest(ctx, http.MethodPost, startPath, nil, &jobResp); err != nil {
 		return nil, fmt.Errorf("failed to start fetch-ips job: %w", err)
 	}
 	if jobResp.JobID == "" {
@@ -1748,7 +1808,7 @@ func (c *Client) FetchUserIPs(ctx context.Context, userUUID string) ([]string, e
 	deadline := time.Now().Add(pollTimeout)
 	for {
 		var result ipControlJobResult
-		if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/ip-control/fetch-ips/result/%s", jobResp.JobID), nil, &result); err != nil {
+		if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf(resultPath, jobResp.JobID), nil, &result); err != nil {
 			return nil, fmt.Errorf("failed to fetch-ips result for jobId %s: %w", jobResp.JobID, err)
 		}
 
@@ -1778,12 +1838,23 @@ func (c *Client) FetchUserIPs(ctx context.Context, userUUID string) ([]string, e
 	}
 }
 
+// connectionsPath returns the correct drop-connections API path for the
+// detected backend version.
+// v2.x: /api/ip-control/drop-connections
+// v3.0: /api/connections/drop
+func (c *Client) connectionsPath(ctx context.Context) string {
+	if c.isVersionAtLeast3_0(ctx) {
+		return "/api/connections/drop"
+	}
+	return "/api/ip-control/drop-connections"
+}
+
 // DropConnections drops all active connections for the given user UUID.
 //
 // Deprecated: use DropConnectionsV2 for the full API schema (drop by IP, target nodes).
 func (c *Client) DropConnections(ctx context.Context, userUUID string) error {
 	body := map[string]string{"userUuid": userUUID}
-	return c.doRequest(ctx, http.MethodPost, "/api/ip-control/drop-connections", body, nil)
+	return c.doRequest(ctx, http.MethodPost, c.connectionsPath(ctx), body, nil)
 }
 
 // DropConnectionsV2 drops connections using the full IP Control API schema.
@@ -1792,7 +1863,7 @@ func (c *Client) DropConnectionsV2(ctx context.Context, body map[string]any) (bo
 	var out struct {
 		EventSent bool `json:"eventSent"`
 	}
-	if err := c.doRequest(ctx, http.MethodPost, "/api/ip-control/drop-connections", body, &out); err != nil {
+	if err := c.doRequest(ctx, http.MethodPost, c.connectionsPath(ctx), body, &out); err != nil {
 		return false, err
 	}
 	return out.EventSent, nil

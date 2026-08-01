@@ -1,6 +1,6 @@
 services:
   remnawave:
-    image: remnawave/backend:${REMNAWAVE_VERSION:-2.8.1}@${REMNAWAVE_DIGEST:-sha256:361f9bb0b183d4fcefea2f1f7163db490e2aa1ec3b4bdde016a9ab9229ce956b}
+    image: remnawave/backend:${REMNAWAVE_VERSION:-3.0.0}@${REMNAWAVE_DIGEST:-sha256:4db37ad505101672fdba8ba39f4744817b7cf3d0c7de2e5cd6c145af2117b69c}
     container_name: remnawave-test
     hostname: remnawave
     ports:
@@ -23,6 +23,8 @@ services:
       METRICS_USER: "admin"
       METRICS_PASS: "testmetricspass123"
       NODE_ENV: "development"
+      # Required by Remnawave 3.0.0+ — container refuses to start without this.
+      I_UNDERSTAND_REST_API_BREAKING_CHANGES: "true"
     depends_on:
       remnawave-db:
         condition: service_healthy
