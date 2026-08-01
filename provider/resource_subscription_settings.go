@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 type subscriptionSettingsResource struct {
@@ -149,6 +150,7 @@ func (r *subscriptionSettingsResource) Create(ctx context.Context, req resource.
 
 	settings := planToSubscriptionSettings(&plan)
 	settings.UUID = current.UUID
+	r.warnDeprecatedFields(ctx, &plan)
 	updated, err := r.client.UpdateSubscriptionSettings(ctx, settings)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to set subscription settings", err.Error())
@@ -194,6 +196,7 @@ func (r *subscriptionSettingsResource) Update(ctx context.Context, req resource.
 
 	settings := planToSubscriptionSettings(&plan)
 	settings.UUID = current.UUID
+	r.warnDeprecatedFields(ctx, &plan)
 	updated, err := r.client.UpdateSubscriptionSettings(ctx, settings)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to update subscription settings", err.Error())
@@ -334,4 +337,31 @@ func rawJSONToString(value json.RawMessage) types.String {
 		return types.StringValue(string(value))
 	}
 	return types.StringValue(string(b))
+}
+
+// warnDeprecatedFields emits a tflog.Warn for each removed-in-v3.0 field that
+// the user has set in their HCL configuration. On v3.0+ backends these fields
+// are silently stripped by the server and have no effect.
+func (r *subscriptionSettingsResource) warnDeprecatedFields(ctx context.Context, p *subscriptionSettingsModel) {
+	if !r.client.isVersionAtLeast3_0(ctx) {
+		return
+	}
+	checks := []struct {
+		name string
+		set  bool
+	}{
+		{"profile_title", !p.ProfileTitle.IsNull() && !p.ProfileTitle.IsUnknown()},
+		{"support_link", !p.SupportLink.IsNull() && !p.SupportLink.IsUnknown()},
+		{"profile_update_interval", !p.ProfileUpdateInterval.IsNull() && !p.ProfileUpdateInterval.IsUnknown()},
+		{"is_profile_webpage_url_enabled", !p.IsProfileWebpageURLEnabled.IsNull() && !p.IsProfileWebpageURLEnabled.IsUnknown()},
+		{"happ_announce", !p.HappAnnounce.IsNull() && !p.HappAnnounce.IsUnknown()},
+		{"happ_routing", !p.HappRouting.IsNull() && !p.HappRouting.IsUnknown()},
+	}
+	for _, c := range checks {
+		if c.set {
+			tflog.Warn(ctx, "subscription_settings field has no effect on Remnawave 3.0+ — field was removed", map[string]any{
+				"field": c.name,
+			})
+		}
+	}
 }

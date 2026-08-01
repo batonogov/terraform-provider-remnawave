@@ -18,12 +18,14 @@ import (
 // validUserActions is the set of actions accepted by the resource.
 // "reset-traffic" is accepted as a backward-compatible alias for the
 // canonical "reset_traffic" form (see normalizeUserAction).
+// "extend_expiration" is v3.0+ only.
 var validUserActions = map[string]struct{}{
 	"enable":              {},
 	"disable":             {},
 	"reset_traffic":       {},
 	"reset-traffic":       {}, // alias, deprecated
 	"revoke_subscription": {},
+	"extend_expiration":   {}, // v3.0+ only
 }
 
 // userActionAliases maps deprecated/alias action names to their canonical
@@ -64,9 +66,10 @@ func (r *userActionResource) Metadata(_ context.Context, _ resource.MetadataRequ
 
 func (r *userActionResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Performs an imperative one-shot action on a Remnawave user (enable, disable, reset_traffic, or revoke_subscription). " +
+		Description: "Performs an imperative one-shot action on a Remnawave user (enable, disable, reset_traffic, revoke_subscription, extend_expiration). " +
 			"The action is re-executed whenever the triggers list changes value, making it suitable for recurring operations such as periodic traffic resets. " +
-			"reset-traffic is accepted as a backward-compatible alias for reset_traffic (prefer the underscore form).",
+			"reset-traffic is accepted as a backward-compatible alias for reset_traffic (prefer the underscore form). " +
+			"extend_expiration is available on Remnawave 3.0+ only.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:    true,
@@ -125,7 +128,7 @@ func (r *userActionResource) Create(ctx context.Context, req resource.CreateRequ
 	if !isValidUserAction(action) {
 		resp.Diagnostics.AddError(
 			"Invalid action",
-			fmt.Sprintf("action must be one of: enable, disable, reset_traffic, revoke_subscription — got %q", action),
+			fmt.Sprintf("action must be one of: enable, disable, reset_traffic, revoke_subscription, extend_expiration — got %q", action),
 		)
 		return
 	}
@@ -213,7 +216,7 @@ func (r *userActionResource) ImportState(ctx context.Context, req resource.Impor
 	if !isValidUserAction(action) {
 		resp.Diagnostics.AddError(
 			"Invalid action in import ID",
-			fmt.Sprintf("action must be one of: enable, disable, reset_traffic, revoke_subscription — got %q", action),
+			fmt.Sprintf("action must be one of: enable, disable, reset_traffic, revoke_subscription, extend_expiration — got %q", action),
 		)
 		return
 	}

@@ -375,12 +375,17 @@ func (r *userResource) ImportState(ctx context.Context, req resource.ImportState
 
 // userStateIdentifier returns the correct identifier for user-scoped API calls.
 // On v3.0+ backends, routes use the numeric user ID; on v2.x, routes use UUID.
-// The ID is preferred when available (v3.0+), falling back to UUID.
+// On v3.0+, the numeric ID from the id attribute is preferred. If it is missing
+// (e.g. after import where the user supplied the ID as a string in the uuid
+// attribute), the uuid attribute is used as-is — it already contains the
+// numeric ID as a string on v3.0+.
 func userStateIdentifier(ctx context.Context, client *Client, state *userResourceModel) string {
 	if client.isVersionAtLeast3_0(ctx) {
 		if !state.ID.IsNull() && !state.ID.IsUnknown() && state.ID.ValueInt64() != 0 {
 			return strconv.FormatInt(state.ID.ValueInt64(), 10)
 		}
+		// Fallback: on v3.0+ the uuid attribute may hold the numeric ID as a
+		// string (e.g. after import). Return it as-is — the route accepts it.
 	}
 	return state.UUID.ValueString()
 }
@@ -439,7 +444,13 @@ func planToUser(p *userResourceModel) *User {
 }
 
 func userToPlan(u *User, p *userResourceModel) {
-	p.UUID = types.StringValue(u.UUID)
+	// v3.0: uuid is empty; store the numeric ID as a string so the uuid
+	// attribute always has a usable identifier for state lookups.
+	uuid := u.UUID
+	if uuid == "" && u.ID != 0 {
+		uuid = strconv.FormatInt(u.ID, 10)
+	}
+	p.UUID = types.StringValue(uuid)
 	p.ID = types.Int64Value(u.ID)
 	p.ShortUUID = types.StringValue(u.ShortUUID)
 	p.Username = types.StringValue(u.Username)

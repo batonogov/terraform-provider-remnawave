@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -106,9 +107,18 @@ func (r *hwidDeviceResource) Configure(_ context.Context, req resource.Configure
 // config, so they have no source value in the plan. The backend does not offer
 // an Update endpoint, so sending them would be pointless — the panel
 // overwrites them on the next client connection.
-func hwidCreateReq(plan *hwidDeviceModel) map[string]any {
+// v3.0+: the request body key is "userId" (number), not "userUuid" (string).
+func hwidCreateReq(ctx context.Context, client *Client, plan *hwidDeviceModel) map[string]any {
+	id := plan.UserUUID.ValueString()
+	if client.isVersionAtLeast3_0(ctx) {
+		n, _ := strconv.ParseInt(id, 10, 64)
+		return map[string]any{
+			"userId": n,
+			"hwid":   plan.Hwid.ValueString(),
+		}
+	}
 	return map[string]any{
-		"userUuid": plan.UserUUID.ValueString(),
+		"userUuid": id,
 		"hwid":     plan.Hwid.ValueString(),
 	}
 }
@@ -120,7 +130,7 @@ func (r *hwidDeviceResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
-	if _, err := r.client.CreateHwidDevice(ctx, hwidCreateReq(&plan)); err != nil {
+	if _, err := r.client.CreateHwidDevice(ctx, hwidCreateReq(ctx, r.client, &plan)); err != nil {
 		resp.Diagnostics.AddError("Failed to create HWID device", err.Error())
 		return
 	}
@@ -226,8 +236,13 @@ func (r *hwidDeviceResource) Delete(ctx context.Context, req resource.DeleteRequ
 	}
 
 	deleteReq := map[string]any{
-		"userUuid": state.UserUUID.ValueString(),
-		"hwid":     state.Hwid.ValueString(),
+		"hwid": state.Hwid.ValueString(),
+	}
+	if r.client.isVersionAtLeast3_0(ctx) {
+		n, _ := strconv.ParseInt(state.UserUUID.ValueString(), 10, 64)
+		deleteReq["userId"] = n
+	} else {
+		deleteReq["userUuid"] = state.UserUUID.ValueString()
 	}
 
 	if err := r.client.DeleteHwidDevice(ctx, deleteReq); err != nil {
