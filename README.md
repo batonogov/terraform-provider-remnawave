@@ -58,8 +58,8 @@ acceptance test suite runs against all three versions in CI on every push to
 | v2.7.4 | ✅ Tested (matrix) |
 
 The client auto-detects the backend version via `/api/system/metadata` on the
-first API-token operation and adapts API calls where contracts differ between
-versions. No configuration is required.
+first version-dependent operation and adapts API calls where contracts differ
+between versions. No configuration is required.
 
 ## Quick Start
 
@@ -272,11 +272,11 @@ These resources trigger one-shot operations on `terraform apply`. Use the
 | Resource | Description |
 | --- | --- |
 | [`remnawave_node_action`](docs/resources/node_action.md) | Enable / disable / restart / reset traffic on a node |
-| [`remnawave_user_action`](docs/resources/user_action.md) | Enable / disable / reset traffic / revoke subscription on a user |
+| [`remnawave_user_action`](docs/resources/user_action.md) | Enable / disable / reset traffic / revoke subscription / extend expiration on a user |
 | [`remnawave_host_bulk_action`](docs/resources/host_bulk_action.md) | Bulk enable / disable / delete hosts |
 | [`remnawave_user_bulk_action`](docs/resources/user_bulk_action.md) | Bulk reset traffic / revoke subscriptions / delete users / extend expiration |
 | [`remnawave_node_bulk_action`](docs/resources/node_bulk_action.md) | Bulk enable / disable / restart / reset traffic on nodes |
-| [`remnawave_drop_connections`](docs/resources/drop_connections.md) | Drop active connections by user UUID or IP address on all or selected nodes |
+| [`remnawave_drop_connections`](docs/resources/drop_connections.md) | Drop active connections by user identifier or IP address on all or selected nodes |
 
 ## Data Sources
 
@@ -316,7 +316,7 @@ These resources trigger one-shot operations on `terraform apply`. Use the
 
 | Data Source | Description |
 | --- | --- |
-| [`remnawave_subscriptions`](docs/data-sources/subscriptions.md) | Fetch subscription by UUID/username/short UUID |
+| [`remnawave_subscriptions`](docs/data-sources/subscriptions.md) | Fetch subscription by user identifier, username, or short UUID |
 | [`remnawave_subscription_request_history`](docs/data-sources/subscription_request_history.md) | Subscription request history |
 | [`remnawave_subscription_request_history_stats`](docs/data-sources/subscription_request_history_stats.md) | Subscription request statistics |
 | [`remnawave_connection_keys`](docs/data-sources/connection_keys.md) | Per-protocol connection keys for a user |
@@ -362,8 +362,11 @@ Resources created outside Terraform (e.g. via the web UI) can be imported into
 Terraform state:
 
 ```bash
-# Import a user by UUID
-terraform import remnawave_user.john 550e8400-e29b-41d4-a716-446655440000
+# Import a user by numeric ID on Remnawave 3.0+
+terraform import remnawave_user.john 42
+
+# Remnawave 2.x uses the user's UUID instead
+# terraform import remnawave_user.john 550e8400-e29b-41d4-a716-446655440000
 
 # Import a node by UUID
 terraform import remnawave_node.de-fra-01 550e8400-e29b-41d4-a716-446655440001

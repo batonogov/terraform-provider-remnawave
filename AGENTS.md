@@ -21,7 +21,7 @@ against a different build, override both the tag and its digest, e.g.
 `REMNAWAVE_VERSION=3.1.0 REMNAWAVE_DIGEST=sha256:<digest>`.
 
 The client auto-detects the server version via `/api/system/metadata` on
-the first API-token operation. Version-specific behaviour:
+the first version-dependent operation. Version-specific behaviour:
 
 - **2.7.x**: `remnawave_api_token` uses legacy `tokenName` request field
   and `apiKeys[]` response shape. Hosts limited to a single `tag` field.
@@ -32,9 +32,9 @@ the first API-token operation. Version-specific behaviour:
   Subscription settings dropped 6 fields (`profileTitle`, `supportLink`,
   `profileUpdateInterval`, `isProfileWebpageUrlEnabled`, `happAnnounce`,
   `happRouting`). External squad `responseHeaders` split into
-  `responseHeadersAdd` + `responseHeadersRemove`. New user action
-  `extend_expiration` and new endpoints (system digest, bandwidth stats
-  internal squads, node bulk update).
+  `responseHeadersAdd` + `responseHeadersRemove`. The provider exposes the new
+  user action `extend_expiration`; other backend-only endpoints introduced in
+  3.0 are not part of the provider surface yet.
 
 No user configuration is required — the provider transparently adapts.
 

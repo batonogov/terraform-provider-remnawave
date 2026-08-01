@@ -195,13 +195,13 @@ These are internal TypeScript validation changes. The JSON wire format is unchan
 4. **External squad headers**: `responseHeaders` → `responseHeadersAdd` + `responseHeadersRemove`
 5. **Delete 204**: client must tolerate empty response body on delete
 
-### Important (P1) — new features
+### Important (P1) — backend additions
 
-6. User `extend-expiration-date` action
-7. System stats `digest` and `http` endpoints
-8. Bandwidth stats `internal-squads` section
-9. Node bulk update endpoint
-10. Internal squad `add-many-users` / `remove-many-users`
+6. User `extend-expiration-date` action — exposed by this provider
+7. System stats `digest` and `http` endpoints — not exposed by this provider
+8. Bandwidth stats `internal-squads` section — not exposed by this provider
+9. Node bulk update endpoint — not exposed by this provider
+10. Internal squad `add-many-users` / `remove-many-users` — not exposed by this provider
 
 ### CI (P2)
 

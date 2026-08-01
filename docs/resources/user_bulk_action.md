@@ -34,7 +34,7 @@ resource "remnawave_user_bulk_action" "extend_expiration" {
 ### Required
 
 - `action` (String) Bulk action to perform. One of: `reset_traffic`, `revoke_subscription`, `delete`, `extend_expiration`.
-- `uuids` (List of String) List of user UUIDs to operate on.
+- `uuids` (List of String) List of user identifiers: UUIDs on Remnawave 2.x, numeric IDs encoded as strings on 3.0+.
 
 ### Optional
 

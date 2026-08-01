@@ -13,6 +13,21 @@ func TestAccSubscriptionSettingsResource(t *testing.T) {
 
 	endpoint, authBlock := testAccProviderBlock()
 	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
+	importIgnore := []string{"updated_at"}
+	if isBackendAtLeast3() {
+		// Removed fields are state-only compatibility values on v3 and cannot
+		// be reconstructed by import. Header names are returned lowercase by
+		// the backend, while normal refresh preserves configured casing.
+		importIgnore = append(importIgnore,
+			"profile_title",
+			"support_link",
+			"profile_update_interval",
+			"is_profile_webpage_url_enabled",
+			"happ_announce",
+			"happ_routing",
+			"custom_response_headers",
+		)
+	}
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
@@ -59,7 +74,7 @@ resource "remnawave_subscription_settings" "test" {
 				ImportState:                          true,
 				ImportStateVerifyIdentifierAttribute: "id",
 				ImportStateVerify:                    true,
-				ImportStateVerifyIgnore:              []string{"updated_at"},
+				ImportStateVerifyIgnore:              importIgnore,
 				ImportStateIdFunc:                    staticImportStateID("settings"),
 			},
 		},
@@ -83,9 +98,15 @@ resource "remnawave_user" "test" {
   expire_at = "2027-01-01T00:00:00.000Z"
 }
 
-data "remnawave_users" "all" {}
+data "remnawave_users" "all" {
+  depends_on = [remnawave_user.test]
+}
 `,
-				// Users list may be empty — just verify no error
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("data.remnawave_users.all", "users.#", "1"),
+					resource.TestCheckResourceAttrSet("data.remnawave_users.all", "users.0.uuid"),
+					resource.TestCheckResourceAttr("data.remnawave_users.all", "users.0.username", "ds-test-user"),
+				),
 			},
 		},
 	})

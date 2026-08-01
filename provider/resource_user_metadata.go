@@ -33,14 +33,14 @@ func (r *userMetadataResource) Schema(_ context.Context, _ resource.SchemaReques
 		Attributes: map[string]schema.Attribute{
 			"uuid": schema.StringAttribute{
 				Computed:    true,
-				Description: "UUID of the user this metadata belongs to (equals user_uuid).",
+				Description: "User identifier for this metadata (equals user_uuid): UUID on Remnawave 2.x, numeric ID on 3.0+.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"user_uuid": schema.StringAttribute{
 				Required:    true,
-				Description: "UUID of the user whose metadata is managed.",
+				Description: "Identifier of the user whose metadata is managed: UUID on Remnawave 2.x, numeric ID on 3.0+.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},

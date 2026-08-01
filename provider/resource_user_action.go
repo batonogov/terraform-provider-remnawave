@@ -3,9 +3,9 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
@@ -98,6 +99,9 @@ func (r *userActionResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			"days": schema.Int64Attribute{
 				Optional:    true,
 				Description: "Number of days (1-9999) to extend the user's expiration date. Required when action is extend_expiration; ignored for all other actions.",
+				Validators: []validator.Int64{
+					int64validator.Between(1, 9999),
+				},
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.RequiresReplace(),
 				},
@@ -185,7 +189,16 @@ func (r *userActionResource) Create(ctx context.Context, req resource.CreateRequ
 
 	if action == "extend_expiration" {
 		// v3.0+ only: extend requires a body with {days: N}
-		userID, err := strconv.ParseInt(userUUID, 10, 64)
+		v3, err := r.client.isVersionAtLeast3_0(ctx)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to determine backend version", err.Error())
+			return
+		}
+		if !v3 {
+			resp.Diagnostics.AddError("Unsupported action", "extend_expiration requires Remnawave 3.0 or newer")
+			return
+		}
+		userIDs, err := stringsToIDs([]string{userUUID})
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Invalid user identifier for extend_expiration",
@@ -193,7 +206,7 @@ func (r *userActionResource) Create(ctx context.Context, req resource.CreateRequ
 			)
 			return
 		}
-		if err := r.client.ExtendUserExpiration(ctx, userID, int(plan.Days.ValueInt64())); err != nil {
+		if err := r.client.ExtendUserExpiration(ctx, userIDs[0], int(plan.Days.ValueInt64())); err != nil {
 			resp.Diagnostics.AddError("Failed to extend user expiration", err.Error())
 			return
 		}

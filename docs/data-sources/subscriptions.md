@@ -3,12 +3,12 @@
 page_title: "remnawave_subscriptions Data Source - terraform-provider-remnawave"
 subcategory: ""
 description: |-
-  Fetches a subscription by UUID, username, or short UUID. Exactly one of uuid, username, or short_uuid must be provided.
+  Fetches a subscription by user identifier, username, or short UUID. Exactly one of uuid, username, or short_uuid must be provided.
 ---
 
 # remnawave_subscriptions (Data Source)
 
-Fetches a subscription by UUID, username, or short UUID. Exactly one of uuid, username, or short_uuid must be provided.
+Fetches a subscription by user identifier, username, or short UUID. Exactly one of uuid, username, or short_uuid must be provided.
 
 ## Example Usage
 
@@ -25,7 +25,7 @@ data "remnawave_subscriptions" "by_uuid" {
 
 - `short_uuid` (String, Sensitive) Short UUID of the subscription to look up.
 - `username` (String) Username of the subscription to look up.
-- `uuid` (String) UUID of the subscription to look up.
+- `uuid` (String) User identifier: UUID on Remnawave 2.x, numeric ID on 3.0+.
 
 ### Read-Only
 

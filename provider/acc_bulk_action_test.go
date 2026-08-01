@@ -82,7 +82,7 @@ func testAccCheckUserExpiration(resourceName, want string) resource.TestCheckFun
 		}
 		user, err := client.GetUserByUUID(context.Background(), uuid)
 		if err != nil {
-			return fmt.Errorf("read user after bulk extension: %w", err)
+			return fmt.Errorf("read user after expiration extension: %w", err)
 		}
 		gotTime, err := time.Parse(time.RFC3339Nano, user.ExpireAt)
 		if err != nil {

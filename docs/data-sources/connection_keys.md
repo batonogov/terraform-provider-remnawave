@@ -3,12 +3,12 @@
 page_title: "remnawave_connection_keys Data Source - terraform-provider-remnawave"
 subcategory: ""
 description: |-
-  Returns connection keys for a subscription from the Remnawave panel.
+  Returns connection keys for a user subscription from the Remnawave panel.
 ---
 
 # remnawave_connection_keys (Data Source)
 
-Returns connection keys for a subscription from the Remnawave panel.
+Returns connection keys for a user subscription from the Remnawave panel.
 
 ## Example Usage
 
@@ -23,7 +23,7 @@ data "remnawave_connection_keys" "user_keys" {
 
 ### Required
 
-- `uuid` (String) UUID of the subscription.
+- `uuid` (String) User identifier: UUID on Remnawave 2.x, numeric ID on 3.0+.
 
 ### Read-Only
 

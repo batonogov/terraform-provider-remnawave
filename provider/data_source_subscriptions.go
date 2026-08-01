@@ -33,11 +33,11 @@ func (d *subscriptionsDataSource) Metadata(_ context.Context, _ datasource.Metad
 
 func (d *subscriptionsDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Fetches a subscription by UUID, username, or short UUID. Exactly one of uuid, username, or short_uuid must be provided.",
+		Description: "Fetches a subscription by user identifier, username, or short UUID. Exactly one of uuid, username, or short_uuid must be provided.",
 		Attributes: map[string]schema.Attribute{
 			"uuid": schema.StringAttribute{
 				Optional:    true,
-				Description: "UUID of the subscription to look up.",
+				Description: "User identifier: UUID on Remnawave 2.x, numeric ID on 3.0+.",
 			},
 			"username": schema.StringAttribute{
 				Optional:    true,

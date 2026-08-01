@@ -24,10 +24,12 @@ func TestParseMajorMinor(t *testing.T) {
 		{"2.8.0", "2.8"},
 		{"2.7", "2.7"},
 		{"3.0.1", "3.0"},
+		{"v3.0.1", "3.0"},
 		{"1", ""},
 		{"", ""},
 		{"garbage", ""},
-		{"v2.8.0", "v2.8"},
+		{"v2.8.0", "2.8"},
+		{"abc.def", ""},
 	}
 
 	for _, tt := range tests {
@@ -108,6 +110,28 @@ func TestVersionDetection2_8(t *testing.T) {
 	if client.isVersion2_7(context.Background()) {
 		t.Error("isVersion2_7() = true, want false for 2.8.0")
 	}
+	if v3, err := client.isVersionAtLeast3_0(context.Background()); err != nil || v3 {
+		t.Errorf("isVersionAtLeast3_0() = %v, %v, want false, nil", v3, err)
+	}
+}
+
+func TestVersionDetection3_0(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"response":{"version":"3.0.0"}}`)
+	}))
+	defer server.Close()
+
+	client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "test-token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	v3, err := client.isVersionAtLeast3_0(context.Background())
+	if err != nil || !v3 {
+		t.Errorf("isVersionAtLeast3_0() = %v, %v, want true, nil", v3, err)
+	}
 }
 
 func TestHostRequestV27UsesSingularTag(t *testing.T) {
@@ -181,6 +205,9 @@ func TestVersionDetectionFailure(t *testing.T) {
 	// Should not panic — defaults to false (2.8 behaviour)
 	if client.isVersion2_7(context.Background()) {
 		t.Error("isVersion2_7() = true after detection failure, want false")
+	}
+	if _, err := client.isVersionAtLeast3_0(context.Background()); err == nil {
+		t.Error("isVersionAtLeast3_0() error = nil after detection failure")
 	}
 }
 
@@ -352,10 +379,8 @@ func TestCreateApiTokenV28(t *testing.T) {
 	}
 }
 
-// TestParseMajorMinor_PreReleaseAndBuild extends the semver-extraction
-// coverage to pre-release/build metadata and the documented v-prefix quirk.
-// parseMajorMinor splits on "." and takes the first two parts, so non-numeric
-// or v-prefixed inputs are preserved verbatim.
+// TestParseMajorMinor_PreReleaseAndBuild extends semver-extraction coverage to
+// pre-release/build metadata, optional v prefixes, and malformed versions.
 func TestParseMajorMinor_PreReleaseAndBuild(t *testing.T) {
 	t.Parallel()
 
@@ -369,11 +394,8 @@ func TestParseMajorMinor_PreReleaseAndBuild(t *testing.T) {
 		{in: "2.8", want: "2.8"},
 		{in: "2", want: ""},
 		{in: "", want: ""},
-		// Documents the v-prefix quirk: the prefix is not stripped, so a backend
-		// that returns "v2.8.0" would be treated as version "v2.8" (not "2.8").
-		{in: "v2.8.0", want: "v2.8"},
-		// Two non-numeric parts are still returned as-is.
-		{in: "abc.def", want: "abc.def"},
+		{in: "v2.8.0", want: "2.8"},
+		{in: "abc.def", want: ""},
 	}
 
 	for _, tt := range tests {
@@ -499,6 +521,9 @@ func TestVersionDetectionNetworkFailureDefaultsTo28(t *testing.T) {
 	}
 	if client.isVersion2_7(context.Background()) {
 		t.Error("isVersion2_7() = true after transport failure, want false")
+	}
+	if _, err := client.isVersionAtLeast3_0(context.Background()); err == nil {
+		t.Error("isVersionAtLeast3_0() error = nil after transport failure")
 	}
 }
 

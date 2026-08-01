@@ -38,4 +38,4 @@ Read-Only:
 - `status` (String)
 - `tag` (String)
 - `username` (String)
-- `uuid` (String)
+- `uuid` (String) User identifier: UUID on Remnawave 2.x, numeric ID encoded as a string on 3.0+.

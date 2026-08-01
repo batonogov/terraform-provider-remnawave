@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -41,7 +40,7 @@ func (r *hwidDeviceResource) Schema(_ context.Context, _ resource.SchemaRequest,
 		Attributes: map[string]schema.Attribute{
 			"user_uuid": schema.StringAttribute{
 				Required:    true,
-				Description: "UUID of the user this device belongs to.",
+				Description: "Identifier of the user this device belongs to: UUID on Remnawave 2.x, numeric ID on 3.0+.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -110,13 +109,17 @@ func (r *hwidDeviceResource) Configure(_ context.Context, req resource.Configure
 // v3.0+: the request body key is "userId" (number), not "userUuid" (string).
 func hwidCreateReq(ctx context.Context, client *Client, plan *hwidDeviceModel) (map[string]any, error) {
 	id := plan.UserUUID.ValueString()
-	if client.isVersionAtLeast3_0(ctx) {
-		n, err := strconv.ParseInt(id, 10, 64)
+	v3, err := client.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if v3 {
+		ids, err := stringsToIDs([]string{id})
 		if err != nil {
 			return nil, fmt.Errorf("user_uuid must be a numeric ID on Remnawave 3.0+, got %q", id)
 		}
 		return map[string]any{
-			"userId": n,
+			"userId": ids[0],
 			"hwid":   plan.Hwid.ValueString(),
 		}, nil
 	}
@@ -246,13 +249,18 @@ func (r *hwidDeviceResource) Delete(ctx context.Context, req resource.DeleteRequ
 	deleteReq := map[string]any{
 		"hwid": state.Hwid.ValueString(),
 	}
-	if r.client.isVersionAtLeast3_0(ctx) {
-		n, err := strconv.ParseInt(state.UserUUID.ValueString(), 10, 64)
+	v3, err := r.client.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to determine backend version", err.Error())
+		return
+	}
+	if v3 {
+		ids, err := stringsToIDs([]string{state.UserUUID.ValueString()})
 		if err != nil {
 			resp.Diagnostics.AddError("Invalid user identifier", fmt.Sprintf("user_uuid must be a numeric ID on Remnawave 3.0+, got %q", state.UserUUID.ValueString()))
 			return
 		}
-		deleteReq["userId"] = n
+		deleteReq["userId"] = ids[0]
 	} else {
 		deleteReq["userUuid"] = state.UserUUID.ValueString()
 	}

@@ -29,12 +29,12 @@ func (d *userIPsDataSource) Metadata(_ context.Context, _ datasource.MetadataReq
 
 func (d *userIPsDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Fetches the list of IPs that a user is currently connected from, via the Remnawave IP Control module. " +
+		Description: "Fetches the list of IPs that a user is currently connected from, via the version-appropriate Remnawave connections API. " +
 			"This is an asynchronous operation (the panel queues a job and results are polled for).",
 		Attributes: map[string]schema.Attribute{
 			"uuid": schema.StringAttribute{
 				Required:    true,
-				Description: "UUID of the user to fetch connection IPs for.",
+				Description: "User identifier: UUID on Remnawave 2.x, numeric ID on 3.0+.",
 			},
 			"ips": schema.ListAttribute{
 				Computed:    true,

@@ -25,7 +25,7 @@ resource "remnawave_hwid_device" "phone" {
 ### Required
 
 - `hwid` (String) Hardware identifier string for the device.
-- `user_uuid` (String) UUID of the user this device belongs to.
+- `user_uuid` (String) Identifier of the user this device belongs to: UUID on Remnawave 2.x, numeric ID on 3.0+.
 
 ### Read-Only
 

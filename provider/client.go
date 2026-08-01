@@ -32,7 +32,7 @@ type Client struct {
 	customHeaders map[string]string
 
 	// serverVersion is the major.minor of the Remnawave backend (e.g. "2.7",
-	// "2.8"), detected lazily on the first request via /api/system/metadata.
+	// "2.8", "3.0"), detected lazily via /api/system/metadata.
 	// A value of "" means detection has not yet been attempted.
 	versionMu     sync.Mutex
 	serverVersion string
@@ -575,8 +575,8 @@ func (c *Client) setProxyHeaders(req *http.Request) {
 // ─── Version detection ───
 
 // detectVersion queries /api/system/metadata and caches the server's
-// major.minor version (e.g. "2.7", "2.8"). It is called lazily on the
-// first API-token operation and is safe to call concurrently.
+// major.minor version (e.g. "2.7", "2.8", "3.0"). It is called lazily by
+// version-dependent operations and is safe to call concurrently.
 func (c *Client) detectVersion(ctx context.Context) error {
 	c.versionMu.Lock()
 	defer c.versionMu.Unlock()
@@ -600,6 +600,10 @@ func (c *Client) detectVersion(ctx context.Context) error {
 }
 
 // serverMinorVersion returns the cached major.minor, detecting if needed.
+// Legacy 2.7 compatibility predates the v3 API split and intentionally keeps
+// its historical best-effort fallback. New version-dependent operations must
+// use isVersionAtLeast3_0 so detection failures are surfaced to callers rather
+// than risking a request against the wrong API contract.
 func (c *Client) serverMinorVersion(ctx context.Context) string {
 	c.versionMu.Lock()
 	v := c.serverVersion
@@ -619,31 +623,44 @@ func (c *Client) isVersion2_7(ctx context.Context) bool {
 }
 
 // isVersionAtLeast3_0 returns true if the connected backend reports version
-// 3.0.x or higher (major >= 3). Used for forward-only features.
-func (c *Client) isVersionAtLeast3_0(ctx context.Context) bool {
-	v := c.serverMinorVersion(ctx)
-	if v == "" {
-		return false
+// 3.0.x or higher (major >= 3). Detection errors are returned because silently
+// falling back to a v2 route or payload can make mutating operations unsafe.
+func (c *Client) isVersionAtLeast3_0(ctx context.Context) (bool, error) {
+	if err := c.detectVersion(ctx); err != nil {
+		return false, err
 	}
-	parts := strings.SplitN(v, ".", 2)
-	if len(parts) < 1 {
-		return false
+
+	c.versionMu.Lock()
+	v := c.serverVersion
+	c.versionMu.Unlock()
+
+	major, _, ok := strings.Cut(v, ".")
+	if !ok {
+		return false, fmt.Errorf("invalid cached server version %q", v)
 	}
-	n, err := strconv.Atoi(parts[0])
+	n, err := strconv.Atoi(major)
 	if err != nil {
-		return false
+		return false, fmt.Errorf("invalid cached server version %q: %w", v, err)
 	}
-	return n >= 3
+	return n >= 3, nil
 }
 
 // parseMajorMinor extracts "major.minor" from a semver-like string.
-// e.g. "2.7.4" → "2.7", "2.8.0" → "2.8", "garbage" → "".
+// e.g. "2.7.4" → "2.7", "v3.0.0" → "3.0", "garbage" → "".
 func parseMajorMinor(version string) string {
-	parts := strings.SplitN(version, ".", 3)
+	parts := strings.SplitN(strings.TrimPrefix(version, "v"), ".", 3)
 	if len(parts) < 2 {
 		return ""
 	}
-	return parts[0] + "." + parts[1]
+	major, err := strconv.Atoi(parts[0])
+	if err != nil || major < 0 {
+		return ""
+	}
+	minor, err := strconv.Atoi(parts[1])
+	if err != nil || minor < 0 {
+		return ""
+	}
+	return strconv.Itoa(major) + "." + strconv.Itoa(minor)
 }
 
 // ─── User API ───
@@ -696,27 +713,25 @@ func (c *Client) GetAllUsers(ctx context.Context) ([]User, error) {
 // userActionEndpoint maps a user action string to its REST endpoint suffix.
 // "reset-traffic" is accepted as a backward-compatible alias for the canonical
 // "reset_traffic" form (both resolve to the same backend endpoint).
-// "extend_expiration" is v3.0+ only.
 var userActionEndpoint = map[string]string{
 	"enable":              "enable",
 	"disable":             "disable",
 	"reset_traffic":       "reset-traffic",
 	"reset-traffic":       "reset-traffic", // backward-compatible alias
 	"revoke_subscription": "revoke",
-	"extend_expiration":   "extend", // v3.0+ only
 }
 
 // UserAction performs an imperative action (enable, disable, reset_traffic,
-// revoke_subscription, extend_expiration) on a user.
+// revoke_subscription) on a user.
 // v2.x: POST /api/users/:uuid/actions/:action
 // v3.0: POST /api/users/:userId/actions/:action
 // The action "reset-traffic" is accepted as an alias for "reset_traffic".
-// "extend_expiration" is v3.0+ only and requires a request body with the new
-// expiration date — use ExtendUserExpiration for that action.
+// Use ExtendUserExpiration for the v3-only extend action, which requires a
+// request body.
 func (c *Client) UserAction(ctx context.Context, userIdentifier, action string) error {
 	suffix, ok := userActionEndpoint[action]
 	if !ok {
-		return fmt.Errorf("unknown user action %q: must be one of enable, disable, reset_traffic, revoke_subscription, extend_expiration", action)
+		return fmt.Errorf("unknown user action %q: must be one of enable, disable, reset_traffic, revoke_subscription", action)
 	}
 	path := fmt.Sprintf("/api/users/%s/actions/%s", userIdentifier, suffix)
 	return c.doRequest(ctx, http.MethodPost, path, nil, nil)
@@ -946,7 +961,11 @@ func (c *Client) BulkUserExtendExpiration(ctx context.Context, identifiers []str
 	body := map[string]any{
 		"extendDays": extendDays,
 	}
-	if c.isVersionAtLeast3_0(ctx) {
+	v3, err := c.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		return err
+	}
+	if v3 {
 		ids, err := stringsToIDs(identifiers)
 		if err != nil {
 			return err
@@ -962,7 +981,11 @@ func (c *Client) BulkUserExtendExpiration(ctx context.Context, identifiers []str
 // v2.x uses {"uuids": [...]} with string UUIDs.
 // v3.0 uses {"userIds": [...]} with numeric IDs.
 func (c *Client) bulkUserBody(ctx context.Context, identifiers []string) (map[string]any, error) {
-	if c.isVersionAtLeast3_0(ctx) {
+	v3, err := c.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if v3 {
 		ids, err := stringsToIDs(identifiers)
 		if err != nil {
 			return nil, err
@@ -1567,7 +1590,11 @@ func (c *Client) DeleteBillingHistory(ctx context.Context, uuid string) error {
 func (c *Client) GetSubscriptionByUUID(ctx context.Context, identifier string) (map[string]any, error) {
 	var out map[string]any
 	path := fmt.Sprintf("/api/subscriptions/by-uuid/%s", identifier)
-	if c.isVersionAtLeast3_0(ctx) {
+	v3, err := c.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if v3 {
 		path = fmt.Sprintf("/api/subscriptions/by-id/%s", identifier)
 	}
 	if err := c.doRequest(ctx, http.MethodGet, path, nil, &out); err != nil {
@@ -1802,10 +1829,8 @@ type ipControlJobProgress struct {
 
 // ipControlJobResultDat is the nullable result payload.
 type ipControlJobResultDat struct {
-	Success  bool            `json:"success"`
-	UserUUID string          `json:"userUuid"`
-	UserID   string          `json:"userId"`
-	Nodes    []ipControlNode `json:"nodes"`
+	Success bool            `json:"success"`
+	Nodes   []ipControlNode `json:"nodes"`
 }
 
 type ipControlNode struct {
@@ -1828,7 +1853,11 @@ type ipControlIP struct {
 func (c *Client) FetchUserIPs(ctx context.Context, userIdentifier string) ([]string, error) {
 	// Build version-aware path prefixes — jobId is appended during polling.
 	var startPath, resultPrefix string
-	if c.isVersionAtLeast3_0(ctx) {
+	v3, err := c.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine connections API version: %w", err)
+	}
+	if v3 {
 		startPath = fmt.Sprintf("/api/connections/by-user/%s", userIdentifier)
 		resultPrefix = "/api/connections/by-user/"
 	} else {
@@ -1883,12 +1912,12 @@ func (c *Client) FetchUserIPs(ctx context.Context, userIdentifier string) ([]str
 	}
 }
 
-// connectionsPath returns the correct drop-connections API path for the
-// detected backend version.
+// connectionsPath returns the drop-connections API path for the supplied
+// backend generation.
 // v2.x: /api/ip-control/drop-connections
 // v3.0: /api/connections/drop
-func (c *Client) connectionsPath(ctx context.Context) string {
-	if c.isVersionAtLeast3_0(ctx) {
+func connectionsPath(v3 bool) string {
+	if v3 {
 		return "/api/connections/drop"
 	}
 	return "/api/ip-control/drop-connections"
@@ -1899,25 +1928,27 @@ func (c *Client) connectionsPath(ctx context.Context) string {
 // Deprecated: use DropConnectionsV2 for the full API schema (drop by IP, target nodes).
 // On v3.0+ this uses the V2 schema internally to send the correct userIds body.
 func (c *Client) DropConnections(ctx context.Context, userIdentifier string) error {
-	if c.isVersionAtLeast3_0(ctx) {
+	v3, err := c.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to determine connections API version: %w", err)
+	}
+	if v3 {
 		// v3.0: the drop endpoint expects {dropBy:{by:"userIds",userIds:[N]}}
+		ids, err := stringsToIDs([]string{userIdentifier})
+		if err != nil {
+			return fmt.Errorf("DropConnections on v3.0+ requires a numeric user ID: %w", err)
+		}
 		body := map[string]any{
 			"dropBy": map[string]any{
 				"by":      "userIds",
-				"userIds": []int64{0}, // placeholder — will be overwritten
+				"userIds": ids,
 			},
 			"targetNodes": map[string]any{"target": "allNodes"},
 		}
-		// Parse the identifier to int64
-		n, err := strconv.ParseInt(userIdentifier, 10, 64)
-		if err != nil {
-			return fmt.Errorf("DropConnections on v3.0+ requires a numeric user ID, got %q: %w", userIdentifier, err)
-		}
-		body["dropBy"].(map[string]any)["userIds"] = []int64{n}
-		return c.doRequest(ctx, http.MethodPost, c.connectionsPath(ctx), body, nil)
+		return c.doRequest(ctx, http.MethodPost, connectionsPath(v3), body, nil)
 	}
 	body := map[string]string{"userUuid": userIdentifier}
-	return c.doRequest(ctx, http.MethodPost, c.connectionsPath(ctx), body, nil)
+	return c.doRequest(ctx, http.MethodPost, connectionsPath(v3), body, nil)
 }
 
 // DropConnectionsV2 drops connections using the full connections API schema.
@@ -1926,11 +1957,26 @@ func (c *Client) DropConnections(ctx context.Context, userIdentifier string) err
 // The caller passes identifiers as strings; the client translates the body
 // based on the detected backend version.
 func (c *Client) DropConnectionsV2(ctx context.Context, body map[string]any) (bool, error) {
-	adapted := c.adaptDropConnectionsBody(ctx, body)
+	v3, err := c.isVersionAtLeast3_0(ctx)
+	if err != nil {
+		return false, fmt.Errorf("failed to determine connections API version: %w", err)
+	}
+	adapted, err := adaptDropConnectionsBody(body, v3)
+	if err != nil {
+		return false, err
+	}
+	if v3 {
+		// Remnawave 3.0 returns 202 No Content. Reaching a successful status is
+		// the only acknowledgement that the event was accepted.
+		if err := c.doRequest(ctx, http.MethodPost, connectionsPath(v3), adapted, nil); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
 	var out struct {
 		EventSent bool `json:"eventSent"`
 	}
-	if err := c.doRequest(ctx, http.MethodPost, c.connectionsPath(ctx), adapted, &out); err != nil {
+	if err := c.doRequest(ctx, http.MethodPost, connectionsPath(v3), adapted, &out); err != nil {
 		return false, err
 	}
 	return out.EventSent, nil
@@ -1938,18 +1984,28 @@ func (c *Client) DropConnectionsV2(ctx context.Context, body map[string]any) (bo
 
 // adaptDropConnectionsBody translates the drop-connections request body for
 // v3.0+ backends: "userUuids" (string array) becomes "userIds" (int64 array).
-// IP-based drops and node targeting are unchanged.
-func (c *Client) adaptDropConnectionsBody(ctx context.Context, body map[string]any) map[string]any {
-	if !c.isVersionAtLeast3_0(ctx) {
-		return body
+// IP-based drops and node targeting are unchanged. The input map is never
+// mutated.
+func adaptDropConnectionsBody(body map[string]any, v3 bool) (map[string]any, error) {
+	if !v3 {
+		return body, nil
+	}
+	adapted := make(map[string]any, len(body))
+	for key, value := range body {
+		adapted[key] = value
 	}
 	dropBy, ok := body["dropBy"].(map[string]any)
 	if !ok {
-		return body
+		return nil, errors.New("dropBy must be an object")
 	}
+	adaptedDropBy := make(map[string]any, len(dropBy))
+	for key, value := range dropBy {
+		adaptedDropBy[key] = value
+	}
+	adapted["dropBy"] = adaptedDropBy
 	by, _ := dropBy["by"].(string)
 	if by != "userUuids" {
-		return body
+		return adapted, nil
 	}
 	uuids, ok := dropBy["userUuids"].([]string)
 	if !ok {
@@ -1959,20 +2015,20 @@ func (c *Client) adaptDropConnectionsBody(ctx context.Context, body map[string]a
 			for _, v := range anySlice {
 				s, ok3 := v.(string)
 				if !ok3 {
-					return body
+					return nil, errors.New("dropBy.userUuids must contain only strings")
 				}
 				uuids = append(uuids, s)
 			}
 		} else {
-			return body
+			return nil, errors.New("dropBy.userUuids must be an array of strings")
 		}
 	}
 	ids, err := stringsToIDs(uuids)
 	if err != nil {
-		return body
+		return nil, err
 	}
-	dropBy["by"] = "userIds"
-	dropBy["userIds"] = ids
-	delete(dropBy, "userUuids")
-	return body
+	adaptedDropBy["by"] = "userIds"
+	adaptedDropBy["userIds"] = ids
+	delete(adaptedDropBy, "userUuids")
+	return adapted, nil
 }

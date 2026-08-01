@@ -62,7 +62,7 @@ resource "remnawave_node" "test" {
 }
 
 // TestAccNodeNonExistentProfile verifies that referencing a non-existent
-// config profile UUID (zero UUID) produces a status-only not-found error.
+// config profile UUID (zero UUID) produces the backend's status-only error.
 func TestAccNodeNonExistentProfile(t *testing.T) {
 	testAccPreCheck(t)
 	endpoint, authBlock := testAccProviderBlock()
@@ -87,7 +87,10 @@ resource "remnawave_node" "test" {
   config_profile_inbounds     = ["00000000-0000-0000-0000-000000000000"]
 }
 `,
-			ExpectError: regexp.MustCompile(`request failed: status 404`),
+			// Different supported releases report the invalid relationship as
+			// either a bad request or a missing profile. In both cases the client
+			// must expose only the sanitized status.
+			ExpectError: regexp.MustCompile(`request failed: status (400|404)`),
 		}},
 	})
 }

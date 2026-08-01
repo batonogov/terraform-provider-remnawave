@@ -131,6 +131,45 @@ func TestCanonicalJSONPlanValues(t *testing.T) {
 	}
 }
 
+func TestCanonicalHeaderJSON(t *testing.T) {
+	t.Parallel()
+
+	got, err := canonicalHeaderMapJSON(`{"X-Terraform":"acceptance","CONTENT-TYPE":"text/plain"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"content-type":"text/plain","x-terraform":"acceptance"}`; got != want {
+		t.Errorf("canonicalHeaderMapJSON() = %s, want %s", got, want)
+	}
+	if _, err := canonicalHeaderMapJSON(`{"X-Test":"one","x-test":"two"}`); err == nil {
+		t.Error("canonicalHeaderMapJSON accepted case-insensitive duplicate names")
+	}
+
+	got, err = canonicalHeaderListJSON(`["Server","X-Powered-By"]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `["server","x-powered-by"]`; got != want {
+		t.Errorf("canonicalHeaderListJSON() = %s, want %s", got, want)
+	}
+
+	previousMap := types.StringValue(`{"X-Test":"one"}`)
+	preservedMap, err := preserveEquivalentHeaderMap(previousMap, types.StringValue(`{"x-test":"one"}`))
+	if err != nil || preservedMap != previousMap {
+		t.Errorf("preserveEquivalentHeaderMap() = %s, %v", preservedMap, err)
+	}
+	changedMap, err := preserveEquivalentHeaderMap(previousMap, types.StringValue(`{"x-test":"two"}`))
+	if err != nil || changedMap.ValueString() != `{"x-test":"two"}` {
+		t.Errorf("preserveEquivalentHeaderMap() hid real drift: %s, %v", changedMap, err)
+	}
+
+	previousList := types.StringValue(`["Server"]`)
+	preservedList, err := preserveEquivalentHeaderList(previousList, types.StringValue(`["server"]`))
+	if err != nil || preservedList != previousList {
+		t.Errorf("preserveEquivalentHeaderList() = %s, %v", preservedList, err)
+	}
+}
+
 func TestMetadataToJSON(t *testing.T) {
 	t.Parallel()
 
@@ -172,8 +211,20 @@ func TestHwidCreateRequest(t *testing.T) {
 		"userUuid": "user-id",
 		"hwid":     "device-id",
 	}
-	if got, err := hwidCreateReq(context.Background(), &Client{}, plan); err != nil || !reflect.DeepEqual(got, want) {
+	clientV2 := &Client{serverVersion: "2.8"}
+	if got, err := hwidCreateReq(context.Background(), clientV2, plan); err != nil || !reflect.DeepEqual(got, want) {
 		t.Errorf("hwidCreateReq() = %#v, want %#v", got, want)
+	}
+
+	plan.UserUUID = types.StringValue("42")
+	wantV3 := map[string]any{"userId": int64(42), "hwid": "device-id"}
+	clientV3 := &Client{serverVersion: "3.0"}
+	if got, err := hwidCreateReq(context.Background(), clientV3, plan); err != nil || !reflect.DeepEqual(got, wantV3) {
+		t.Errorf("hwidCreateReq(v3) = %#v, %v, want %#v", got, err, wantV3)
+	}
+	plan.UserUUID = types.StringValue("not-an-id")
+	if _, err := hwidCreateReq(context.Background(), clientV3, plan); err == nil {
+		t.Error("hwidCreateReq(v3) accepted a non-numeric user ID")
 	}
 }
 

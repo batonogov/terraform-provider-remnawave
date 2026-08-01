@@ -134,7 +134,7 @@ func (d *usersDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, 
 				Computed: true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
-						"uuid":     schema.StringAttribute{Computed: true},
+						"uuid":     schema.StringAttribute{Computed: true, Description: "User identifier: UUID on Remnawave 2.x, numeric ID encoded as a string on 3.0+."},
 						"username": schema.StringAttribute{Computed: true},
 						"status":   schema.StringAttribute{Computed: true},
 						"tag":      schema.StringAttribute{Computed: true},
@@ -167,7 +167,7 @@ func (d *usersDataSource) Read(ctx context.Context, _ datasource.ReadRequest, re
 	var state usersDataSourceModel
 	for _, u := range users {
 		item := userItem{
-			UUID:     types.StringValue(u.UUID),
+			UUID:     types.StringValue(userResponseIdentifier(&u)),
 			Username: types.StringValue(u.Username),
 			Status:   types.StringValue(u.Status),
 		}

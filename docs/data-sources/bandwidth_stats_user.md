@@ -27,7 +27,7 @@ data "remnawave_bandwidth_stats_user" "user_monthly" {
 
 - `end` (String) End date in YYYY-MM-DD format.
 - `start` (String) Start date in YYYY-MM-DD format.
-- `uuid` (String) User UUID to fetch bandwidth stats for.
+- `uuid` (String) User identifier for bandwidth stats: UUID on Remnawave 2.x, numeric ID on 3.0+.
 
 ### Optional
 

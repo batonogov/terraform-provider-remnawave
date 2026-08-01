@@ -17,8 +17,8 @@ import (
 )
 
 // dropConnectionsResource is an imperative resource that triggers a
-// "drop connections" action on the Remnawave IP Control module when applied.
-// It supports dropping by user UUIDs or by IP addresses, and optionally
+// "drop connections" action on the Remnawave connections API when applied.
+// It supports dropping by user identifiers or by IP addresses, and optionally
 // targeting specific nodes.
 type dropConnectionsResource struct {
 	client *Client
@@ -45,7 +45,7 @@ func (r *dropConnectionsResource) Metadata(_ context.Context, _ resource.Metadat
 
 func (r *dropConnectionsResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Drops active connections for users or IP addresses via the Remnawave IP Control module. " +
+		Description: "Drops active connections for users or IP addresses via the version-appropriate Remnawave connections API. " +
 			"Supports targeting all nodes or specific nodes. This is an imperative action resource: " +
 			"applying it sends a drop-connections request to the panel. " +
 			"Use the optional triggers map to force re-execution when its values change.",
@@ -68,7 +68,7 @@ func (r *dropConnectionsResource) Schema(_ context.Context, _ resource.SchemaReq
 			"user_uuids": schema.ListAttribute{
 				Optional:    true,
 				ElementType: types.StringType,
-				Description: "List of user UUIDs to drop connections for. Required when drop_by = user_uuids.",
+				Description: "List of user identifiers to drop connections for: UUIDs on Remnawave 2.x, numeric IDs encoded as strings on 3.0+. Required when drop_by = user_uuids.",
 				PlanModifiers: []planmodifier.List{
 					listplanmodifier.RequiresReplace(),
 				},

@@ -283,6 +283,11 @@ resource "remnawave_config_profile" "test" {
       settings = { decryption = "none", clients = [] }
       streamSettings = { network = "tcp", security = "none" }
     }]
+    outbounds = [
+      { tag = "direct", protocol = "freedom", settings = {} },
+      { tag = "block", protocol = "blackhole", settings = {} }
+    ]
+    routing = { domainStrategy = "AsIs", rules = [] }
   })
 }
 `
@@ -322,8 +327,8 @@ resource "remnawave_config_profile" "test" {
 }
 
 // TestAccSubscriptionSettings_DriftRefresh verifies that the provider
-// reconciles an out-of-band change to the singleton subscription settings'
-// profile_title via refresh.
+// reconciles an out-of-band change to a subscription setting available on
+// every supported backend version.
 func TestAccSubscriptionSettings_DriftRefresh(t *testing.T) {
 	testAccPreCheck(t)
 
@@ -332,8 +337,7 @@ func TestAccSubscriptionSettings_DriftRefresh(t *testing.T) {
 
 	const settingsCfg = `
 resource "remnawave_subscription_settings" "test" {
-  profile_title = "drift-settings-orig"
-  support_link  = "https://t.me/drift"
+  randomize_hosts = false
 }
 `
 
@@ -343,7 +347,7 @@ resource "remnawave_subscription_settings" "test" {
 			{
 				Config: providerCfg + settingsCfg,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("remnawave_subscription_settings.test", "profile_title", "drift-settings-orig"),
+					resource.TestCheckResourceAttr("remnawave_subscription_settings.test", "randomize_hosts", "false"),
 				),
 			},
 			{
@@ -354,25 +358,21 @@ resource "remnawave_subscription_settings" "test" {
 					if err != nil {
 						t.Fatalf("fetch subscription settings for drift mutation: %v", err)
 					}
-					// Build a minimal PATCH payload (mirroring
-					// resource_subscription_settings Update): only the fields we
-					// intend to change, plus the singleton UUID. Re-serializing the
-					// full fetched object (with its json.RawMessage fields) is
-					// rejected by the backend with 400.
-					drifted := "drift-settings-mutated"
-					support := "https://t.me/drift"
+					// Build a minimal PATCH payload. Re-serializing the full fetched
+					// object (with its json.RawMessage fields) is rejected by the
+					// backend with 400.
+					drifted := true
 					if _, err := client.UpdateSubscriptionSettings(ctx, &SubscriptionSettings{
-						UUID:         current.UUID,
-						ProfileTitle: &drifted,
-						SupportLink:  &support,
+						UUID:           current.UUID,
+						RandomizeHosts: &drifted,
 					}); err != nil {
-						t.Fatalf("mutate subscription settings profile_title out-of-band: %v", err)
+						t.Fatalf("mutate subscription settings randomize_hosts out-of-band: %v", err)
 					}
 				},
 				RefreshState:       true,
 				ExpectNonEmptyPlan: true,
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("remnawave_subscription_settings.test", "profile_title", "drift-settings-mutated"),
+					resource.TestCheckResourceAttr("remnawave_subscription_settings.test", "randomize_hosts", "true"),
 				),
 			},
 		},
