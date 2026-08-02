@@ -14,7 +14,12 @@ Manages Remnawave subscription settings (singleton). Delete only removes from Te
 
 ```terraform
 resource "remnawave_subscription_settings" "main" {
-  randomize_hosts = true
+  randomize_hosts        = true
+  is_show_custom_remarks = true
+
+  custom_response_headers = jsonencode({
+    X-Managed-By = "terraform"
+  })
 }
 ```
 
@@ -40,3 +45,14 @@ resource "remnawave_subscription_settings" "main" {
 ### Read-Only
 
 - `id` (String) Always 'settings' — this is a singleton resource.
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Subscription settings are a singleton; use the stable ID "settings".
+terraform import remnawave_subscription_settings.main settings
+```

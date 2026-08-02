@@ -28,4 +28,5 @@ terraform-provider-remnawave
 /dist/
 .DS_Store
 .pi/
+.pi-subagents/
 .pine/

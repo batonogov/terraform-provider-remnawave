@@ -95,18 +95,18 @@ Panel branding PATCH payloads must include both `title` and `logoUrl` keys when
 | `remnawave_billing_node` | `resource_billing_node.go` | `/api/infra-billing/nodes` |
 | `remnawave_billing_history` | `resource_billing_history.go` | `/api/infra-billing/history` |
 | `remnawave_subpage_config` | `resource_subpage_config.go` | `/api/subscription-page-configs` |
-| `remnawave_user_metadata` | `resource_user_metadata.go` | `/api/metadata/user/:uuid` |
+| `remnawave_user_metadata` | `resource_user_metadata.go` | `/api/metadata/user/:identifier` |
 | `remnawave_node_metadata` | `resource_node_metadata.go` | `/api/metadata/node/:uuid` |
 | `remnawave_hwid_device` | `resource_hwid_device.go` | `/api/hwid/devices` |
 | `remnawave_host_bulk_action` | `resource_host_bulk_action.go` | `/api/hosts/bulk/{enable,disable,delete}` |
 | `remnawave_user_bulk_action` | `resource_user_bulk_action.go` | `/api/users/bulk/*` |
 | `remnawave_node_bulk_action` | `resource_node_bulk_action.go` | `/api/nodes/bulk-actions` |
 | `remnawave_node_action` | `resource_node_action.go` | `/api/nodes/:uuid/actions/{enable,disable,restart,reset-traffic}` |
-| `remnawave_drop_connections` | `resource_drop_connections.go` | `/api/ip-control/drop-connections` |
-| `remnawave_user_action` | `resource_user_action.go` | `/api/users/:uuid/actions/{enable,disable,reset-traffic,revoke}` |
+| `remnawave_drop_connections` | `resource_drop_connections.go` | 2.x: `/api/ip-control/drop-connections`<br>3.0+: `/api/connections/drop` |
+| `remnawave_user_action` | `resource_user_action.go` | `/api/users/:identifier/actions/{enable,disable,reset-traffic,revoke,extend}` |
 | `remnawave_passkey` | `resource_passkey.go` | `/api/passkeys` |
 
-### Data Sources (23)
+### Data Sources (25)
 
 Data sources live in `data_sources.go` (original) and `data_source_*.go` (newer).
 
@@ -122,19 +122,21 @@ Data sources live in `data_sources.go` (original) and `data_source_*.go` (newer)
 | `remnawave_system_recap` | `data_source_system_recap.go` | `/api/system/stats/recap` |
 | `remnawave_nodes_metrics` | `data_source_nodes_metrics.go` | `/api/system/nodes/metrics` |
 | `remnawave_bandwidth_stats` | `data_source_bandwidth.go` | `/api/bandwidth-stats/nodes` |
-| `remnawave_bandwidth_stats_user` | `data_source_bandwidth.go` | `/api/bandwidth-stats/users/:uuid` |
+| `remnawave_bandwidth_stats_user` | `data_source_bandwidth.go` | `/api/bandwidth-stats/users/:identifier` |
 | `remnawave_bandwidth_realtime` | `data_source_misc_stats.go` | `/api/bandwidth-stats/nodes/realtime` |
 | `remnawave_system_bandwidth_stats` | `data_source_misc_stats.go` | `/api/system/stats/bandwidth` |
 | `remnawave_system_nodes_stats` | `data_source_misc_stats.go` | `/api/system/stats/nodes` |
-| `remnawave_subscriptions` | `data_source_subscriptions.go` | `/api/subscriptions/by-uuid/:uuid` |
+| `remnawave_subscriptions` | `data_source_subscriptions.go` | 2.x: `/api/subscriptions/by-uuid/:uuid`<br>3.0+: `/api/subscriptions/by-id/:id` |
 | `remnawave_subscription_request_history` | `data_source_subscription_request_history.go` | `/api/subscription-request-history` |
 | `remnawave_subscription_request_history_stats` | `data_source_misc_stats.go` | `/api/subscription-request-history/stats` |
-| `remnawave_connection_keys` | `data_source_misc_stats.go` | `/api/subscriptions/connection-keys/:uuid` |
+| `remnawave_connection_keys` | `data_source_misc_stats.go` | `/api/subscriptions/connection-keys/:identifier` |
 | `remnawave_hwid_stats` | `data_source_hwid.go` | `/api/hwid/devices/stats` |
 | `remnawave_hwid_top_users` | `data_source_hwid.go` | `/api/hwid/devices/top-users` |
 | `remnawave_host_tags` | `data_source_host_tags.go` | `/api/hosts/tags` |
-| `remnawave_user_ips` | `data_source_user_ips.go` | `/api/ip-control/fetch-ips/:uuid` |
+| `remnawave_user_ips` | `data_source_user_ips.go` | 2.x: `/api/ip-control/fetch-ips/:uuid`<br>3.0+: `/api/connections/by-user/:id` |
 | `remnawave_passkeys` | `data_source_passkeys.go` | `/api/passkeys` |
+| `remnawave_internal_squads` | `data_source_internal_squads.go` | `/api/internal-squads` |
+| `remnawave_external_squads` | `data_source_external_squads.go` | `/api/external-squads` |
 
 ### Acceptance Tests
 

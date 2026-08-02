@@ -9,13 +9,32 @@ description: |-
 
 A Terraform provider for Remnawave — a proxy management panel built on Xray-core. Manage VPN users, nodes, hosts, squads, billing, and more as infrastructure-as-code.
 
+The provider supports Remnawave 2.7.x, 2.8.x, 3.0.x, and 3.1.x. It detects the
+panel version automatically and adapts version-specific API contracts without
+additional provider configuration.
+
+## Authentication
+
+Set `endpoint` and either an API token (recommended) or an administrator
+username/password pair. Every provider attribute can also be supplied through
+its documented `REMNAWAVE_*` environment variable. Explicit HCL values take
+precedence over environment values.
+
+Username/password authentication may require `proxy_headers = true` when the
+panel is accessed directly rather than through its usual reverse proxy. Use
+`custom_headers` when an outer gateway requires a cookie or service-token
+header. Terraform's Sensitive marker controls display but does not encrypt
+sensitive resource and data-source values that remain in state, so protect
+state snapshots and backups.
+
 ## Example Usage
 
 ```terraform
 terraform {
   required_providers {
     remnawave = {
-      source = "batonogov/remnawave"
+      source  = "batonogov/remnawave"
+      version = "~> 1.2.0"
     }
   }
 }

@@ -33,3 +33,17 @@ resource "remnawave_user_metadata" "info" {
 ### Read-Only
 
 - `uuid` (String) User identifier for this metadata (equals user_uuid): UUID on Remnawave 2.x, numeric ID on 3.0+.
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Remnawave 3.0+ uses the numeric user ID.
+terraform import remnawave_user_metadata.info 42
+
+# Remnawave 2.x uses the user UUID.
+terraform import remnawave_user_metadata.info 00000000-0000-0000-0000-000000000000
+```

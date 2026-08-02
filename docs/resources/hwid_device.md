@@ -35,3 +35,17 @@ resource "remnawave_hwid_device" "phone" {
 - `platform` (String) Device platform (e.g. android, ios, windows).
 - `request_ip` (String) Request IP address.
 - `user_agent` (String) User agent string.
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Remnawave 3.0+ uses <numeric_user_id>:<hwid>.
+terraform import remnawave_hwid_device.phone 42:device-fingerprint-abc123
+
+# Remnawave 2.x uses <user_uuid>:<hwid>.
+terraform import remnawave_hwid_device.phone 00000000-0000-0000-0000-000000000000:device-fingerprint-abc123
+```

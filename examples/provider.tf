@@ -1,7 +1,8 @@
 terraform {
   required_providers {
     remnawave = {
-      source = "batonogov/remnawave"
+      source  = "batonogov/remnawave"
+      version = "~> 1.2.0"
     }
   }
 }
@@ -40,7 +41,7 @@ variable "remnawave_gateway_cookie" {
 resource "remnawave_user" "example" {
   username               = "john-doe"
   expire_at              = "2027-01-01T00:00:00.000Z"
-  traffic_limit_bytes    = 10737418240 # 10 GB
+  traffic_limit_bytes    = 10737418240 # 10 GiB
   traffic_limit_strategy = "MONTH"
   description            = "Example user managed by Terraform"
 }
