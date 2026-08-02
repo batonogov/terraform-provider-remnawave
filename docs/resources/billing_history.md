@@ -32,3 +32,14 @@ resource "remnawave_billing_history" "payment" {
 ### Read-Only
 
 - `uuid` (String)
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Import a billing history record by UUID.
+terraform import remnawave_billing_history.payment 00000000-0000-0000-0000-000000000000
+```

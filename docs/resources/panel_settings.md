@@ -34,3 +34,14 @@ resource "remnawave_panel_settings" "main" {
 ### Read-Only
 
 - `id` (String) Always 'settings'.
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Panel settings are a singleton; use the stable ID "settings".
+terraform import remnawave_panel_settings.main settings
+```

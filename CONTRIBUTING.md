@@ -3,8 +3,7 @@
 ## Development Setup
 
 ```bash
-# Install Go 1.26+
-# Install Docker (for acceptance tests)
+# Install Go 1.26.5+, Terraform 1.12+, Task, and Docker
 
 # Clone
 git clone https://github.com/batonogov/terraform-provider-remnawave.git
@@ -23,31 +22,11 @@ task test:coverage
 task docs
 task docs:check
 
-# Run acceptance tests (requires Docker)
-docker compose up -d --wait
-# Register admin (first run only)
-curl -sf -X POST http://localhost:3000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -H "X-Forwarded-For: 127.0.0.1" \
-  -H "X-Forwarded-Proto: https" \
-  -d '{"username":"admin","password":"TestAdminPassword1234567"}'
-# Create API token
-ADMIN_JWT=$(curl -sf -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -H "X-Forwarded-For: 127.0.0.1" \
-  -H "X-Forwarded-Proto: https" \
-  -d '{"username":"admin","password":"TestAdminPassword1234567"}' | jq -r '.response.accessToken')
-API_TOKEN=$(curl -sf -X POST http://localhost:3000/api/tokens \
-  -H "Content-Type: application/json" \
-  -H "X-Forwarded-For: 127.0.0.1" \
-  -H "X-Forwarded-Proto: https" \
-  -H "X-Remnawave-Client-Type: browser" \
-  -H "Authorization: Bearer $ADMIN_JWT" \
-  -d '{"name":"test","expiresInDays":1,"scopes":["*"]}' | jq -r '.response.token')
-# Run tests
-TF_ACC=1 REMNAWAVE_ENDPOINT=http://localhost:3000 \
-  REMNAWAVE_API_TOKEN=$API_TOKEN REMNAWAVE_PROXY_HEADERS=true \
-  go test ./provider -run TestAcc -count=1 -timeout 600s -v
+# Run acceptance tests; the task manages the complete Docker lifecycle
+task test:acc
+
+# Test a different explicitly pinned backend build
+REMNAWAVE_VERSION=3.2.0 REMNAWAVE_DIGEST=sha256:<digest> task test:acc
 ```
 
 ## PR Workflow

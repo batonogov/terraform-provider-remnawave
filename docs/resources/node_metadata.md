@@ -33,3 +33,14 @@ resource "remnawave_node_metadata" "info" {
 ### Read-Only
 
 - `uuid` (String) UUID of the node this metadata belongs to (equals node_uuid).
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Import node metadata by node UUID.
+terraform import remnawave_node_metadata.info 00000000-0000-0000-0000-000000000000
+```

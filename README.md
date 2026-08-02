@@ -68,7 +68,8 @@ between versions. No configuration is required.
 terraform {
   required_providers {
     remnawave = {
-      source = "batonogov/remnawave"
+      source  = "batonogov/remnawave"
+      version = "~> 1.2.0"
     }
   }
 }
@@ -78,13 +79,13 @@ provider "remnawave" {
   api_token = var.remnawave_api_token
 }
 
-# ─── VPN user with 10 GB traffic limit ───
+# ─── VPN user with 10 GiB traffic limit ───
 resource "remnawave_user" "john" {
-  username            = "john-doe"
-  expire_at           = "2027-01-01T00:00:00.000Z"
-  traffic_limit_bytes = 10737418240 # 10 GB
+  username               = "john-doe"
+  expire_at              = "2027-01-01T00:00:00.000Z"
+  traffic_limit_bytes    = 10737418240 # 10 GiB
   traffic_limit_strategy = "MONTH"
-  description         = "Managed by Terraform"
+  description            = "Managed by Terraform"
 }
 
 # ─── Xray node ───
@@ -94,10 +95,10 @@ resource "remnawave_config_profile" "default" {
 }
 
 resource "remnawave_node" "de-fra-01" {
-  name                 = "de-fra-01"
-  address              = "1.2.3.4"
-  port                 = 443
-  config_profile_uuid  = remnawave_config_profile.default.uuid
+  name                    = "de-fra-01"
+  address                 = "1.2.3.4"
+  port                    = 443
+  config_profile_uuid     = remnawave_config_profile.default.uuid
   config_profile_inbounds = [remnawave_config_profile.default.inbounds[0].uuid]
 }
 
@@ -228,7 +229,7 @@ The provider exposes **26 resources** across 7 functional areas:
 
 | Resource | Description |
 | --- | --- |
-| [`remnawave_external_squad`](docs/resources/external_squad.md) | External squad (managed by name) |
+| [`remnawave_external_squad`](docs/resources/external_squad.md) | External squad with subscription and host override settings |
 | [`remnawave_internal_squad`](docs/resources/internal_squad.md) | Internal squad with inbounds and accessible nodes |
 | [`remnawave_subscription_template`](docs/resources/subscription_template.md) | Subscription template (XRAY_JSON, MIHOMO, CLASH, SINGBOX, etc.) |
 | [`remnawave_subscription_settings`](docs/resources/subscription_settings.md) | Subscription page settings (singleton) |
@@ -281,7 +282,7 @@ These resources trigger one-shot operations on `terraform apply`. Use the
 
 ## Data Sources
 
-**23 data sources** for reading panel state:
+**25 data sources** for reading panel state:
 
 ### Inventory
 
@@ -291,6 +292,8 @@ These resources trigger one-shot operations on `terraform apply`. Use the
 | [`remnawave_users`](docs/data-sources/users.md) | List all users with status and tags |
 | [`remnawave_hosts`](docs/data-sources/hosts.md) | List all hosts |
 | [`remnawave_config_profiles`](docs/data-sources/config_profiles.md) | List all config profiles |
+| [`remnawave_internal_squads`](docs/data-sources/internal_squads.md) | List all internal squads and their assigned inbounds and accessible nodes |
+| [`remnawave_external_squads`](docs/data-sources/external_squads.md) | List all external squads and their subscription configuration |
 | [`remnawave_host_tags`](docs/data-sources/host_tags.md) | List all unique host tags |
 | [`remnawave_passkeys`](docs/data-sources/passkeys.md) | List WebAuthn passkeys for the current admin |
 
@@ -345,7 +348,7 @@ examples/
 │   ├── remnawave_host_bulk_action/# Bulk enable/disable/delete
 │   ├── remnawave_user_bulk_action/# Bulk user operations
 │   ├── remnawave_node_bulk_action/# Bulk node operations
-│   ├── remnawave_user_action/     # Enable/disable/reset/revoke
+│   ├── remnawave_user_action/     # Enable/disable/reset/revoke/extend
 │   └── remnawave_passkey/         # Import + manage existing passkeys
 └── data-sources/
     ├── remnawave_users/           # List all users
@@ -370,7 +373,7 @@ terraform import remnawave_user.john 42
 # terraform import remnawave_user.john 550e8400-e29b-41d4-a716-446655440000
 
 # Import a node by UUID
-terraform import remnawave_node.de-fra-01 550e8400-e29b-41d4-a716-446655440001
+terraform import remnawave_node.de_fra_01 550e8400-e29b-41d4-a716-446655440001
 
 # Import a passkey (import-only resource)
 terraform import remnawave_passkey.admin 550e8400-e29b-41d4-a716-446655440002
@@ -397,15 +400,16 @@ before upgrading across major versions.
 
 ### Provider Selection
 
-Documentation examples intentionally omit a provider version so they do not
-become stale. Production configurations should choose a constraint that matches
-their own upgrade and compatibility policy.
+Copyable examples use a pessimistic patch-line constraint. This accepts patch
+updates in the current minor line while requiring an explicit configuration
+change before upgrading to a new minor or major provider release.
 
 ```hcl
 terraform {
   required_providers {
     remnawave = {
-      source = "batonogov/remnawave"
+      source  = "batonogov/remnawave"
+      version = "~> 1.2.0"
     }
   }
 }

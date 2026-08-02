@@ -32,3 +32,14 @@ resource "remnawave_snippet" "routing_rules" {
 
 - `name` (String) Snippet name (2-255 chars).
 - `snippet` (String) Snippet content as JSON array string.
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Import a snippet by name.
+terraform import remnawave_snippet.routing_rules my-snippet
+```

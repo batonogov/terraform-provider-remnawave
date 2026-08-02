@@ -84,13 +84,17 @@ jobs:
           terraform_version: 1.15.5
           terraform_wrapper: false
       - name: Check example formatting
-        run: terraform fmt -check -recursive examples
+        run: |
+          terraform fmt -check -recursive examples
+          terraform fmt -check -recursive scripts/testdata/example-fixtures
       - name: Validate examples against the local provider schema
         run: ./scripts/validate-provider-examples.sh
       - name: Regenerate and validate provider documentation
         run: |
           go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.24.0 generate --provider-dir .
           go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.24.0 validate --provider-dir .
+      - name: Verify documentation inventory
+        run: ./scripts/check-docs-inventory.sh
       - name: Ensure generated documentation is current
         run: ./scripts/check-docs-drift.sh
 
