@@ -93,6 +93,40 @@ resource "remnawave_node_plugin" "test" {
 	})
 }
 
+func TestAccNodePluginPreStart(t *testing.T) {
+	testAccPreCheck(t)
+	if !isBackendAtLeast3_1() {
+		t.Skip("preStart node plugin configuration requires Remnawave 3.1+")
+	}
+	endpoint, authBlock := testAccProviderBlock()
+	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+		Steps: []resource.TestStep{{
+			Config: providerCfg + `
+resource "remnawave_node_plugin" "pre_start" {
+  name = "pre-start-plugin"
+  plugin_config = jsonencode({
+    sharedLists = []
+    preStart = {
+      enabled = true
+      cleanupSockets = {
+        enabled = true
+        files   = ["/dev/shm/*.sock"]
+      }
+    }
+  })
+}
+`,
+			Check: resource.ComposeAggregateTestCheckFunc(
+				resource.TestCheckResourceAttrSet("remnawave_node_plugin.pre_start", "uuid"),
+				resource.TestCheckResourceAttrSet("remnawave_node_plugin.pre_start", "plugin_config"),
+			),
+		}},
+	})
+}
+
 func TestAccApiTokenResource(t *testing.T) {
 	testAccPreCheck(t)
 	if os.Getenv(envAPIToken) != "" {

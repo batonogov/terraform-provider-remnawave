@@ -124,10 +124,37 @@ func TestCanonicalJSONPlanValues(t *testing.T) {
 	if _, ok := config["sharedLists"]; !ok {
 		t.Fatal("canonicalNodePluginJSON did not apply sharedLists default")
 	}
+	canonical, config, err = canonicalNodePluginJSON(`{"preStart":{"enabled":true,"cleanupSockets":{"enabled":true,"files":["/dev/shm/*.sock"]}}}`)
+	if err != nil || canonical != `{"preStart":{"cleanupSockets":{"enabled":true,"files":["/dev/shm/*.sock"]},"enabled":true},"sharedLists":[]}` {
+		t.Fatalf("canonicalNodePluginJSON(preStart) = %q, %#v, %v", canonical, config, err)
+	}
 	for _, invalid := range []string{"null", "[]", "not-json", `{"unsupported":true}`} {
 		if _, _, err := canonicalNodePluginJSON(invalid); err == nil {
 			t.Errorf("canonicalNodePluginJSON(%q) accepted a non-object", invalid)
 		}
+	}
+}
+
+func TestNodePluginPreStartVersion(t *testing.T) {
+	t.Parallel()
+
+	config := map[string]any{"preStart": map[string]any{"enabled": true}}
+	for _, tt := range []struct {
+		version string
+		wantErr bool
+	}{
+		{version: "3.0", wantErr: true},
+		{version: "3.1", wantErr: false},
+		{version: "4.0", wantErr: false},
+	} {
+		t.Run(tt.version, func(t *testing.T) {
+			t.Parallel()
+			resource := nodePluginResource{client: &Client{serverVersion: tt.version}}
+			err := resource.validatePluginConfigVersion(context.Background(), config)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validatePluginConfigVersion() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }
 
@@ -522,9 +549,10 @@ func TestNodeModelConversions(t *testing.T) {
 	note := "from server"
 	lastStatusChange := "2026-04-01T00:00:00.000Z"
 	lastStatusMessage := "connected"
+	nodeID := int64(42)
 	state := nodeResourceModel{}
 	nodeToPlan(&Node{
-		UUID: "node-id", Name: "node", Address: "node.example.com", Port: &port,
+		UUID: "node-id", ID: &nodeID, Name: "node", Address: "node.example.com", Port: &port,
 		IsConnected: true, IsDisabled: true, IsConnecting: false, IsTrafficTrackingActive: true,
 		TrafficLimitBytes: &traffic, TrafficResetDay: &reset, NotifyPercent: &notify,
 		CountryCode: "DE", Note: &note, UsersOnline: 5, ProxyURL: &proxyURL,
@@ -535,8 +563,12 @@ func TestNodeModelConversions(t *testing.T) {
 		System:   json.RawMessage(`{"info":{"hostname":"node"}}`), Versions: json.RawMessage(`{"xray":"1.0","node":"2.0"}`),
 		ConfigProfile: &NodeConfigProfile{ActiveConfigProfileUUID: "profile-id", ActiveInbounds: []NodeConfigProfileInbound{{UUID: "inbound-1"}}},
 	}, &state)
-	if state.UUID.ValueString() != "node-id" || state.Port.ValueInt64() != 2222 || state.UsersOnline.ValueInt64() != 5 || state.ConfigProfileInbounds.Elements()[0].(types.String).ValueString() != "inbound-1" || state.ProxyURL.ValueString() != proxyURL || state.ConsumptionMultiplier.ValueFloat64() != 1.5 || len(state.Tags.Elements()) != 1 || state.LastStatusMessage.ValueString() != "connected" || state.ProviderDetails.IsNull() || state.System.ValueString() != `{"info":{"hostname":"node"}}` || state.Versions.IsNull() {
+	if state.UUID.ValueString() != "node-id" || state.ID.ValueInt64() != 42 || state.Port.ValueInt64() != 2222 || state.UsersOnline.ValueInt64() != 5 || state.ConfigProfileInbounds.Elements()[0].(types.String).ValueString() != "inbound-1" || state.ProxyURL.ValueString() != proxyURL || state.ConsumptionMultiplier.ValueFloat64() != 1.5 || len(state.Tags.Elements()) != 1 || state.LastStatusMessage.ValueString() != "connected" || state.ProviderDetails.IsNull() || state.System.ValueString() != `{"info":{"hostname":"node"}}` || state.Versions.IsNull() {
 		t.Errorf("nodeToPlan() = %#v", state)
+	}
+	nodeToPlan(&Node{UUID: "legacy-node", Name: "legacy", Address: "127.0.0.1"}, &state)
+	if !state.ID.IsNull() {
+		t.Errorf("nodeToPlan() legacy id = %#v, want null", state.ID)
 	}
 }
 

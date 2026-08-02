@@ -13,8 +13,19 @@ Manages a Remnawave node plugin.
 ## Example Usage
 
 ```terraform
-resource "remnawave_node_plugin" "torrent_blocker" {
-  name = "Torrent Blocker"
+resource "remnawave_node_plugin" "pre_start" {
+  name = "Pre-Start Cleanup"
+
+  plugin_config = jsonencode({
+    sharedLists = []
+    preStart = {
+      enabled = true
+      cleanupSockets = {
+        enabled = true
+        files   = ["/dev/shm/*.sock"]
+      }
+    }
+  })
 }
 ```
 
@@ -27,7 +38,7 @@ resource "remnawave_node_plugin" "torrent_blocker" {
 
 ### Optional
 
-- `plugin_config` (String) Plugin config as JSON. Supported keys are sharedLists, torrentBlocker, ingressFilter, egressFilter, and connectionDrop.
+- `plugin_config` (String) Plugin config as JSON. Supported keys are sharedLists, torrentBlocker, ingressFilter, egressFilter, connectionDrop, and preStart (Remnawave 3.1+).
 
 ### Read-Only
 

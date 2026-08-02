@@ -3,12 +3,12 @@
 page_title: "remnawave_subscription_request_history Data Source - terraform-provider-remnawave"
 subcategory: ""
 description: |-
-  Returns subscription request history from the Remnawave panel.
+  Returns subscription request history from the Remnawave panel. On Remnawave 3.1+, each record includes srrRuleName and srrResponseType.
 ---
 
 # remnawave_subscription_request_history (Data Source)
 
-Returns subscription request history from the Remnawave panel.
+Returns subscription request history from the Remnawave panel. On Remnawave 3.1+, each record includes srrRuleName and srrResponseType.
 
 ## Example Usage
 

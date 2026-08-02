@@ -22,6 +22,7 @@ type nodesDataSourceModel struct {
 
 type nodeItem struct {
 	UUID        types.String `tfsdk:"uuid"`
+	ID          types.Int64  `tfsdk:"id"`
 	Name        types.String `tfsdk:"name"`
 	Address     types.String `tfsdk:"address"`
 	Port        types.Int64  `tfsdk:"port"`
@@ -48,6 +49,7 @@ func (d *nodesDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, 
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"uuid":         schema.StringAttribute{Computed: true},
+						"id":           schema.Int64Attribute{Computed: true, Description: "Numeric database ID of the node (available on Remnawave 3.1+)."},
 						"name":         schema.StringAttribute{Computed: true},
 						"address":      schema.StringAttribute{Computed: true},
 						"port":         schema.Int64Attribute{Computed: true},
@@ -91,6 +93,11 @@ func (d *nodesDataSource) Read(ctx context.Context, _ datasource.ReadRequest, re
 			IsConnected: types.BoolValue(n.IsConnected),
 			IsDisabled:  types.BoolValue(n.IsDisabled),
 			UsersOnline: types.Int64Value(int64(n.UsersOnline)),
+		}
+		if n.ID != nil {
+			item.ID = types.Int64Value(*n.ID)
+		} else {
+			item.ID = types.Int64Null()
 		}
 		if n.Port != nil {
 			item.Port = types.Int64Value(int64(*n.Port))

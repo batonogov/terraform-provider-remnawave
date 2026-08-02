@@ -36,6 +36,16 @@ func TestAccNodeResource(t *testing.T) {
 	testAccPreCheck(t)
 	endpoint, authBlock := testAccProviderBlock()
 	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
+	checks := []resource.TestCheckFunc{
+		resource.TestCheckResourceAttrSet("remnawave_node.test", "uuid"),
+		resource.TestCheckResourceAttr("remnawave_node.test", "name", "terraform-node"),
+		resource.TestCheckResourceAttr("remnawave_node.test", "country_code", "NL"),
+		resource.TestCheckResourceAttr("remnawave_node.test", "consumption_multiplier", "1.2"),
+		resource.TestCheckResourceAttr("remnawave_node.test", "config_profile_inbounds.#", "1"),
+	}
+	if isBackendAtLeast3_1() {
+		checks = append(checks, resource.TestCheckResourceAttrSet("remnawave_node.test", "id"))
+	}
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
@@ -57,13 +67,7 @@ resource "remnawave_node" "test" {
   config_profile_inbounds     = [remnawave_config_profile.profile.inbounds[0].uuid]
 }
 `,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("remnawave_node.test", "uuid"),
-					resource.TestCheckResourceAttr("remnawave_node.test", "name", "terraform-node"),
-					resource.TestCheckResourceAttr("remnawave_node.test", "country_code", "NL"),
-					resource.TestCheckResourceAttr("remnawave_node.test", "consumption_multiplier", "1.2"),
-					resource.TestCheckResourceAttr("remnawave_node.test", "config_profile_inbounds.#", "1"),
-				),
+				Check: resource.ComposeAggregateTestCheckFunc(checks...),
 			},
 			{
 				Config: providerCfg + testAccProfileConfig("node-profile", "VLESS_TCP_NODE_ACC") + `

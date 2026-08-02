@@ -7,23 +7,41 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-// TestAccNodesDataSource tests the remnawave_nodes data source.
-// On a fresh panel with no nodes, the list may be empty — we only verify
-// the data source runs without error.
+// TestAccNodesDataSource tests the remnawave_nodes data source against a
+// managed node so version-specific response fields can be asserted.
 func TestAccNodesDataSource(t *testing.T) {
 	testAccPreCheck(t)
 
 	endpoint, authBlock := testAccProviderBlock()
 	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
+	checks := []resource.TestCheckFunc{
+		resource.TestCheckResourceAttr("data.remnawave_nodes.all", "nodes.#", "1"),
+		resource.TestCheckResourceAttrSet("data.remnawave_nodes.all", "nodes.0.uuid"),
+		resource.TestCheckResourceAttr("data.remnawave_nodes.all", "nodes.0.name", "terraform-nodes-ds"),
+	}
+	if isBackendAtLeast3_1() {
+		checks = append(checks, resource.TestCheckResourceAttrSet("data.remnawave_nodes.all", "nodes.0.id"))
+	}
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: providerCfg + `
-data "remnawave_nodes" "all" {}
+				Config: providerCfg + testAccProfileConfig("nodes-ds-profile", "VLESS_TCP_NODES_DS_ACC") + `
+resource "remnawave_node" "test" {
+  name                    = "terraform-nodes-ds"
+  address                 = "127.0.0.12"
+  port                    = 2224
+  country_code            = "NL"
+  config_profile_uuid     = remnawave_config_profile.profile.uuid
+  config_profile_inbounds = [remnawave_config_profile.profile.inbounds[0].uuid]
+}
+
+data "remnawave_nodes" "all" {
+  depends_on = [remnawave_node.test]
+}
 `,
-				// Nodes list can be empty on fresh panel — just verify no error
+				Check: resource.ComposeAggregateTestCheckFunc(checks...),
 			},
 		},
 	})

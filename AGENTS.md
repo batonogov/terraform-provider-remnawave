@@ -12,13 +12,13 @@ Registry: `batonogov/remnawave`. All provider code lives in `provider/`.
 The Remnawave backend (`github.com/remnawave/backend`) is a NestJS TypeScript
 application with a clean REST API. The panel uses PostgreSQL + Redis (Valkey).
 
-**Compatibility:** Remnawave v2.7.x, v2.8.x, and v3.0.x. Docker Compose and
-acceptance tests default to the `remnawave/backend:3.0.0` image pinned by
-digest; CI runs matrix entries against `remnawave/backend:2.8.1` and
-`remnawave/backend:2.7.4`. All compose images are pinned by `sha256`
-digest for reproducibility. To run an explicit compatibility check
-against a different build, override both the tag and its digest, e.g.
-`REMNAWAVE_VERSION=3.1.0 REMNAWAVE_DIGEST=sha256:<digest>`.
+**Compatibility:** Remnawave v2.7.x, v2.8.x, v3.0.x, and v3.1.x. Docker
+Compose and acceptance tests default to the `remnawave/backend:3.1.0` image
+pinned by digest; CI runs matrix entries against `remnawave/backend:3.0.0`,
+`remnawave/backend:2.8.1`, and `remnawave/backend:2.7.4`. All compose images
+are pinned by `sha256` digest for reproducibility. To run an explicit
+compatibility check against a different build, override both the tag and its
+digest, e.g. `REMNAWAVE_VERSION=3.2.0 REMNAWAVE_DIGEST=sha256:<digest>`.
 
 The client auto-detects the server version via `/api/system/metadata` on
 the first version-dependent operation. Version-specific behaviour:
@@ -35,6 +35,9 @@ the first version-dependent operation. Version-specific behaviour:
   `responseHeadersAdd` + `responseHeadersRemove`. The provider exposes the new
   user action `extend_expiration`; other backend-only endpoints introduced in
   3.0 are not part of the provider surface yet.
+- **3.1.x**: Nodes expose a numeric `id` in addition to `uuid`. Subscription
+  request history records add `srrRuleName` and `srrResponseType`; the raw JSON
+  data source exposes both fields without version-specific configuration.
 
 No user configuration is required — the provider transparently adapts.
 
@@ -193,7 +196,7 @@ removes untracked duplicate/generated files such as `docs/* 2.md`; preview with
 | Build | `go build ./...` |
 | Unit Tests | `go test ./provider -skip TestAcc`, race detector, **30% coverage floor** |
 | Documentation | `terraform fmt -check` on examples; `tfplugindocs generate/validate`; fails if `docs/` drifts |
-| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against both 2.8.1 (default) and 2.7.4 |
+| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against 3.1.0 (default), 3.0.0, 2.8.1, and 2.7.4 |
 
 All GitHub Actions across the repo **must be pinned by commit SHA**
 (see `release-please.yml`); Dependabot keeps them current. Do not switch

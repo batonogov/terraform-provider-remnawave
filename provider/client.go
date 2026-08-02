@@ -623,9 +623,19 @@ func (c *Client) isVersion2_7(ctx context.Context) bool {
 }
 
 // isVersionAtLeast3_0 returns true if the connected backend reports version
-// 3.0.x or higher (major >= 3). Detection errors are returned because silently
-// falling back to a v2 route or payload can make mutating operations unsafe.
+// 3.0.0 or higher. Detection errors are returned because silently falling back
+// to a v2 route or payload can make mutating operations unsafe.
 func (c *Client) isVersionAtLeast3_0(ctx context.Context) (bool, error) {
+	return c.isVersionAtLeast(ctx, 3, 0)
+}
+
+// isVersionAtLeast3_1 returns true if the connected backend reports version
+// 3.1.0 or higher.
+func (c *Client) isVersionAtLeast3_1(ctx context.Context) (bool, error) {
+	return c.isVersionAtLeast(ctx, 3, 1)
+}
+
+func (c *Client) isVersionAtLeast(ctx context.Context, requiredMajor, requiredMinor int) (bool, error) {
 	if err := c.detectVersion(ctx); err != nil {
 		return false, err
 	}
@@ -634,15 +644,20 @@ func (c *Client) isVersionAtLeast3_0(ctx context.Context) (bool, error) {
 	v := c.serverVersion
 	c.versionMu.Unlock()
 
-	major, _, ok := strings.Cut(v, ".")
+	majorPart, remainder, ok := strings.Cut(v, ".")
 	if !ok {
 		return false, fmt.Errorf("invalid cached server version %q", v)
 	}
-	n, err := strconv.Atoi(major)
+	minorPart, _, _ := strings.Cut(remainder, ".")
+	major, err := strconv.Atoi(majorPart)
 	if err != nil {
 		return false, fmt.Errorf("invalid cached server version %q: %w", v, err)
 	}
-	return n >= 3, nil
+	minor, err := strconv.Atoi(minorPart)
+	if err != nil {
+		return false, fmt.Errorf("invalid cached server version %q: %w", v, err)
+	}
+	return major > requiredMajor || major == requiredMajor && minor >= requiredMinor, nil
 }
 
 // parseMajorMinor extracts "major.minor" from a semver-like string.
