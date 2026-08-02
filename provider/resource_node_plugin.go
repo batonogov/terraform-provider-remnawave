@@ -33,7 +33,7 @@ func (r *nodePluginResource) Schema(_ context.Context, _ resource.SchemaRequest,
 		Attributes: map[string]schema.Attribute{
 			"uuid":          schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 			"name":          schema.StringAttribute{Required: true, Description: "Plugin name (2-30 chars)."},
-			"plugin_config": schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{nodePluginJSONPlanModifier{}}, Description: "Plugin config as JSON. Supported keys are sharedLists, torrentBlocker, ingressFilter, egressFilter, and connectionDrop."},
+			"plugin_config": schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{nodePluginJSONPlanModifier{}}, Description: "Plugin config as JSON. Supported keys are sharedLists, torrentBlocker, ingressFilter, egressFilter, connectionDrop, and preStart (Remnawave 3.1+)."},
 		},
 	}
 }
@@ -65,6 +65,10 @@ func (r *nodePluginResource) Create(ctx context.Context, req resource.CreateRequ
 		}
 		plan.PluginConfig = types.StringValue(canonical)
 		pluginConfig = decoded
+	}
+	if err := r.validatePluginConfigVersion(ctx, pluginConfig); err != nil {
+		resp.Diagnostics.AddError("Unsupported node plugin configuration", err.Error())
+		return
 	}
 	created, err := r.client.CreateNodePlugin(ctx, &NodePlugin{Name: plan.Name.ValueString()})
 	if err != nil {
@@ -145,6 +149,7 @@ func (r *nodePluginResource) Update(ctx context.Context, req resource.UpdateRequ
 		return
 	}
 	plugin := &NodePlugin{UUID: plan.UUID.ValueString(), Name: plan.Name.ValueString()}
+	var pluginConfig map[string]any
 	if !plan.PluginConfig.IsNull() && plan.PluginConfig.ValueString() != "" {
 		canonical, cfg, err := canonicalNodePluginJSON(plan.PluginConfig.ValueString())
 		if err != nil {
@@ -153,6 +158,11 @@ func (r *nodePluginResource) Update(ctx context.Context, req resource.UpdateRequ
 		}
 		plan.PluginConfig = types.StringValue(canonical)
 		plugin.PluginConfig = cfg
+		pluginConfig = cfg
+	}
+	if err := r.validatePluginConfigVersion(ctx, pluginConfig); err != nil {
+		resp.Diagnostics.AddError("Unsupported node plugin configuration", err.Error())
+		return
 	}
 	updated, err := r.client.UpdateNodePlugin(ctx, plugin)
 	if err != nil {
@@ -185,4 +195,21 @@ func (r *nodePluginResource) Delete(ctx context.Context, req resource.DeleteRequ
 
 func (r *nodePluginResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("uuid"), types.StringValue(req.ID))...)
+}
+
+func (r *nodePluginResource) validatePluginConfigVersion(ctx context.Context, pluginConfig map[string]any) error {
+	if pluginConfig == nil {
+		return nil
+	}
+	if _, ok := pluginConfig["preStart"]; !ok {
+		return nil
+	}
+	supported, err := r.client.isVersionAtLeast3_1(ctx)
+	if err != nil {
+		return fmt.Errorf("detect backend version for preStart: %w", err)
+	}
+	if !supported {
+		return fmt.Errorf("preStart requires Remnawave 3.1 or newer")
+	}
+	return nil
 }

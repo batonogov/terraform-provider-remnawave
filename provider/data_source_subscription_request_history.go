@@ -30,7 +30,7 @@ func (d *subscriptionRequestHistoryDataSource) Metadata(_ context.Context, _ dat
 
 func (d *subscriptionRequestHistoryDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Returns subscription request history from the Remnawave panel.",
+		Description: "Returns subscription request history from the Remnawave panel. On Remnawave 3.1+, each record includes srrRuleName and srrResponseType.",
 		Attributes: map[string]schema.Attribute{
 			"response": schema.StringAttribute{
 				Computed:    true,

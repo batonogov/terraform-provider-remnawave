@@ -11,13 +11,29 @@ import (
 )
 
 func isBackendAtLeast3() bool {
+	return isBackendAtLeast(3, 0)
+}
+
+func isBackendAtLeast3_1() bool {
+	return isBackendAtLeast(3, 1)
+}
+
+func isBackendAtLeast(requiredMajor, requiredMinor int) bool {
 	version := strings.TrimPrefix(os.Getenv("REMNAWAVE_VERSION"), "v")
 	if version == "" {
-		return true // docker-compose.yaml defaults to Remnawave 3.0.0
+		return true // docker-compose.yaml defaults to Remnawave 3.1.0
 	}
-	major, _, ok := strings.Cut(version, ".")
-	majorNumber, err := strconv.Atoi(major)
-	return ok && err == nil && majorNumber >= 3
+	majorPart, remainder, ok := strings.Cut(version, ".")
+	if !ok {
+		return false
+	}
+	minorPart, _, _ := strings.Cut(remainder, ".")
+	major, majorErr := strconv.Atoi(majorPart)
+	minor, minorErr := strconv.Atoi(minorPart)
+	if majorErr != nil || minorErr != nil {
+		return false
+	}
+	return major > requiredMajor || major == requiredMajor && minor >= requiredMinor
 }
 
 const (

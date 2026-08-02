@@ -23,6 +23,7 @@ type nodeResource struct {
 
 type nodeResourceModel struct {
 	UUID                      types.String  `tfsdk:"uuid"`
+	ID                        types.Int64   `tfsdk:"id"`
 	Name                      types.String  `tfsdk:"name"`
 	Address                   types.String  `tfsdk:"address"`
 	Port                      types.Int64   `tfsdk:"port"`
@@ -75,6 +76,10 @@ func (r *nodeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 					stringplanmodifier.UseStateForUnknown(),
 				},
 				Description: "UUID of the node (assigned by the panel).",
+			},
+			"id": schema.Int64Attribute{
+				Computed:    true,
+				Description: "Numeric database ID of the node (available on Remnawave 3.1+).",
 			},
 			"name": schema.StringAttribute{
 				Required:    true,
@@ -392,6 +397,11 @@ func planToNode(p *nodeResourceModel) *Node {
 
 func nodeToPlan(n *Node, p *nodeResourceModel) {
 	p.UUID = types.StringValue(n.UUID)
+	if n.ID != nil {
+		p.ID = types.Int64Value(*n.ID)
+	} else {
+		p.ID = types.Int64Null()
+	}
 	p.Name = types.StringValue(n.Name)
 	p.Address = types.StringValue(n.Address)
 	p.IsConnected = types.BoolValue(n.IsConnected)

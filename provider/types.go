@@ -68,6 +68,7 @@ func (r UserSquadRef) MarshalJSON() ([]byte, error) {
 // API: /api/nodes (POST create, PATCH update, DELETE /:uuid, GET /:uuid)
 type Node struct {
 	UUID                      string             `json:"uuid,omitempty"`
+	ID                        *int64             `json:"id,omitempty"` // v3.1+
 	Name                      string             `json:"name"`
 	Address                   string             `json:"address"`
 	Port                      *int               `json:"port,omitempty"`

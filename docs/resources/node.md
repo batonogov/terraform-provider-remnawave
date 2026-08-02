@@ -51,6 +51,7 @@ resource "remnawave_node" "de_fra_01" {
 ### Read-Only
 
 - `created_at` (String) Creation timestamp.
+- `id` (Number) Numeric database ID of the node (available on Remnawave 3.1+).
 - `is_connected` (Boolean) Whether the node is currently connected.
 - `is_connecting` (Boolean) Whether the node is in the process of connecting.
 - `is_disabled` (Boolean) Whether the node is administratively disabled.
