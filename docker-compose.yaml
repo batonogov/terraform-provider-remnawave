@@ -1,6 +1,6 @@
 services:
   remnawave:
-    image: remnawave/backend:${REMNAWAVE_VERSION:-3.1.0}@${REMNAWAVE_DIGEST:-sha256:a9b5bf76a136d552f72e953baee549b2f3dc6bd30c2ff2936f64cb72db9a2587}
+    image: remnawave/backend:${REMNAWAVE_VERSION:-3.2.0}@${REMNAWAVE_DIGEST:-sha256:72af06c106111db7cd11f67da63cee591a4a1c60fc1d1ad57384c498c1e9fa40}
     container_name: remnawave-test
     hostname: remnawave
     ports:

@@ -47,13 +47,14 @@ hosts, squads, billing, subscription pages, and more as infrastructure-as-code.
 
 ## Compatibility
 
-The provider supports Remnawave panel **v2.7.x, v2.8.x, v3.0.x, and v3.1.x**.
-The acceptance test suite runs against all four versions in CI on every push
+The provider supports Remnawave panel **v2.7.x, v2.8.x, v3.0.x, v3.1.x, and v3.2.x**.
+The acceptance test suite runs against all five versions in CI on every push
 to `main` and every pull request — [see the full CI matrix](https://github.com/batonogov/terraform-provider-remnawave/actions/workflows/ci.yml).
 
 | Remnawave version | Status |
 | --- | --- |
-| v3.1.0 | ✅ Tested (primary) |
+| v3.2.0 | ✅ Tested (primary) |
+| v3.1.0 | ✅ Tested (matrix) |
 | v3.0.0 | ✅ Tested (matrix) |
 | v2.8.1 | ✅ Tested (matrix) |
 | v2.7.4 | ✅ Tested (matrix) |
@@ -498,8 +499,8 @@ Contributions are welcome! Please:
 3. Add or update tests for any changed behavior.
 4. Run `gofmt`, `golangci-lint`, and the relevant test suite before submitting
    a pull request.
-5. Ensure CI is green — acceptance tests run against Remnawave v3.1.0,
-   v3.0.0, v2.8.1, and v2.7.4.
+5. Ensure CI is green — acceptance tests run against Remnawave v3.2.0,
+   v3.1.0, v3.0.0, v2.8.1, and v2.7.4.
 
 Releases are machine-gated: the release workflow runs only after successful CI
 for the exact current `main` commit, then verifies the CI jobs, tag target, and
