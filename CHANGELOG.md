@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.2.0...v1.3.0) (2026-08-03)
+
+
+### Features
+
+* support Remnawave 3.2.0 ([#233](https://github.com/batonogov/terraform-provider-remnawave/issues/233)) ([f928bbc](https://github.com/batonogov/terraform-provider-remnawave/commit/f928bbcf2705a3f413dab4c8ab82f41c5bee7864))
+
+
+### Bug Fixes
+
+* **ci:** sync actions/attest pin in supply-chain test ([#234](https://github.com/batonogov/terraform-provider-remnawave/issues/234)) ([b7ecb51](https://github.com/batonogov/terraform-provider-remnawave/commit/b7ecb511944fc52f1dbb6f08eb2ce3233184e122))
+
 ## [1.2.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.1.0...v1.2.0) (2026-08-02)
 
 
