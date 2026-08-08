@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.3.0...v1.3.1) (2026-08-08)
+
+
+### Bug Fixes
+
+* **deps:** bump Remnawave to 3.2.1 ([#236](https://github.com/batonogov/terraform-provider-remnawave/issues/236)) ([60c1c29](https://github.com/batonogov/terraform-provider-remnawave/commit/60c1c29cb42e2f2a4d40b5cb557206c09708fad1))
+
 ## [1.3.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.2.0...v1.3.0) (2026-08-03)
 
 
