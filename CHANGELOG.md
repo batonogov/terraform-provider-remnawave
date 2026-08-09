@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.3.0...v1.4.0) (2026-08-09)
+
+
+### Features
+
+* support Remnawave 3.2.2 node IPs ([#238](https://github.com/batonogov/terraform-provider-remnawave/issues/238)) ([bbe3380](https://github.com/batonogov/terraform-provider-remnawave/commit/bbe3380c5b05cf6c8f2574bd376a79b8c066a8d1))
+
+
+### Bug Fixes
+
+* **deps:** bump Remnawave to 3.2.1 ([#236](https://github.com/batonogov/terraform-provider-remnawave/issues/236)) ([60c1c29](https://github.com/batonogov/terraform-provider-remnawave/commit/60c1c29cb42e2f2a4d40b5cb557206c09708fad1))
+
 ## [1.3.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.2.0...v1.3.0) (2026-08-03)
 
 
