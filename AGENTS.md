@@ -13,7 +13,7 @@ The Remnawave backend (`github.com/remnawave/backend`) is a NestJS TypeScript
 application with a clean REST API. The panel uses PostgreSQL + Redis (Valkey).
 
 **Compatibility:** Remnawave v2.7.x, v2.8.x, v3.0.x, v3.1.x, and v3.2.x.
-Docker Compose and acceptance tests default to...[truncated]
+Docker Compose and acceptance tests default to the `remnawave/backend:3.2.2`
 image pinned by digest; CI runs matrix entries against `remnawave/backend:3.1.0`,
 `remnawave/backend:3.0.0`, `remnawave/backend:2.8.1`, and
 `remnawave/backend:2.7.4`. All compose images

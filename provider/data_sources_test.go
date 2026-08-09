@@ -2,6 +2,7 @@ package provider
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	datasourceschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -65,13 +66,14 @@ func TestNodesDataSourceSchemaIncludesIPs(t *testing.T) {
 func TestNodeToItemIncludesIPs(t *testing.T) {
 	t.Parallel()
 
+	backendIPs := []NodeIP{
+		{IP: "192.0.2.10", Status: "MANAGEMENT"},
+		{IP: "2001:db8::10", Status: "INBOUND"},
+	}
 	item, diagnostics := nodeToItem(t.Context(), Node{
 		UUID: "node-id",
 		Name: "node",
-		IPs: []NodeIP{
-			{IP: "192.0.2.10", Status: "MANAGEMENT"},
-			{IP: "2001:db8::10", Status: "INBOUND"},
-		},
+		IPs:  &backendIPs,
 	})
 	if diagnostics.HasError() {
 		t.Fatalf("nodeToItem diagnostics = %v", diagnostics)
@@ -87,5 +89,33 @@ func TestNodeToItemIncludesIPs(t *testing.T) {
 	}
 	if len(ips) != 2 || gotIPs["192.0.2.10"] != "MANAGEMENT" || gotIPs["2001:db8::10"] != "INBOUND" {
 		t.Fatalf("item IPs = %#v", ips)
+	}
+}
+
+func TestNodeIPsToSetRejectsInvalidBackendData(t *testing.T) {
+	t.Parallel()
+
+	tooMany := make([]NodeIP, 65)
+	for i := range tooMany {
+		tooMany[i] = NodeIP{IP: "192.0.2.10", Status: "INBOUND"}
+	}
+
+	for _, tt := range []struct {
+		name string
+		ips  []NodeIP
+	}{
+		{name: "too many", ips: tooMany},
+		{name: "oversized ip", ips: []NodeIP{{IP: strings.Repeat("1", 46), Status: "INBOUND"}}},
+		{name: "malformed ip", ips: []NodeIP{{IP: "999.0.2.10", Status: "INBOUND"}}},
+		{name: "unknown status", ips: []NodeIP{{IP: "192.0.2.10", Status: "UNTRUSTED"}}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			ips := tt.ips
+			_, diagnostics := nodeIPsToSet(t.Context(), &ips)
+			if !diagnostics.HasError() {
+				t.Fatal("nodeIPsToSet() diagnostics have no error")
+			}
+		})
 	}
 }

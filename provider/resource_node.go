@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"slices"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
@@ -85,6 +86,12 @@ var nodeIPStatuses = []string{
 	"DEPRECATED",
 	"UNKNOWN",
 }
+
+const (
+	maxNodeIPs            = 64
+	maxNodeIPAddressBytes = 45
+	maxNodeIPStatusBytes  = 10
+)
 
 type nodeIPAddressValidator struct{}
 
@@ -220,7 +227,7 @@ func (r *nodeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Computed:    true,
 				Description: "IP addresses assigned to the node and their traffic roles (Remnawave 3.2.2+, up to 64).",
 				Validators: []validator.Set{
-					setvalidator.SizeAtMost(64),
+					setvalidator.SizeAtMost(maxNodeIPs),
 				},
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
@@ -490,9 +497,11 @@ func planToNode(ctx context.Context, p *nodeResourceModel) (*Node, diag.Diagnost
 		var ips []nodeIPResourceModel
 		diagnostics.Append(p.IPs.ElementsAs(ctx, &ips, false)...)
 		if !diagnostics.HasError() {
+			nodeIPs := make([]NodeIP, 0, len(ips))
 			for _, item := range ips {
-				n.IPs = append(n.IPs, NodeIP{IP: item.IP.ValueString(), Status: item.Status.ValueString()})
+				nodeIPs = append(nodeIPs, NodeIP{IP: item.IP.ValueString(), Status: item.Status.ValueString()})
 			}
+			n.IPs = &nodeIPs
 		}
 	}
 	if !p.ProviderUUID.IsNull() && !p.ProviderUUID.IsUnknown() {
@@ -522,15 +531,45 @@ func planToNode(ctx context.Context, p *nodeResourceModel) (*Node, diag.Diagnost
 	return n, diagnostics
 }
 
-func nodeIPsToSet(ctx context.Context, ips []NodeIP) (types.Set, diag.Diagnostics) {
-	ipModels := make([]nodeIPResourceModel, 0, len(ips))
-	for _, item := range ips {
+func nodeIPsToSet(ctx context.Context, ips *[]NodeIP) (types.Set, diag.Diagnostics) {
+	objectType := types.ObjectType{AttrTypes: nodeIPAttrTypes}
+	if ips == nil {
+		return types.SetNull(objectType), nil
+	}
+
+	var diagnostics diag.Diagnostics
+	if len(*ips) > maxNodeIPs {
+		diagnostics.AddError(
+			"Invalid node IP response",
+			fmt.Sprintf("Backend returned %d node IP entries; the maximum is %d.", len(*ips), maxNodeIPs),
+		)
+		return types.SetNull(objectType), diagnostics
+	}
+
+	ipModels := make([]nodeIPResourceModel, 0, len(*ips))
+	for index, item := range *ips {
+		if len(item.IP) > maxNodeIPAddressBytes || net.ParseIP(item.IP) == nil {
+			diagnostics.AddError(
+				"Invalid node IP response",
+				fmt.Sprintf("Backend returned an invalid IP address at index %d.", index),
+			)
+			return types.SetNull(objectType), diagnostics
+		}
+		if len(item.Status) > maxNodeIPStatusBytes || !slices.Contains(nodeIPStatuses, item.Status) {
+			diagnostics.AddError(
+				"Invalid node IP response",
+				fmt.Sprintf("Backend returned an invalid node IP status at index %d.", index),
+			)
+			return types.SetNull(objectType), diagnostics
+		}
 		ipModels = append(ipModels, nodeIPResourceModel{
 			IP:     types.StringValue(item.IP),
 			Status: types.StringValue(item.Status),
 		})
 	}
-	return types.SetValueFrom(ctx, types.ObjectType{AttrTypes: nodeIPAttrTypes}, ipModels)
+	set, conversionDiagnostics := types.SetValueFrom(ctx, objectType, ipModels)
+	diagnostics.Append(conversionDiagnostics...)
+	return set, diagnostics
 }
 
 func nodeToPlan(ctx context.Context, n *Node, p *nodeResourceModel) diag.Diagnostics {

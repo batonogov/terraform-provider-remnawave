@@ -193,6 +193,35 @@ func TestVersionDetection3_2_2(t *testing.T) {
 	}
 }
 
+func TestVersionDetectionRejectsOversizedMetadata(t *testing.T) {
+	t.Parallel()
+
+	version := "3.2." + strings.Repeat("9", 1024)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"response": map[string]string{"version": version}})
+	}))
+	defer server.Close()
+
+	client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "test-token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.isVersionAtLeast3_2_2(t.Context())
+	if err == nil {
+		t.Fatal("isVersionAtLeast3_2_2() error = nil")
+	}
+	if len(err.Error()) > 200 {
+		t.Fatalf("version error length = %d, want <= 200", len(err.Error()))
+	}
+	client.versionMu.Lock()
+	cachedLength := len(client.serverFullVersion)
+	client.versionMu.Unlock()
+	if cachedLength > 64 {
+		t.Fatalf("cached version length = %d, want <= 64", cachedLength)
+	}
+}
+
 func TestHostRequestV27UsesSingularTag(t *testing.T) {
 	t.Parallel()
 

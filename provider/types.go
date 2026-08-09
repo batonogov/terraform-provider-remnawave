@@ -88,7 +88,7 @@ type Node struct {
 	ConsumptionMultiplier     *float64           `json:"consumptionMultiplier,omitempty"`
 	NodeConsumptionMultiplier *float64           `json:"nodeConsumptionMultiplier,omitempty"`
 	Tags                      []string           `json:"tags,omitempty"`
-	IPs                       []NodeIP           `json:"ips,omitempty"` // v3.2.2+
+	IPs                       *[]NodeIP          `json:"ips,omitempty"` // v3.2.2+
 	ConfigProfile             *NodeConfigProfile `json:"configProfile,omitempty"`
 	ProviderUUID              *string            `json:"providerUuid,omitempty"`
 	Provider                  json.RawMessage    `json:"provider,omitempty"`

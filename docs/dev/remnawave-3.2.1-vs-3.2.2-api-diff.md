@@ -4,7 +4,7 @@
 
 These findings come from diffing the authoritative
 [`remnawave/backend` tags `3.2.1...3.2.2`](https://github.com/remnawave/backend/compare/3.2.1...3.2.2)
-(1 commit, 30 files, 87 additions, 18 deletions). Remnawave 3.2.2 extends the
+(8 commits, 30 files, 87 additions, 18 deletions). Remnawave 3.2.2 extends the
 existing node create, update, and response contracts with managed IP metadata.
 The Terraform provider therefore requires a schema and model update rather than
 only a compatibility-matrix bump.
@@ -97,7 +97,7 @@ The complete `TestAcc*` suite passed against the exact 3.2.2 index digest:
 
 ```text
 PASS
-ok  github.com/batonogov/terraform-provider-remnawave/provider  118.116s
+ok  github.com/batonogov/terraform-provider-remnawave/provider  121.450s
 ```
 
 The import-only WebAuthn passkey test retained its expected skip because no

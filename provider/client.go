@@ -67,7 +67,10 @@ type apiResponse struct {
 // applies to the bytes presented after decompression as well as to plain and
 // chunked bodies. Error bodies have an independent zero-byte limit: they are
 // never read because they are untrusted and are not included in diagnostics.
-const maxResponseBodyBytes int64 = 32 << 20
+const (
+	maxResponseBodyBytes  int64 = 32 << 20
+	maxServerVersionBytes       = 64
+)
 
 // HTTPStatusError carries the HTTP status code from a failed request.
 type HTTPStatusError struct {
@@ -594,12 +597,15 @@ func (c *Client) detectVersion(ctx context.Context) error {
 		return fmt.Errorf("failed to detect server version: %w", err)
 	}
 
-	minor := parseMajorMinor(resp.Version)
-	if minor == "" {
-		return fmt.Errorf("unexpected version format from server: %q", resp.Version)
+	if len(resp.Version) > maxServerVersionBytes {
+		return errors.New("unexpected version format from server")
 	}
-	c.serverVersion = minor
-	c.serverFullVersion = resp.Version
+	major, minor, patch, ok := parseVersion(resp.Version)
+	if !ok {
+		return errors.New("unexpected version format from server")
+	}
+	c.serverVersion = fmt.Sprintf("%d.%d", major, minor)
+	c.serverFullVersion = fmt.Sprintf("%d.%d.%d", major, minor, patch)
 	return nil
 }
 

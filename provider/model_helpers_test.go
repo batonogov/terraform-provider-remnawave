@@ -529,11 +529,14 @@ func TestNodeModelConversions(t *testing.T) {
 	if diagnostics.HasError() {
 		t.Fatalf("planToNode diagnostics = %v", diagnostics)
 	}
-	gotIPs := make(map[string]string, len(node.IPs))
-	for _, item := range node.IPs {
+	if node.IPs == nil {
+		t.Fatal("planToNode() IPs = nil")
+	}
+	gotIPs := make(map[string]string, len(*node.IPs))
+	for _, item := range *node.IPs {
 		gotIPs[item.IP] = item.Status
 	}
-	if node.UUID != "node-id" || node.Port == nil || *node.Port != 2222 || node.ProxyURL == nil || *node.ProxyURL != "socks5://proxy.example.com:1080" || node.Note == nil || *node.Note != "note" || node.ConfigProfile == nil || len(node.ConfigProfile.ActiveInbounds) != 2 || node.ConsumptionMultiplier == nil || *node.ConsumptionMultiplier != 1.2 || len(node.Tags) != 2 || len(node.IPs) != 2 || gotIPs["192.0.2.10"] != "MANAGEMENT" || gotIPs["2001:db8::10"] != "INBOUND" {
+	if node.UUID != "node-id" || node.Port == nil || *node.Port != 2222 || node.ProxyURL == nil || *node.ProxyURL != "socks5://proxy.example.com:1080" || node.Note == nil || *node.Note != "note" || node.ConfigProfile == nil || len(node.ConfigProfile.ActiveInbounds) != 2 || node.ConsumptionMultiplier == nil || *node.ConsumptionMultiplier != 1.2 || len(node.Tags) != 2 || len(*node.IPs) != 2 || gotIPs["192.0.2.10"] != "MANAGEMENT" || gotIPs["2001:db8::10"] != "INBOUND" {
 		t.Errorf("planToNode() = %#v", node)
 	}
 
@@ -575,7 +578,7 @@ func TestNodeModelConversions(t *testing.T) {
 		TrafficLimitBytes: &traffic, TrafficResetDay: &reset, NotifyPercent: &notify,
 		CountryCode: "DE", Note: &note, UsersOnline: 5, ProxyURL: &proxyURL,
 		ConsumptionMultiplier: &consumption, NodeConsumptionMultiplier: &nodeConsumption,
-		Tags: []string{"NODE"}, IPs: []NodeIP{{IP: "192.0.2.10", Status: "MANAGEMENT"}}, ProviderUUID: &providerUUID, ActivePluginUUID: &pluginUUID,
+		Tags: []string{"NODE"}, IPs: &[]NodeIP{{IP: "192.0.2.10", Status: "MANAGEMENT"}}, ProviderUUID: &providerUUID, ActivePluginUUID: &pluginUUID,
 		LastStatusChange: &lastStatusChange, LastStatusMessage: &lastStatusMessage,
 		Provider: json.RawMessage(`{"uuid":"provider-id","name":"provider"}`),
 		System:   json.RawMessage(`{"info":{"hostname":"node"}}`), Versions: json.RawMessage(`{"xray":"1.0","node":"2.0"}`),

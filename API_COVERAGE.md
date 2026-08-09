@@ -13,8 +13,8 @@ unsafe and misleading provider design.
 - Contract inventory: 184 `*.command.ts` files under `libs/contract/commands`
 
 This backend inventory is a historical contract snapshot. The provider now
-supports Remnawave 2.7.x, 2.8.x, 3.0.x, and 3.1.x and adapts version-specific
-contracts at runtime.
+supports Remnawave 2.7.x, 2.8.x, 3.0.x, 3.1.x, and 3.2.x and adapts
+version-specific contracts at runtime.
 
 ## Current provider surface
 

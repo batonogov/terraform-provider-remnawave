@@ -37,12 +37,14 @@ func TestAccNodeResource(t *testing.T) {
 	endpoint, authBlock := testAccProviderBlock()
 	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
 	nodeIPFields := ""
+	nodeIPUpdateFields := ""
 	if isBackendAtLeast3_2_2() {
 		nodeIPFields = `  ips = [{
     ip     = "192.0.2.10"
     status = "MANAGEMENT"
   }]
 `
+		nodeIPUpdateFields = "  ips = []\n"
 	}
 	checks := []resource.TestCheckFunc{
 		resource.TestCheckResourceAttrSet("remnawave_node.test", "uuid"),
@@ -60,6 +62,14 @@ func TestAccNodeResource(t *testing.T) {
 			resource.TestCheckResourceAttr("remnawave_node.test", "ips.0.ip", "192.0.2.10"),
 			resource.TestCheckResourceAttr("remnawave_node.test", "ips.0.status", "MANAGEMENT"),
 		)
+	}
+	updateChecks := []resource.TestCheckFunc{
+		resource.TestCheckResourceAttr("remnawave_node.test", "name", "terraform-node-updated"),
+		resource.TestCheckResourceAttr("remnawave_node.test", "country_code", "DE"),
+		resource.TestCheckResourceAttr("remnawave_node.test", "tags.#", "2"),
+	}
+	if isBackendAtLeast3_2_2() {
+		updateChecks = append(updateChecks, resource.TestCheckResourceAttr("remnawave_node.test", "ips.#", "0"))
 	}
 
 	resource.Test(t, resource.TestCase{
@@ -97,12 +107,8 @@ resource "remnawave_node" "test" {
 %s  config_profile_uuid         = remnawave_config_profile.profile.uuid
   config_profile_inbounds     = [remnawave_config_profile.profile.inbounds[0].uuid]
 }
-`, nodeIPFields),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("remnawave_node.test", "name", "terraform-node-updated"),
-					resource.TestCheckResourceAttr("remnawave_node.test", "country_code", "DE"),
-					resource.TestCheckResourceAttr("remnawave_node.test", "tags.#", "2"),
-				),
+`, nodeIPUpdateFields),
+				Check: resource.ComposeAggregateTestCheckFunc(updateChecks...),
 			},
 			{
 				ResourceName:                         "remnawave_node.test",
