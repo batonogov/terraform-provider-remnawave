@@ -26,7 +26,7 @@ task docs:check
 task test:acc
 
 # Test a different explicitly pinned backend build
-REMNAWAVE_VERSION=3.2.1 REMNAWAVE_DIGEST=sha256:<digest> task test:acc
+REMNAWAVE_VERSION=3.2.2 REMNAWAVE_DIGEST=sha256:<digest> task test:acc
 ```
 
 ## PR Workflow

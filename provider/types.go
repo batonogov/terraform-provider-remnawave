@@ -88,6 +88,7 @@ type Node struct {
 	ConsumptionMultiplier     *float64           `json:"consumptionMultiplier,omitempty"`
 	NodeConsumptionMultiplier *float64           `json:"nodeConsumptionMultiplier,omitempty"`
 	Tags                      []string           `json:"tags,omitempty"`
+	IPs                       []NodeIP           `json:"ips,omitempty"` // v3.2.2+
 	ConfigProfile             *NodeConfigProfile `json:"configProfile,omitempty"`
 	ProviderUUID              *string            `json:"providerUuid,omitempty"`
 	Provider                  json.RawMessage    `json:"provider,omitempty"`
@@ -99,6 +100,13 @@ type Node struct {
 	XrayUptime                float64            `json:"xrayUptime,omitempty"`
 	CreatedAt                 string             `json:"createdAt,omitempty"`
 	UpdatedAt                 string             `json:"updatedAt,omitempty"`
+}
+
+// NodeIP is an address assigned to a node and the traffic role it serves.
+// The field is accepted by the nodes create/update API starting in v3.2.2.
+type NodeIP struct {
+	IP     string `json:"ip"`
+	Status string `json:"status"`
 }
 
 // NodeConfigProfile is the config profile assignment for a node.

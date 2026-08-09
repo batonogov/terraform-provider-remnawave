@@ -162,6 +162,37 @@ func TestVersionDetection3_1(t *testing.T) {
 	}
 }
 
+func TestVersionDetection3_2_2(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		version string
+		want    bool
+	}{
+		{version: "3.2.1", want: false},
+		{version: "3.2.2", want: true},
+		{version: "3.3.0", want: true},
+	} {
+		t.Run(tt.version, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = io.WriteString(w, `{"response":{"version":"`+tt.version+`"}}`)
+			}))
+			defer server.Close()
+
+			client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "test-token"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := client.isVersionAtLeast3_2_2(context.Background())
+			if err != nil || got != tt.want {
+				t.Errorf("isVersionAtLeast3_2_2() = %v, %v, want %v, nil", got, err, tt.want)
+			}
+		})
+	}
+}
+
 func TestHostRequestV27UsesSingularTag(t *testing.T) {
 	t.Parallel()
 
