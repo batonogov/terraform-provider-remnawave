@@ -9,9 +9,9 @@ description: |-
 
 A Terraform provider for Remnawave — a proxy management panel built on Xray-core. Manage VPN users, nodes, hosts, squads, billing, and more as infrastructure-as-code.
 
-The provider supports Remnawave 2.7.x, 2.8.x, 3.0.x, and 3.1.x. It detects the
-panel version automatically and adapts version-specific API contracts without
-additional provider configuration.
+The provider supports Remnawave 2.7.x, 2.8.x, 3.0.x, 3.1.x, and 3.2.x. It
+detects the panel version automatically and adapts version-specific API contracts
+without additional provider configuration.
 
 ## Authentication
 

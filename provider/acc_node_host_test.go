@@ -36,6 +36,16 @@ func TestAccNodeResource(t *testing.T) {
 	testAccPreCheck(t)
 	endpoint, authBlock := testAccProviderBlock()
 	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
+	nodeIPFields := ""
+	nodeIPUpdateFields := ""
+	if isBackendAtLeast3_2_2() {
+		nodeIPFields = `  ips = [{
+    ip     = "192.0.2.10"
+    status = "MANAGEMENT"
+  }]
+`
+		nodeIPUpdateFields = "  ips = []\n"
+	}
 	checks := []resource.TestCheckFunc{
 		resource.TestCheckResourceAttrSet("remnawave_node.test", "uuid"),
 		resource.TestCheckResourceAttr("remnawave_node.test", "name", "terraform-node"),
@@ -46,12 +56,27 @@ func TestAccNodeResource(t *testing.T) {
 	if isBackendAtLeast3_1() {
 		checks = append(checks, resource.TestCheckResourceAttrSet("remnawave_node.test", "id"))
 	}
+	if isBackendAtLeast3_2_2() {
+		checks = append(checks,
+			resource.TestCheckResourceAttr("remnawave_node.test", "ips.#", "1"),
+			resource.TestCheckResourceAttr("remnawave_node.test", "ips.0.ip", "192.0.2.10"),
+			resource.TestCheckResourceAttr("remnawave_node.test", "ips.0.status", "MANAGEMENT"),
+		)
+	}
+	updateChecks := []resource.TestCheckFunc{
+		resource.TestCheckResourceAttr("remnawave_node.test", "name", "terraform-node-updated"),
+		resource.TestCheckResourceAttr("remnawave_node.test", "country_code", "DE"),
+		resource.TestCheckResourceAttr("remnawave_node.test", "tags.#", "2"),
+	}
+	if isBackendAtLeast3_2_2() {
+		updateChecks = append(updateChecks, resource.TestCheckResourceAttr("remnawave_node.test", "ips.#", "0"))
+	}
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: providerCfg + testAccProfileConfig("node-profile", "VLESS_TCP_NODE_ACC") + `
+				Config: providerCfg + testAccProfileConfig("node-profile", "VLESS_TCP_NODE_ACC") + fmt.Sprintf(`
 resource "remnawave_node" "test" {
   name                        = "terraform-node"
   address                     = "127.0.0.10"
@@ -63,14 +88,14 @@ resource "remnawave_node" "test" {
   notify_percent              = 80
   consumption_multiplier      = 1.2
   tags                        = ["ACC_NODE"]
-  config_profile_uuid         = remnawave_config_profile.profile.uuid
+%s  config_profile_uuid         = remnawave_config_profile.profile.uuid
   config_profile_inbounds     = [remnawave_config_profile.profile.inbounds[0].uuid]
 }
-`,
+`, nodeIPFields),
 				Check: resource.ComposeAggregateTestCheckFunc(checks...),
 			},
 			{
-				Config: providerCfg + testAccProfileConfig("node-profile", "VLESS_TCP_NODE_ACC") + `
+				Config: providerCfg + testAccProfileConfig("node-profile", "VLESS_TCP_NODE_ACC") + fmt.Sprintf(`
 resource "remnawave_node" "test" {
   name                        = "terraform-node-updated"
   address                     = "127.0.0.10"
@@ -79,15 +104,11 @@ resource "remnawave_node" "test" {
   is_traffic_tracking_active  = true
   consumption_multiplier      = 2.0
   tags                        = ["ACC_NODE", "UPDATED"]
-  config_profile_uuid         = remnawave_config_profile.profile.uuid
+%s  config_profile_uuid         = remnawave_config_profile.profile.uuid
   config_profile_inbounds     = [remnawave_config_profile.profile.inbounds[0].uuid]
 }
-`,
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("remnawave_node.test", "name", "terraform-node-updated"),
-					resource.TestCheckResourceAttr("remnawave_node.test", "country_code", "DE"),
-					resource.TestCheckResourceAttr("remnawave_node.test", "tags.#", "2"),
-				),
+`, nodeIPUpdateFields),
+				Check: resource.ComposeAggregateTestCheckFunc(updateChecks...),
 			},
 			{
 				ResourceName:                         "remnawave_node.test",

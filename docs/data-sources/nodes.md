@@ -35,9 +35,18 @@ Read-Only:
 - `address` (String)
 - `country_code` (String)
 - `id` (Number) Numeric database ID of the node (available on Remnawave 3.1+).
+- `ips` (Attributes Set) (see [below for nested schema](#nestedatt--nodes--ips))
 - `is_connected` (Boolean)
 - `is_disabled` (Boolean)
 - `name` (String)
 - `port` (Number)
 - `users_online` (Number)
 - `uuid` (String)
+
+<a id="nestedatt--nodes--ips"></a>
+### Nested Schema for `nodes.ips`
+
+Read-Only:
+
+- `ip` (String)
+- `status` (String)

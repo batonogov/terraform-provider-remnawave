@@ -497,6 +497,13 @@ func TestNodeModelConversions(t *testing.T) {
 	t.Parallel()
 
 	inbounds := testStringSet("inbound-1", "inbound-2")
+	ips, diagnostics := types.SetValueFrom(t.Context(), types.ObjectType{AttrTypes: nodeIPAttrTypes}, []nodeIPResourceModel{
+		{IP: types.StringValue("192.0.2.10"), Status: types.StringValue("MANAGEMENT")},
+		{IP: types.StringValue("2001:db8::10"), Status: types.StringValue("INBOUND")},
+	})
+	if diagnostics.HasError() {
+		t.Fatalf("build node IP set: %v", diagnostics)
+	}
 	plan := &nodeResourceModel{
 		UUID:                      types.StringValue("node-id"),
 		Name:                      types.StringValue("node"),
@@ -511,18 +518,29 @@ func TestNodeModelConversions(t *testing.T) {
 		ConsumptionMultiplier:     types.Float64Value(1.2),
 		NodeConsumptionMultiplier: types.Float64Value(1.3),
 		Tags:                      testStringSet("NODE", "TEST"),
+		IPs:                       ips,
 		ProviderUUID:              types.StringValue("provider-id"),
 		ActivePluginUUID:          types.StringValue("plugin-id"),
 		Note:                      types.StringValue("note"),
 		ConfigProfileUUID:         types.StringValue("profile-id"),
 		ConfigProfileInbounds:     inbounds,
 	}
-	node := planToNode(plan)
-	if node.UUID != "node-id" || node.Port == nil || *node.Port != 2222 || node.ProxyURL == nil || *node.ProxyURL != "socks5://proxy.example.com:1080" || node.Note == nil || *node.Note != "note" || node.ConfigProfile == nil || len(node.ConfigProfile.ActiveInbounds) != 2 || node.ConsumptionMultiplier == nil || *node.ConsumptionMultiplier != 1.2 || len(node.Tags) != 2 {
+	node, diagnostics := planToNode(t.Context(), plan)
+	if diagnostics.HasError() {
+		t.Fatalf("planToNode diagnostics = %v", diagnostics)
+	}
+	if node.IPs == nil {
+		t.Fatal("planToNode() IPs = nil")
+	}
+	gotIPs := make(map[string]string, len(*node.IPs))
+	for _, item := range *node.IPs {
+		gotIPs[item.IP] = item.Status
+	}
+	if node.UUID != "node-id" || node.Port == nil || *node.Port != 2222 || node.ProxyURL == nil || *node.ProxyURL != "socks5://proxy.example.com:1080" || node.Note == nil || *node.Note != "note" || node.ConfigProfile == nil || len(node.ConfigProfile.ActiveInbounds) != 2 || node.ConsumptionMultiplier == nil || *node.ConsumptionMultiplier != 1.2 || len(node.Tags) != 2 || len(*node.IPs) != 2 || gotIPs["192.0.2.10"] != "MANAGEMENT" || gotIPs["2001:db8::10"] != "INBOUND" {
 		t.Errorf("planToNode() = %#v", node)
 	}
 
-	minimal := planToNode(&nodeResourceModel{
+	minimal, diagnostics := planToNode(t.Context(), &nodeResourceModel{
 		Name:                  types.StringValue("node"),
 		Address:               types.StringValue("127.0.0.1"),
 		Port:                  types.Int64Null(),
@@ -533,6 +551,9 @@ func TestNodeModelConversions(t *testing.T) {
 		ConfigProfileUUID:     types.StringNull(),
 		ConfigProfileInbounds: types.SetNull(types.StringType),
 	})
+	if diagnostics.HasError() {
+		t.Fatalf("minimal planToNode diagnostics = %v", diagnostics)
+	}
 	if minimal.Port != nil || minimal.TrafficLimitBytes != nil || minimal.Note != nil || minimal.ConfigProfile != nil {
 		t.Errorf("minimal planToNode() = %#v", minimal)
 	}
@@ -551,24 +572,59 @@ func TestNodeModelConversions(t *testing.T) {
 	lastStatusMessage := "connected"
 	nodeID := int64(42)
 	state := nodeResourceModel{}
-	nodeToPlan(&Node{
+	diagnostics = nodeToPlan(t.Context(), &Node{
 		UUID: "node-id", ID: &nodeID, Name: "node", Address: "node.example.com", Port: &port,
 		IsConnected: true, IsDisabled: true, IsConnecting: false, IsTrafficTrackingActive: true,
 		TrafficLimitBytes: &traffic, TrafficResetDay: &reset, NotifyPercent: &notify,
 		CountryCode: "DE", Note: &note, UsersOnline: 5, ProxyURL: &proxyURL,
 		ConsumptionMultiplier: &consumption, NodeConsumptionMultiplier: &nodeConsumption,
-		Tags: []string{"NODE"}, ProviderUUID: &providerUUID, ActivePluginUUID: &pluginUUID,
+		Tags: []string{"NODE"}, IPs: &[]NodeIP{{IP: "192.0.2.10", Status: "MANAGEMENT"}}, ProviderUUID: &providerUUID, ActivePluginUUID: &pluginUUID,
 		LastStatusChange: &lastStatusChange, LastStatusMessage: &lastStatusMessage,
 		Provider: json.RawMessage(`{"uuid":"provider-id","name":"provider"}`),
 		System:   json.RawMessage(`{"info":{"hostname":"node"}}`), Versions: json.RawMessage(`{"xray":"1.0","node":"2.0"}`),
 		ConfigProfile: &NodeConfigProfile{ActiveConfigProfileUUID: "profile-id", ActiveInbounds: []NodeConfigProfileInbound{{UUID: "inbound-1"}}},
 	}, &state)
-	if state.UUID.ValueString() != "node-id" || state.ID.ValueInt64() != 42 || state.Port.ValueInt64() != 2222 || state.UsersOnline.ValueInt64() != 5 || state.ConfigProfileInbounds.Elements()[0].(types.String).ValueString() != "inbound-1" || state.ProxyURL.ValueString() != proxyURL || state.ConsumptionMultiplier.ValueFloat64() != 1.5 || len(state.Tags.Elements()) != 1 || state.LastStatusMessage.ValueString() != "connected" || state.ProviderDetails.IsNull() || state.System.ValueString() != `{"info":{"hostname":"node"}}` || state.Versions.IsNull() {
+	if diagnostics.HasError() {
+		t.Fatalf("nodeToPlan diagnostics = %v", diagnostics)
+	}
+	if state.UUID.ValueString() != "node-id" || state.ID.ValueInt64() != 42 || state.Port.ValueInt64() != 2222 || state.UsersOnline.ValueInt64() != 5 || state.ConfigProfileInbounds.Elements()[0].(types.String).ValueString() != "inbound-1" || state.ProxyURL.ValueString() != proxyURL || state.ConsumptionMultiplier.ValueFloat64() != 1.5 || len(state.Tags.Elements()) != 1 || len(state.IPs.Elements()) != 1 || state.LastStatusMessage.ValueString() != "connected" || state.ProviderDetails.IsNull() || state.System.ValueString() != `{"info":{"hostname":"node"}}` || state.Versions.IsNull() {
 		t.Errorf("nodeToPlan() = %#v", state)
 	}
-	nodeToPlan(&Node{UUID: "legacy-node", Name: "legacy", Address: "127.0.0.1"}, &state)
+	diagnostics = nodeToPlan(t.Context(), &Node{UUID: "legacy-node", Name: "legacy", Address: "127.0.0.1"}, &state)
+	if diagnostics.HasError() {
+		t.Fatalf("legacy nodeToPlan diagnostics = %v", diagnostics)
+	}
 	if !state.ID.IsNull() {
 		t.Errorf("nodeToPlan() legacy id = %#v, want null", state.ID)
+	}
+}
+
+func TestNodeIPsRequire3_2_2(t *testing.T) {
+	t.Parallel()
+
+	ips, diagnostics := types.SetValueFrom(t.Context(), types.ObjectType{AttrTypes: nodeIPAttrTypes}, []nodeIPResourceModel{
+		{IP: types.StringValue("192.0.2.10"), Status: types.StringValue("MANAGEMENT")},
+	})
+	if diagnostics.HasError() {
+		t.Fatalf("build node IP set: %v", diagnostics)
+	}
+
+	for _, tt := range []struct {
+		version string
+		wantErr bool
+	}{
+		{version: "3.2.1", wantErr: true},
+		{version: "3.2.2", wantErr: false},
+		{version: "3.3.0", wantErr: false},
+	} {
+		t.Run(tt.version, func(t *testing.T) {
+			t.Parallel()
+			resource := nodeResource{client: &Client{serverVersion: "3.2", serverFullVersion: tt.version}}
+			err := resource.validateIPsVersion(context.Background(), ips)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateIPsVersion() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }
 

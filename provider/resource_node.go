@@ -2,11 +2,16 @@ package provider
 
 import (
 	"context"
+	"fmt"
+	"net"
 	"regexp"
+	"slices"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -37,6 +42,7 @@ type nodeResourceModel struct {
 	ConsumptionMultiplier     types.Float64 `tfsdk:"consumption_multiplier"`
 	NodeConsumptionMultiplier types.Float64 `tfsdk:"node_consumption_multiplier"`
 	Tags                      types.Set     `tfsdk:"tags"`
+	IPs                       types.Set     `tfsdk:"ips"`
 	ProviderUUID              types.String  `tfsdk:"provider_uuid"`
 	ActivePluginUUID          types.String  `tfsdk:"active_plugin_uuid"`
 	IsConnected               types.Bool    `tfsdk:"is_connected"`
@@ -56,6 +62,58 @@ type nodeResourceModel struct {
 	// config_profile_uuid + config_profile_inbounds are required for create
 	ConfigProfileUUID     types.String `tfsdk:"config_profile_uuid"`
 	ConfigProfileInbounds types.Set    `tfsdk:"config_profile_inbounds"`
+}
+
+type nodeIPResourceModel struct {
+	IP     types.String `tfsdk:"ip"`
+	Status types.String `tfsdk:"status"`
+}
+
+var nodeIPAttrTypes = map[string]attr.Type{
+	"ip":     types.StringType,
+	"status": types.StringType,
+}
+
+var nodeIPStatuses = []string{
+	"INBOUND",
+	"OUTBOUND",
+	"MANAGEMENT",
+	"TRANSIT",
+	"MONITORING",
+	"RESERVE",
+	"BLOCKED",
+	"FLAGGED",
+	"DEPRECATED",
+	"UNKNOWN",
+}
+
+const (
+	maxNodeIPs            = 64
+	maxNodeIPAddressBytes = 45
+	maxNodeIPStatusBytes  = 10
+)
+
+type nodeIPAddressValidator struct{}
+
+func (nodeIPAddressValidator) Description(context.Context) string {
+	return "value must be a valid IPv4 or IPv6 address"
+}
+
+func (v nodeIPAddressValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (nodeIPAddressValidator) ValidateString(_ context.Context, request validator.StringRequest, response *validator.StringResponse) {
+	if request.ConfigValue.IsNull() || request.ConfigValue.IsUnknown() {
+		return
+	}
+	if net.ParseIP(request.ConfigValue.ValueString()) == nil {
+		response.Diagnostics.AddAttributeError(
+			request.Path,
+			"Invalid node IP address",
+			"Value must be a valid IPv4 or IPv6 address.",
+		)
+	}
 }
 
 func NewNodeResource() resource.Resource {
@@ -164,6 +222,32 @@ func (r *nodeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				ElementType: types.StringType,
 				Description: "Node tags (up to 10).",
 			},
+			"ips": schema.SetNestedAttribute{
+				Optional:    true,
+				Computed:    true,
+				Description: "IP addresses assigned to the node and their traffic roles (Remnawave 3.2.2+, up to 64).",
+				Validators: []validator.Set{
+					setvalidator.SizeAtMost(maxNodeIPs),
+				},
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"ip": schema.StringAttribute{
+							Required:    true,
+							Description: "IPv4 or IPv6 address.",
+							Validators: []validator.String{
+								nodeIPAddressValidator{},
+							},
+						},
+						"status": schema.StringAttribute{
+							Required:    true,
+							Description: "Traffic role of the address.",
+							Validators: []validator.String{
+								stringvalidator.OneOf(nodeIPStatuses...),
+							},
+						},
+					},
+				},
+			},
 			"provider_uuid": schema.StringAttribute{
 				Optional:    true,
 				Description: "Infrastructure provider UUID associated with the node.",
@@ -249,14 +333,25 @@ func (r *nodeResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	node := planToNode(&plan)
+	if err := r.validateIPsVersion(ctx, plan.IPs); err != nil {
+		resp.Diagnostics.AddError("Unsupported node IP configuration", err.Error())
+		return
+	}
+	node, diagnostics := planToNode(ctx, &plan)
+	resp.Diagnostics.Append(diagnostics...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	created, err := r.client.CreateNode(ctx, node)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to create node", err.Error())
 		return
 	}
 
-	nodeToPlan(created, &plan)
+	resp.Diagnostics.Append(nodeToPlan(ctx, created, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -283,7 +378,10 @@ func (r *nodeResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	nodeToPlan(node, &state)
+	resp.Diagnostics.Append(nodeToPlan(ctx, node, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -294,7 +392,15 @@ func (r *nodeResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	node := planToNode(&plan)
+	if err := r.validateIPsVersion(ctx, plan.IPs); err != nil {
+		resp.Diagnostics.AddError("Unsupported node IP configuration", err.Error())
+		return
+	}
+	node, diagnostics := planToNode(ctx, &plan)
+	resp.Diagnostics.Append(diagnostics...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	node.UUID = plan.UUID.ValueString()
 
 	updated, err := r.client.UpdateNode(ctx, node)
@@ -303,7 +409,10 @@ func (r *nodeResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	nodeToPlan(updated, &plan)
+	resp.Diagnostics.Append(nodeToPlan(ctx, updated, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -325,9 +434,25 @@ func (r *nodeResource) ImportState(ctx context.Context, req resource.ImportState
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("uuid"), types.StringValue(req.ID))...)
 }
 
+func (r *nodeResource) validateIPsVersion(ctx context.Context, ips types.Set) error {
+	if ips.IsNull() || ips.IsUnknown() || len(ips.Elements()) == 0 {
+		return nil
+	}
+
+	supported, err := r.client.isVersionAtLeast3_2_2(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to determine backend version: %w", err)
+	}
+	if !supported {
+		return fmt.Errorf("node ips require Remnawave 3.2.2 or later")
+	}
+	return nil
+}
+
 // ─── Conversions ───
 
-func planToNode(p *nodeResourceModel) *Node {
+func planToNode(ctx context.Context, p *nodeResourceModel) (*Node, diag.Diagnostics) {
+	var diagnostics diag.Diagnostics
 	n := &Node{
 		UUID:                    p.UUID.ValueString(),
 		Name:                    p.Name.ValueString(),
@@ -368,6 +493,17 @@ func planToNode(p *nodeResourceModel) *Node {
 			n.Tags = append(n.Tags, value.(types.String).ValueString())
 		}
 	}
+	if !p.IPs.IsNull() && !p.IPs.IsUnknown() {
+		var ips []nodeIPResourceModel
+		diagnostics.Append(p.IPs.ElementsAs(ctx, &ips, false)...)
+		if !diagnostics.HasError() {
+			nodeIPs := make([]NodeIP, 0, len(ips))
+			for _, item := range ips {
+				nodeIPs = append(nodeIPs, NodeIP{IP: item.IP.ValueString(), Status: item.Status.ValueString()})
+			}
+			n.IPs = &nodeIPs
+		}
+	}
 	if !p.ProviderUUID.IsNull() && !p.ProviderUUID.IsUnknown() {
 		value := p.ProviderUUID.ValueString()
 		n.ProviderUUID = &value
@@ -392,10 +528,52 @@ func planToNode(p *nodeResourceModel) *Node {
 			ActiveInbounds:          inbounds,
 		}
 	}
-	return n
+	return n, diagnostics
 }
 
-func nodeToPlan(n *Node, p *nodeResourceModel) {
+func nodeIPsToSet(ctx context.Context, ips *[]NodeIP) (types.Set, diag.Diagnostics) {
+	objectType := types.ObjectType{AttrTypes: nodeIPAttrTypes}
+	if ips == nil {
+		return types.SetNull(objectType), nil
+	}
+
+	var diagnostics diag.Diagnostics
+	if len(*ips) > maxNodeIPs {
+		diagnostics.AddError(
+			"Invalid node IP response",
+			fmt.Sprintf("Backend returned %d node IP entries; the maximum is %d.", len(*ips), maxNodeIPs),
+		)
+		return types.SetNull(objectType), diagnostics
+	}
+
+	ipModels := make([]nodeIPResourceModel, 0, len(*ips))
+	for index, item := range *ips {
+		if len(item.IP) > maxNodeIPAddressBytes || net.ParseIP(item.IP) == nil {
+			diagnostics.AddError(
+				"Invalid node IP response",
+				fmt.Sprintf("Backend returned an invalid IP address at index %d.", index),
+			)
+			return types.SetNull(objectType), diagnostics
+		}
+		if len(item.Status) > maxNodeIPStatusBytes || !slices.Contains(nodeIPStatuses, item.Status) {
+			diagnostics.AddError(
+				"Invalid node IP response",
+				fmt.Sprintf("Backend returned an invalid node IP status at index %d.", index),
+			)
+			return types.SetNull(objectType), diagnostics
+		}
+		ipModels = append(ipModels, nodeIPResourceModel{
+			IP:     types.StringValue(item.IP),
+			Status: types.StringValue(item.Status),
+		})
+	}
+	set, conversionDiagnostics := types.SetValueFrom(ctx, objectType, ipModels)
+	diagnostics.Append(conversionDiagnostics...)
+	return set, diagnostics
+}
+
+func nodeToPlan(ctx context.Context, n *Node, p *nodeResourceModel) diag.Diagnostics {
+	var diagnostics diag.Diagnostics
 	p.UUID = types.StringValue(n.UUID)
 	if n.ID != nil {
 		p.ID = types.Int64Value(*n.ID)
@@ -475,7 +653,11 @@ func nodeToPlan(n *Node, p *nodeResourceModel) {
 	} else {
 		p.NodeConsumptionMultiplier = types.Float64Null()
 	}
-	p.Tags, _ = types.SetValueFrom(context.Background(), types.StringType, n.Tags)
+	var conversionDiagnostics diag.Diagnostics
+	p.Tags, conversionDiagnostics = types.SetValueFrom(ctx, types.StringType, n.Tags)
+	diagnostics.Append(conversionDiagnostics...)
+	p.IPs, conversionDiagnostics = nodeIPsToSet(ctx, n.IPs)
+	diagnostics.Append(conversionDiagnostics...)
 	if n.ProviderUUID != nil {
 		p.ProviderUUID = types.StringValue(*n.ProviderUUID)
 	} else {
@@ -493,10 +675,11 @@ func nodeToPlan(n *Node, p *nodeResourceModel) {
 		for _, ib := range n.ConfigProfile.ActiveInbounds {
 			elems = append(elems, types.StringValue(ib.UUID))
 		}
-		s, _ := types.SetValue(types.StringType, elems)
-		p.ConfigProfileInbounds = s
+		p.ConfigProfileInbounds, conversionDiagnostics = types.SetValue(types.StringType, elems)
+		diagnostics.Append(conversionDiagnostics...)
 	} else {
 		p.ConfigProfileUUID = types.StringNull()
 		p.ConfigProfileInbounds = types.SetNull(types.StringType)
 	}
+	return diagnostics
 }

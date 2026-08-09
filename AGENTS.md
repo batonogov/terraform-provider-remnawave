@@ -13,13 +13,13 @@ The Remnawave backend (`github.com/remnawave/backend`) is a NestJS TypeScript
 application with a clean REST API. The panel uses PostgreSQL + Redis (Valkey).
 
 **Compatibility:** Remnawave v2.7.x, v2.8.x, v3.0.x, v3.1.x, and v3.2.x.
-Docker Compose and acceptance tests default to the `remnawave/backend:3.2.1`
+Docker Compose and acceptance tests default to the `remnawave/backend:3.2.2`
 image pinned by digest; CI runs matrix entries against `remnawave/backend:3.1.0`,
 `remnawave/backend:3.0.0`, `remnawave/backend:2.8.1`, and
 `remnawave/backend:2.7.4`. All compose images
 are pinned by `sha256` digest for reproducibility. To run an explicit
 compatibility check against a different build, override both the tag and its
-digest, e.g. `REMNAWAVE_VERSION=3.2.1 REMNAWAVE_DIGEST=sha256:<digest>`.
+digest, e.g. `REMNAWAVE_VERSION=3.2.2 REMNAWAVE_DIGEST=sha256:<digest>`.
 
 The client auto-detects the server version via `/api/system/metadata` on
 the first version-dependent operation. Version-specific behaviour:
@@ -46,9 +46,14 @@ the first version-dependent operation. Version-specific behaviour:
   into a dedicated step but remains equivalent; no provider changes required.
   The new endpoint is not yet part of the provider surface. Version 3.2.1 is a
   contract-compatible patch that removes invalid legacy API-token UUIDs during
-  migration and changes only subscription generation internals.
+  migration and changes only subscription generation internals. Version 3.2.2
+  adds node `ips` request/response data, an optional Redis username, node-plugin
+  webhook configuration, strict VLESS UUID validation, and internal cache/query
+  fixes. The provider exposes node `ips` only on 3.2.2+; plugin `webhookUrl`
+  remains available through the existing `plugin_config` JSON contract.
 
-No user configuration is required — the provider transparently adapts.
+Existing configurations require no changes — the provider transparently
+adapts. The optional node `ips` attribute requires Remnawave 3.2.2 or later.
 
 ## Commands
 
@@ -207,7 +212,7 @@ removes untracked duplicate/generated files such as `docs/* 2.md`; preview with
 | Build | `go build ./...` |
 | Unit Tests | `go test ./provider -skip TestAcc`, race detector, **30% coverage floor** |
 | Documentation | `terraform fmt -check` on examples; `tfplugindocs generate/validate`; fails if `docs/` drifts |
-| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against 3.2.1 (default), 3.1.0, 3.0.0, 2.8.1, and 2.7.4 |
+| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against 3.2.2 (default), 3.1.0, 3.0.0, 2.8.1, and 2.7.4 |
 
 All GitHub Actions across the repo **must be pinned by commit SHA**
 (see `release-please.yml`); Dependabot keeps them current. Do not switch

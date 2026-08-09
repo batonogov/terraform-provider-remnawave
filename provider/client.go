@@ -36,6 +36,9 @@ type Client struct {
 	// A value of "" means detection has not yet been attempted.
 	versionMu     sync.Mutex
 	serverVersion string
+	// serverFullVersion retains the patch component for features introduced in
+	// a patch release, such as node IP management in Remnawave 3.2.2.
+	serverFullVersion string
 }
 
 // ClientConfig holds the parameters for creating a new Client.
@@ -64,7 +67,10 @@ type apiResponse struct {
 // applies to the bytes presented after decompression as well as to plain and
 // chunked bodies. Error bodies have an independent zero-byte limit: they are
 // never read because they are untrusted and are not included in diagnostics.
-const maxResponseBodyBytes int64 = 32 << 20
+const (
+	maxResponseBodyBytes  int64 = 32 << 20
+	maxServerVersionBytes       = 64
+)
 
 // HTTPStatusError carries the HTTP status code from a failed request.
 type HTTPStatusError struct {
@@ -591,11 +597,15 @@ func (c *Client) detectVersion(ctx context.Context) error {
 		return fmt.Errorf("failed to detect server version: %w", err)
 	}
 
-	minor := parseMajorMinor(resp.Version)
-	if minor == "" {
-		return fmt.Errorf("unexpected version format from server: %q", resp.Version)
+	if len(resp.Version) > maxServerVersionBytes {
+		return errors.New("unexpected version format from server")
 	}
-	c.serverVersion = minor
+	major, minor, patch, ok := parseVersion(resp.Version)
+	if !ok {
+		return errors.New("unexpected version format from server")
+	}
+	c.serverVersion = fmt.Sprintf("%d.%d", major, minor)
+	c.serverFullVersion = fmt.Sprintf("%d.%d.%d", major, minor, patch)
 	return nil
 }
 
@@ -635,6 +645,11 @@ func (c *Client) isVersionAtLeast3_1(ctx context.Context) (bool, error) {
 	return c.isVersionAtLeast(ctx, 3, 1)
 }
 
+// isVersionAtLeast3_2_2 returns true when node IP management is available.
+func (c *Client) isVersionAtLeast3_2_2(ctx context.Context) (bool, error) {
+	return c.isVersionAtLeastPatch(ctx, 3, 2, 2)
+}
+
 func (c *Client) isVersionAtLeast(ctx context.Context, requiredMajor, requiredMinor int) (bool, error) {
 	if err := c.detectVersion(ctx); err != nil {
 		return false, err
@@ -658,6 +673,51 @@ func (c *Client) isVersionAtLeast(ctx context.Context, requiredMajor, requiredMi
 		return false, fmt.Errorf("invalid cached server version %q: %w", v, err)
 	}
 	return major > requiredMajor || major == requiredMajor && minor >= requiredMinor, nil
+}
+
+func (c *Client) isVersionAtLeastPatch(ctx context.Context, requiredMajor, requiredMinor, requiredPatch int) (bool, error) {
+	if err := c.detectVersion(ctx); err != nil {
+		return false, err
+	}
+
+	c.versionMu.Lock()
+	version := c.serverFullVersion
+	if version == "" {
+		version = c.serverVersion
+	}
+	c.versionMu.Unlock()
+
+	major, minor, patch, ok := parseVersion(version)
+	if !ok {
+		return false, fmt.Errorf("invalid cached server version %q", version)
+	}
+	if major != requiredMajor {
+		return major > requiredMajor, nil
+	}
+	if minor != requiredMinor {
+		return minor > requiredMinor, nil
+	}
+	return patch >= requiredPatch, nil
+}
+
+func parseVersion(version string) (major, minor, patch int, ok bool) {
+	version = strings.TrimPrefix(strings.TrimSpace(version), "v")
+	version, _, _ = strings.Cut(version, "+")
+	version, _, _ = strings.Cut(version, "-")
+	parts := strings.Split(version, ".")
+	if len(parts) < 2 || len(parts) > 3 {
+		return 0, 0, 0, false
+	}
+
+	values := [3]int{}
+	for i, part := range parts {
+		value, err := strconv.Atoi(part)
+		if err != nil || value < 0 {
+			return 0, 0, 0, false
+		}
+		values[i] = value
+	}
+	return values[0], values[1], values[2], true
 }
 
 // parseMajorMinor extracts "major.minor" from a semver-like string.

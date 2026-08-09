@@ -13,8 +13,8 @@ unsafe and misleading provider design.
 - Contract inventory: 184 `*.command.ts` files under `libs/contract/commands`
 
 This backend inventory is a historical contract snapshot. The provider now
-supports Remnawave 2.7.x, 2.8.x, 3.0.x, and 3.1.x and adapts version-specific
-contracts at runtime.
+supports Remnawave 2.7.x, 2.8.x, 3.0.x, 3.1.x, and 3.2.x and adapts
+version-specific contracts at runtime.
 
 ## Current provider surface
 
@@ -64,7 +64,7 @@ The following checks are required for supported functionality:
    envelope handling.
 2. Every registered resource and data source that can be exercised
    non-interactively has real-panel acceptance coverage against the pinned
-   Remnawave 3.2.1, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 images. The import-only passkey
+   Remnawave 3.2.2, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 images. The import-only passkey
    resource is the explicit exception because creating its fixture requires a
    WebAuthn ceremony.
 3. Declarative resources exercise representative lifecycle paths; this matrix

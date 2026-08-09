@@ -37,6 +37,7 @@ resource "remnawave_node" "de_fra_01" {
 - `config_profile_inbounds` (Set of String) Set of inbound UUIDs enabled for this node's config profile. When omitted, the prior state value is preserved, preventing accidental removal of all active inbounds on update.
 - `consumption_multiplier` (Number) User traffic consumption multiplier (0.0-100.0).
 - `country_code` (String) ISO 3166-1 alpha-2 country code (2 chars).
+- `ips` (Attributes Set) IP addresses assigned to the node and their traffic roles (Remnawave 3.2.2+, up to 64). (see [below for nested schema](#nestedatt--ips))
 - `is_traffic_tracking_active` (Boolean) Enable traffic tracking for this node.
 - `node_consumption_multiplier` (Number) Node traffic consumption multiplier (0.0-100.0).
 - `note` (String) Free-form note (max 255 chars).
@@ -66,6 +67,14 @@ resource "remnawave_node" "de_fra_01" {
 - `versions` (String) Xray and node component versions as JSON.
 - `view_position` (Number) Panel ordering position.
 - `xray_uptime` (Number) Xray uptime reported by the node.
+
+<a id="nestedatt--ips"></a>
+### Nested Schema for `ips`
+
+Required:
+
+- `ip` (String) IPv4 or IPv6 address.
+- `status` (String) Traffic role of the address.
 
 ## Import
 

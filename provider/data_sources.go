@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -30,6 +31,7 @@ type nodeItem struct {
 	IsConnected types.Bool   `tfsdk:"is_connected"`
 	IsDisabled  types.Bool   `tfsdk:"is_disabled"`
 	UsersOnline types.Int64  `tfsdk:"users_online"`
+	IPs         types.Set    `tfsdk:"ips"`
 }
 
 func NewNodesDataSource() datasource.DataSource {
@@ -41,7 +43,11 @@ func (d *nodesDataSource) Metadata(_ context.Context, _ datasource.MetadataReque
 }
 
 func (d *nodesDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
+	resp.Schema = nodesDataSourceSchema()
+}
+
+func nodesDataSourceSchema() schema.Schema {
+	return schema.Schema{
 		Description: "Lists all Remnawave nodes.",
 		Attributes: map[string]schema.Attribute{
 			"nodes": schema.ListNestedAttribute{
@@ -57,6 +63,15 @@ func (d *nodesDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, 
 						"is_connected": schema.BoolAttribute{Computed: true},
 						"is_disabled":  schema.BoolAttribute{Computed: true},
 						"users_online": schema.Int64Attribute{Computed: true},
+						"ips": schema.SetNestedAttribute{
+							Computed: true,
+							NestedObject: schema.NestedAttributeObject{
+								Attributes: map[string]schema.Attribute{
+									"ip":     schema.StringAttribute{Computed: true},
+									"status": schema.StringAttribute{Computed: true},
+								},
+							},
+						},
 					},
 				},
 			},
@@ -76,6 +91,31 @@ func (d *nodesDataSource) Configure(_ context.Context, req datasource.ConfigureR
 	d.client = client
 }
 
+func nodeToItem(ctx context.Context, n Node) (nodeItem, diag.Diagnostics) {
+	var diagnostics diag.Diagnostics
+	item := nodeItem{
+		UUID:        types.StringValue(n.UUID),
+		Name:        types.StringValue(n.Name),
+		Address:     types.StringValue(n.Address),
+		CountryCode: types.StringValue(n.CountryCode),
+		IsConnected: types.BoolValue(n.IsConnected),
+		IsDisabled:  types.BoolValue(n.IsDisabled),
+		UsersOnline: types.Int64Value(int64(n.UsersOnline)),
+	}
+	if n.ID != nil {
+		item.ID = types.Int64Value(*n.ID)
+	} else {
+		item.ID = types.Int64Null()
+	}
+	if n.Port != nil {
+		item.Port = types.Int64Value(int64(*n.Port))
+	} else {
+		item.Port = types.Int64Null()
+	}
+	item.IPs, diagnostics = nodeIPsToSet(ctx, n.IPs)
+	return item, diagnostics
+}
+
 func (d *nodesDataSource) Read(ctx context.Context, _ datasource.ReadRequest, resp *datasource.ReadResponse) {
 	nodes, err := d.client.GetAllNodes(ctx)
 	if err != nil {
@@ -85,22 +125,10 @@ func (d *nodesDataSource) Read(ctx context.Context, _ datasource.ReadRequest, re
 
 	var state nodesDataSourceModel
 	for _, n := range nodes {
-		item := nodeItem{
-			UUID:        types.StringValue(n.UUID),
-			Name:        types.StringValue(n.Name),
-			Address:     types.StringValue(n.Address),
-			CountryCode: types.StringValue(n.CountryCode),
-			IsConnected: types.BoolValue(n.IsConnected),
-			IsDisabled:  types.BoolValue(n.IsDisabled),
-			UsersOnline: types.Int64Value(int64(n.UsersOnline)),
-		}
-		if n.ID != nil {
-			item.ID = types.Int64Value(*n.ID)
-		} else {
-			item.ID = types.Int64Null()
-		}
-		if n.Port != nil {
-			item.Port = types.Int64Value(int64(*n.Port))
+		item, diagnostics := nodeToItem(ctx, n)
+		resp.Diagnostics.Append(diagnostics...)
+		if resp.Diagnostics.HasError() {
+			return
 		}
 		state.Nodes = append(state.Nodes, item)
 	}

@@ -386,6 +386,37 @@ func TestNodeCreateContract(t *testing.T) {
 	}
 }
 
+func TestNodeUpdateContractIncludesExplicitEmptyIPs(t *testing.T) {
+	var captured []byte
+	server := captureRequestServer(t, http.MethodPatch, "/api/nodes", &captured)
+	defer server.Close()
+
+	client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "contract-token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	emptyIPs := []NodeIP{}
+	_, err = client.UpdateNode(context.Background(), &Node{
+		UUID:    "node-uuid",
+		Name:    "test-node",
+		Address: "10.0.0.1",
+		IPs:     &emptyIPs,
+	})
+	if err != nil {
+		t.Fatalf("UpdateNode() error = %v", err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(captured, &got); err != nil {
+		t.Fatalf("decode request JSON: %v", err)
+	}
+	ips, ok := got["ips"].([]any)
+	if !ok || len(ips) != 0 {
+		t.Fatalf("ips = %#v, present = %v, want explicit empty array", got["ips"], ok)
+	}
+}
+
 // TestHostCreateContract verifies the JSON field names sent to POST /api/hosts.
 // Drift in: remark, address, port, securityLayer, inbound.configProfileUuid
 // would break host creation.
