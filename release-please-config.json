@@ -4,6 +4,13 @@
   "draft": true,
   "force-tag-creation": true,
   "packages": {
-    ".": {}
+    ".": {
+      "extra-files": [
+        "README.md",
+        "docs/index.md",
+        "examples/provider.tf",
+        "examples/provider/provider.tf"
+      ]
+    }
   }
 }
