@@ -156,7 +156,7 @@ ruby -rjson -ryaml -e '
 
 grep -Fq 'anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610' \
   "$repository_dir/.github/workflows/release-please.yml"
-grep -Fq 'actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d' \
+grep -Fq 'actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6' \
   "$repository_dir/.github/workflows/release-please.yml"
 grep -Fq 'id-token: write' "$repository_dir/.github/workflows/release-please.yml"
 grep -Fq 'attestations: write' "$repository_dir/.github/workflows/release-please.yml"
