@@ -92,7 +92,7 @@ require_text API_COVERAGE.md "- Acceptance test entry points: $acceptance_test_c
 provider_version=$(awk -F'"' '/"\."/ { print $4; exit }' .release-please-manifest.json)
 provider_minor=$(printf '%s\n' "$provider_version" | awk -F. '{ print $1 "." $2 }')
 provider_constraint="~> $provider_minor.0"
-for file in README.md docs/index.md examples/provider.tf examples/provider/provider.tf; do
+for file in README.md docs/index.md examples/getting-started/main.tf examples/provider.tf examples/provider/provider.tf; do
   require_text "$file" "version = \"$provider_constraint\""
   constraint_count=$(grep -Fc -- "version = \"$provider_constraint\"" "$file" || true)
   managed_constraint_count=$(grep -Fc -- "version = \"$provider_constraint\" # x-release-please-version" "$file" || true)

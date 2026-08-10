@@ -13,9 +13,26 @@
 
 </div>
 
-A community Terraform provider for [**Remnawave**](https://docs.rw) — a modern
-proxy management panel built on top of Xray-core. Manage VPN users, nodes,
+> Manage Remnawave from reviewed HCL: preview changes before they reach users,
+> import existing panel objects, and keep nodes, hosts, squads, billing, and
+> subscription configuration reproducible.
+
+A community-maintained Terraform provider for [**Remnawave**](https://docs.rw) —
+a modern proxy management panel built on top of Xray-core. This project is not
+affiliated with or endorsed by the Remnawave project. Manage VPN users, nodes,
 hosts, squads, billing, subscription pages, and more as infrastructure-as-code.
+
+**At a glance:** 26 resources · 25 data sources · 5 Remnawave versions tested
+in CI · signed checksums, SBOMs, and build provenance for every release
+
+[Get started in 5 minutes](examples/getting-started/) ·
+[Browse the Registry docs](https://registry.terraform.io/providers/batonogov/remnawave/latest/docs) ·
+[Ask a question](https://github.com/batonogov/terraform-provider-remnawave/discussions/categories/q-a)
+
+If this provider saves you manual panel work, consider
+[starring the repository](https://github.com/batonogov/terraform-provider-remnawave) —
+it helps other Remnawave operators discover the project. Production users are
+also invited to [share what they manage](https://github.com/batonogov/terraform-provider-remnawave/discussions/categories/show-and-tell).
 
 ---
 
@@ -65,6 +82,9 @@ between versions. No configuration is required.
 
 ## Quick Start
 
+Create an API token in Remnawave, save the following as `main.tf`, and keep the
+token outside Terraform configuration:
+
 ```hcl
 terraform {
   required_providers {
@@ -76,49 +96,30 @@ terraform {
 }
 
 provider "remnawave" {
-  endpoint  = "https://panel.example.com"
-  api_token = var.remnawave_api_token
+  # REMNAWAVE_ENDPOINT and REMNAWAVE_API_TOKEN are read from the environment.
 }
 
-# ─── VPN user with 10 GiB traffic limit ───
-resource "remnawave_user" "john" {
-  username               = "john-doe"
-  expire_at              = "2027-01-01T00:00:00.000Z"
+resource "remnawave_user" "quickstart" {
+  username               = "terraform-quickstart"
+  expire_at              = "2030-01-01T00:00:00.000Z"
   traffic_limit_bytes    = 10737418240 # 10 GiB
   traffic_limit_strategy = "MONTH"
   description            = "Managed by Terraform"
 }
-
-# ─── Xray node ───
-resource "remnawave_config_profile" "default" {
-  name   = "default-profile"
-  config = file("xray-config.json")
-}
-
-resource "remnawave_node" "de-fra-01" {
-  name                    = "de-fra-01"
-  address                 = "1.2.3.4"
-  port                    = 443
-  config_profile_uuid     = remnawave_config_profile.default.uuid
-  config_profile_inbounds = [remnawave_config_profile.default.inbounds[0].uuid]
-}
-
-# ─── Connection host ───
-resource "remnawave_host" "de-fra-01-vless" {
-  remark                      = "🇩🇪 Frankfurt"
-  address                     = "vpn.example.com"
-  port                        = 443
-  config_profile_uuid         = remnawave_config_profile.default.uuid
-  config_profile_inbound_uuid = remnawave_config_profile.default.inbounds[0].uuid
-}
-
-# ─── Monitor system health ───
-data "remnawave_system_stats" "current" {}
-
-output "online_users" {
-  value = data.remnawave_system_stats.current.online_now
-}
 ```
+
+```sh
+export REMNAWAVE_ENDPOINT="https://panel.example.com"
+export REMNAWAVE_API_TOKEN="..."
+
+terraform init
+terraform plan
+terraform apply
+```
+
+The complete [getting-started example](examples/getting-started/) includes
+verification, cleanup, and guidance for adopting an existing panel. Review the
+plan before applying it to production.
 
 ## Authentication
 
@@ -337,9 +338,10 @@ These resources trigger one-shot operations on `terraform apply`. Use the
 
 ## Examples
 
-Browse the [`examples/`](examples/) directory for focused configuration
-examples. Some snippets reference resources or variables supplied by the
-surrounding configuration:
+Start with the standalone [`examples/getting-started/`](examples/getting-started/)
+configuration, then browse [`examples/`](examples/) for 51 focused resource and
+data-source examples. Some schema examples reference resources or variables
+supplied by the surrounding configuration:
 
 ```bash
 examples/

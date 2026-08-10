@@ -13,6 +13,17 @@ The provider supports Remnawave 2.7.x, 2.8.x, 3.0.x, 3.1.x, and 3.2.x. It
 detects the panel version automatically and adapts version-specific API contracts
 without additional provider configuration.
 
+## Start Here
+
+- Follow the [5-minute getting-started example](https://github.com/batonogov/terraform-provider-remnawave/tree/main/examples/getting-started).
+- Browse all [resource and data-source examples](https://github.com/batonogov/terraform-provider-remnawave/tree/main/examples).
+- Ask usage questions in [GitHub Discussions](https://github.com/batonogov/terraform-provider-remnawave/discussions/categories/q-a).
+
+This is a community-maintained provider. If it saves you manual panel work,
+[star the repository](https://github.com/batonogov/terraform-provider-remnawave)
+to help other Remnawave operators discover it. Production users are also invited
+to [share their use case](https://github.com/batonogov/terraform-provider-remnawave/discussions/categories/show-and-tell).
+
 ## Authentication
 
 Set `endpoint` and either an API token (recommended) or an administrator
