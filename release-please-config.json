@@ -8,6 +8,7 @@
       "extra-files": [
         "README.md",
         "docs/index.md",
+        "examples/getting-started/main.tf",
         "examples/provider.tf",
         "examples/provider/provider.tf"
       ]
