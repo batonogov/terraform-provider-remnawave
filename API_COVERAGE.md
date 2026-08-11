@@ -20,8 +20,8 @@ version-specific contracts at runtime.
 
 - Resources: 26
 - Data sources: 25
-- Exported client operations: 109
-- Acceptance test entry points: 80
+- Exported client operations: 110
+- Acceptance test entry points: 82
 
 The historical backend command count and current client operation count above
 are intentionally different metrics. Backend commands include authentication,
@@ -43,7 +43,7 @@ Terraform state.
 | Subscription templates | CRUD including type and template body | List data source and reorder |
 | Subscription page configs | CRUD | List data source, clone and reorder |
 | Node plugins | CRUD with the 2.x plugin configuration document and the 3.1+ pre-start stage | List data source, clone/reorder, executor, torrent reports and report truncation |
-| Snippets | CRUD | Covered for supported contracts |
+| Snippets | CRUD plus opt-in node synchronization after update/delete on 3.2.3+ | Covered for supported contracts |
 | API tokens | Create, existence read through list, delete, expiry and scopes | Scopes discovery data source |
 | Panel settings | Singleton resource | Covered for supported contracts; requires administrator JWT |
 | Infrastructure billing | Provider, billing-node and billing-history resources; billing-node/history reads | Provider list data source |
@@ -64,7 +64,7 @@ The following checks are required for supported functionality:
    envelope handling.
 2. Every registered resource and data source that can be exercised
    non-interactively has real-panel acceptance coverage against the pinned
-   Remnawave 3.2.2, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 images. The import-only passkey
+   Remnawave 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 images. The import-only passkey
    resource is the explicit exception because creating its fixture requires a
    WebAuthn ceremony.
 3. Declarative resources exercise representative lifecycle paths; this matrix

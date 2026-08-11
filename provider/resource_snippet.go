@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -13,8 +14,9 @@ import (
 
 type snippetResource struct{ client *Client }
 type snippetModel struct {
-	Name    types.String `tfsdk:"name"`
-	Snippet types.String `tfsdk:"snippet"`
+	Name              types.String `tfsdk:"name"`
+	Snippet           types.String `tfsdk:"snippet"`
+	SyncNodesOnChange types.Bool   `tfsdk:"sync_nodes_on_change"`
 }
 
 func NewSnippetResource() resource.Resource { return &snippetResource{} }
@@ -29,6 +31,12 @@ func (r *snippetResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 		Attributes: map[string]schema.Attribute{
 			"name":    schema.StringAttribute{Required: true, Description: "Snippet name (2-255 chars)."},
 			"snippet": schema.StringAttribute{Required: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Snippet content as JSON array string."},
+			"sync_nodes_on_change": schema.BoolAttribute{
+				Optional: true,
+				Description: "Restart nodes using config profiles that reference this snippet after update or deletion. " +
+					"Requires Remnawave 3.2.3+, the system:read scope for version detection, and the snippets:sync scope. " +
+					"Defaults to false because synchronization is disruptive.",
+			},
 		},
 	}
 }
@@ -55,6 +63,12 @@ func (r *snippetResource) Create(ctx context.Context, req resource.CreateRequest
 	if err := json.Unmarshal([]byte(plan.Snippet.ValueString()), &snippetData); err != nil {
 		resp.Diagnostics.AddError("Invalid snippet JSON", err.Error())
 		return
+	}
+	if plan.SyncNodesOnChange.ValueBool() {
+		if err := r.requireSyncSupport(ctx); err != nil {
+			resp.Diagnostics.AddError("Unsupported snippet synchronization", err.Error())
+			return
+		}
 	}
 	_, err := r.client.CreateSnippet(ctx, &Snippet{Name: plan.Name.ValueString(), Snippet: snippetData})
 	if err != nil {
@@ -108,10 +122,22 @@ func (r *snippetResource) Update(ctx context.Context, req resource.UpdateRequest
 		resp.Diagnostics.AddError("Invalid snippet JSON", err.Error())
 		return
 	}
+	if plan.SyncNodesOnChange.ValueBool() {
+		if err := r.requireSyncSupport(ctx); err != nil {
+			resp.Diagnostics.AddError("Unsupported snippet synchronization", err.Error())
+			return
+		}
+	}
 	_, err := r.client.UpdateSnippet(ctx, &Snippet{Name: plan.Name.ValueString(), Snippet: snippetData})
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to update snippet", err.Error())
 		return
+	}
+	if plan.SyncNodesOnChange.ValueBool() {
+		if err := r.client.SyncSnippet(ctx, plan.Name.ValueString()); err != nil {
+			resp.Diagnostics.AddError("Failed to synchronize snippet nodes", err.Error())
+			return
+		}
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
@@ -122,9 +148,47 @@ func (r *snippetResource) Delete(ctx context.Context, req resource.DeleteRequest
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.DeleteSnippet(ctx, state.Name.ValueString()); err != nil {
+	name := state.Name.ValueString()
+	if state.SyncNodesOnChange.ValueBool() {
+		if err := r.requireSyncSupport(ctx); err != nil {
+			resp.Diagnostics.AddError("Unsupported snippet synchronization", err.Error())
+			return
+		}
+		if err := r.deleteSnippetForSync(ctx, name); err != nil {
+			resp.Diagnostics.AddError("Failed to delete snippet", err.Error())
+			return
+		}
+		if err := r.client.SyncSnippet(ctx, name); err != nil {
+			resp.Diagnostics.AddError("Failed to synchronize snippet nodes", err.Error())
+		}
+		return
+	}
+	if err := r.client.DeleteSnippet(ctx, name); err != nil {
 		resp.Diagnostics.AddError("Failed to delete snippet", err.Error())
 	}
+}
+
+func (r *snippetResource) requireSyncSupport(ctx context.Context) error {
+	supported, err := r.client.isVersionAtLeast3_2_3(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to determine backend version: %w", err)
+	}
+	if !supported {
+		return fmt.Errorf("sync_nodes_on_change requires Remnawave 3.2.3 or later")
+	}
+	return nil
+}
+
+// deleteSnippetForSync treats an already-deleted snippet as success so a
+// destroy can safely retry after DELETE succeeded but the subsequent sync call
+// failed. The sync endpoint resolves affected profiles by snippet name and does
+// not require the snippet record to still exist.
+func (r *snippetResource) deleteSnippetForSync(ctx context.Context, name string) error {
+	err := r.client.DeleteSnippet(ctx, name)
+	if err != nil && !isNotFound(err) {
+		return err
+	}
+	return nil
 }
 
 func (r *snippetResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

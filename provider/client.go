@@ -37,7 +37,7 @@ type Client struct {
 	versionMu     sync.Mutex
 	serverVersion string
 	// serverFullVersion retains the patch component for features introduced in
-	// a patch release, such as node IP management in Remnawave 3.2.2.
+	// patch releases, such as node IP management in 3.2.2 and snippet sync in 3.2.3.
 	serverFullVersion string
 }
 
@@ -648,6 +648,11 @@ func (c *Client) isVersionAtLeast3_1(ctx context.Context) (bool, error) {
 // isVersionAtLeast3_2_2 returns true when node IP management is available.
 func (c *Client) isVersionAtLeast3_2_2(ctx context.Context) (bool, error) {
 	return c.isVersionAtLeastPatch(ctx, 3, 2, 2)
+}
+
+// isVersionAtLeast3_2_3 returns true when explicit snippet synchronization is available.
+func (c *Client) isVersionAtLeast3_2_3(ctx context.Context) (bool, error) {
+	return c.isVersionAtLeastPatch(ctx, 3, 2, 3)
 }
 
 func (c *Client) isVersionAtLeast(ctx context.Context, requiredMajor, requiredMinor int) (bool, error) {
@@ -1376,6 +1381,10 @@ func (c *Client) UpdateSnippet(ctx context.Context, s *Snippet) (*snippetsListRe
 
 func (c *Client) DeleteSnippet(ctx context.Context, name string) error {
 	return c.doRequest(ctx, http.MethodDelete, "/api/snippets", map[string]string{"name": name}, nil)
+}
+
+func (c *Client) SyncSnippet(ctx context.Context, name string) error {
+	return c.doRequest(ctx, http.MethodPost, "/api/snippets/actions/sync", map[string]string{"name": name}, nil)
 }
 
 // ─── Node Plugin API ───

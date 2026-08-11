@@ -96,6 +96,7 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "GetSnippets", method: http.MethodGet, path: "/api/snippets"},
 		{name: "UpdateSnippet", method: http.MethodPatch, path: "/api/snippets", args: []any{&Snippet{Name: "snippet"}}},
 		{name: "DeleteSnippet", method: http.MethodDelete, path: "/api/snippets", args: []any{"snippet"}, wantJSON: map[string]any{"name": "snippet"}},
+		{name: "SyncSnippet", method: http.MethodPost, path: "/api/snippets/actions/sync", args: []any{"snippet"}, wantJSON: map[string]any{"name": "snippet"}},
 
 		{name: "CreateNodePlugin", method: http.MethodPost, path: "/api/node-plugins", args: []any{&NodePlugin{Name: "plugin"}}},
 		{name: "GetNodePluginByUUID", method: http.MethodGet, path: "/api/node-plugins/item-id", args: []any{"item-id"}},

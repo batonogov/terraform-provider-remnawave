@@ -4,7 +4,11 @@ set -euo pipefail
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 repository_dir=$(cd -- "$script_dir/.." && pwd)
 temporary_dir=$(mktemp -d "${TMPDIR:-/tmp}/release-artifacts-test.XXXXXX")
-trap 'rm -rf "$temporary_dir"' EXIT
+cleanup() {
+  chmod -R u+w "$temporary_dir" 2>/dev/null || true
+  rm -rf "$temporary_dir"
+}
+trap cleanup EXIT
 export GOMODCACHE="$temporary_dir/gomodcache"
 fixture_repo="$temporary_dir/repository"
 dist_dir="$temporary_dir/dist"

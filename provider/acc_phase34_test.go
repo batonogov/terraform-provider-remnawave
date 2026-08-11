@@ -3,6 +3,7 @@ package provider
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -38,6 +39,54 @@ resource "remnawave_snippet" "test" {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("remnawave_snippet.test", "name", "test-snippet-2"),
 					resource.TestCheckResourceAttrSet("remnawave_snippet.test", "snippet"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccSnippetResourceSyncNodesOnChange(t *testing.T) {
+	testAccPreCheck(t)
+	endpoint, authBlock := testAccProviderBlock()
+	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
+	createConfig := providerCfg + `
+resource "remnawave_snippet" "sync" {
+  name                 = "test-snippet-sync"
+  snippet              = jsonencode([{ "type" = "field", "domain" = ["geosite:category-ads"] }])
+  sync_nodes_on_change = true
+}
+`
+
+	if !isBackendAtLeast3_2_3() {
+		resource.Test(t, resource.TestCase{
+			ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+			Steps: []resource.TestStep{{
+				Config:      createConfig,
+				ExpectError: regexp.MustCompile(`sync_nodes_on_change requires Remnawave 3\.2\.3 or later`),
+			}},
+		})
+		return
+	}
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: createConfig,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_snippet.sync", "sync_nodes_on_change", "true"),
+				),
+			},
+			{
+				Config: providerCfg + `
+resource "remnawave_snippet" "sync" {
+  name                 = "test-snippet-sync"
+  snippet              = jsonencode([{ "type" = "field", "domain" = ["geosite:category-ads", "geosite:google"] }])
+  sync_nodes_on_change = true
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_snippet.sync", "sync_nodes_on_change", "true"),
 				),
 			},
 		},
@@ -122,6 +171,41 @@ resource "remnawave_node_plugin" "pre_start" {
 			Check: resource.ComposeAggregateTestCheckFunc(
 				resource.TestCheckResourceAttrSet("remnawave_node_plugin.pre_start", "uuid"),
 				resource.TestCheckResourceAttrSet("remnawave_node_plugin.pre_start", "plugin_config"),
+			),
+		}},
+	})
+}
+
+func TestAccNodePluginIPv6_3_2_3(t *testing.T) {
+	testAccPreCheck(t)
+	if !isBackendAtLeast3_2_3() {
+		t.Skip("correct 6to4 IPv6 validation requires Remnawave 3.2.3+")
+	}
+	endpoint, authBlock := testAccProviderBlock()
+	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+		Steps: []resource.TestStep{{
+			Config: providerCfg + `
+resource "remnawave_node_plugin" "ipv6" {
+  name = "test-plugin-ipv6-6to4"
+  plugin_config = jsonencode({
+    sharedLists = [{
+      name  = "ext:ipv6-6to4"
+      type  = "ipList"
+      items = ["2002:c000:204::1", "2002:c000:204::/48"]
+    }]
+    connectionDrop = {
+      enabled      = true
+      whitelistIps = ["2002:c000:204::1"]
+    }
+  })
+}
+`,
+			Check: resource.ComposeAggregateTestCheckFunc(
+				resource.TestCheckResourceAttrSet("remnawave_node_plugin.ipv6", "uuid"),
+				resource.TestCheckResourceAttrSet("remnawave_node_plugin.ipv6", "plugin_config"),
 			),
 		}},
 	})

@@ -22,6 +22,9 @@ resource "remnawave_snippet" "routing_rules" {
       domain      = ["geosite:category-ads"]
     }
   ])
+
+  # Remnawave 3.2.3+: restart affected nodes after update or deletion.
+  # sync_nodes_on_change = true
 }
 ```
 
@@ -32,6 +35,10 @@ resource "remnawave_snippet" "routing_rules" {
 
 - `name` (String) Snippet name (2-255 chars).
 - `snippet` (String) Snippet content as JSON array string.
+
+### Optional
+
+- `sync_nodes_on_change` (Boolean) Restart nodes using config profiles that reference this snippet after update or deletion. Requires Remnawave 3.2.3+, the system:read scope for version detection, and the snippets:sync scope. Defaults to false because synchronization is disruptive.
 
 ## Import
 
