@@ -40,6 +40,12 @@ It then force-starts every node using each affected config profile. The endpoint
 therefore has a disruptive runtime side effect rather than merely updating
 declarative database state.
 
+API-token use of the opt-in behavior requires `system:metadata` for the patch
+gate and `snippets:sync`, in addition to the normal `snippets:list`,
+`snippets:create`, `snippets:update`, and `snippets:delete` lifecycle scopes.
+The broader `system:read` scope also grants metadata access but is not the
+least-privilege requirement.
+
 The Remnawave 3.2.3 frontend calls this endpoint only after an explicit
 confirmation following snippet update or deletion. The provider mirrors that
 safety model with optional `remnawave_snippet.sync_nodes_on_change` rather than
@@ -47,10 +53,21 @@ restarting nodes silently. The option defaults to `false` and is gated on the
 full backend version `3.2.3+` before any mutation.
 
 On update, the provider updates the snippet and then synchronizes affected
-nodes. On deletion, it deletes the snippet and then synchronizes by name. A
-retry after partial Delete→Sync failure accepts the backend's 404 for the
-already-deleted snippet and retries synchronization, preventing a permanently
-stuck Terraform destroy.
+nodes. On deletion, it deletes the snippet and then synchronizes by name. The
+computed `sync_pending` phase (`none`, `update`, `delete`, or `recreate`) records
+an incomplete opt-in operation before the mutation. Refresh remains read-only:
+it reconciles whether the primary mutation committed, preserves the pending
+phase when synchronization is still required, and does not remove state for a
+pending deletion. `ModifyPlan` then creates a non-empty plan, and the normal
+Update/Delete apply path retries only the missing synchronization step. Delete
+recovery accepts the backend's 404 because the sync endpoint resolves profiles
+by name after deletion.
+
+Recovery is deliberately at-least-once: if the sync endpoint performs its work
+but the response is lost, the next apply may queue a duplicate restart. This is
+safer than reporting a clean plan while nodes can still use stale configuration,
+and the provider exposes `sync_pending` so operators can observe the recovery
+phase.
 
 Existing configurations that omit `sync_nodes_on_change` keep their previous
 behavior on every supported backend version.
@@ -64,6 +81,14 @@ snippets are merged into the config root without replacing protected keys or
 existing root keys. Existing provider `config` and `snippet` JSON attributes
 already preserve this opaque contract, so no additional Terraform schema is
 required.
+
+### Balancer-only snippet expansion
+
+The Xray validator now expands `routing.balancers[].snippet` even when
+`routing.rules` is absent. Version 3.2.2 nested balancer expansion under the
+rules-presence condition, so a balancer-only config skipped expansion. This is
+an upstream behavior fix already carried by the provider's opaque `config` and
+`snippet` JSON attributes; no Terraform schema change is required.
 
 ### TLS cipher suites
 
@@ -98,18 +123,18 @@ The provider matrix and default Docker Compose service pin both tag and digest.
 
 The following checks pass for this change set:
 
-- unit tests with the race detector: 40.6% statement coverage;
+- unit tests with the race detector: 42.1% statement coverage;
 - `go vet`, `golangci-lint` (0 issues), and `go build`;
 - Terraform example validation and generated-documentation validation;
 - `govulncheck`: no known reachable vulnerabilities;
 - release artifact, release supply-chain, and repository policy test suites;
-- 82 acceptance entry points against the exact 3.2.3 OCI index digest: `PASS`
-  in 132.099 seconds.
+- 83 acceptance entry points against the exact 3.2.3 OCI index digest: `PASS`.
 
 The 3.2.3 acceptance run specifically passes
-`TestAccSnippetResourceSyncNodesOnChange` and
-`TestAccNodePluginIPv6_3_2_3`, in addition to the existing provider regression
-suite.
+`TestAccSnippetResourceSyncNodesOnChange` with an affected config profile and
+node, `TestAccSnippetSyncRecoveryAcrossRefresh` with injected Update/Delete sync
+failures, and `TestAccNodePluginIPv6_3_2_3`, in addition to the existing provider
+regression suite.
 
 ## Compatibility matrix
 

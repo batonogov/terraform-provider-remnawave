@@ -707,9 +707,17 @@ func (c *Client) isVersionAtLeastPatch(ctx context.Context, requiredMajor, requi
 
 func parseVersion(version string) (major, minor, patch int, ok bool) {
 	version = strings.TrimPrefix(strings.TrimSpace(version), "v")
-	version, _, _ = strings.Cut(version, "+")
-	version, _, _ = strings.Cut(version, "-")
-	parts := strings.Split(version, ".")
+	core, buildMetadata, hasBuildMetadata := strings.Cut(version, "+")
+	if hasBuildMetadata && !validSemverBuildMetadata(buildMetadata) {
+		return 0, 0, 0, false
+	}
+	// Stable capability gates fail closed for prereleases. A backend reporting
+	// 3.2.3-rc.1 is lower than the final 3.2.3 contract even when its numeric
+	// core is identical.
+	if strings.Contains(core, "-") {
+		return 0, 0, 0, false
+	}
+	parts := strings.Split(core, ".")
 	if len(parts) < 2 || len(parts) > 3 {
 		return 0, 0, 0, false
 	}
@@ -723,6 +731,21 @@ func parseVersion(version string) (major, minor, patch int, ok bool) {
 		values[i] = value
 	}
 	return values[0], values[1], values[2], true
+}
+
+func validSemverBuildMetadata(metadata string) bool {
+	for _, identifier := range strings.Split(metadata, ".") {
+		if identifier == "" {
+			return false
+		}
+		for _, r := range identifier {
+			if r >= '0' && r <= '9' || r >= 'A' && r <= 'Z' || r >= 'a' && r <= 'z' || r == '-' {
+				continue
+			}
+			return false
+		}
+	}
+	return true
 }
 
 // parseMajorMinor extracts "major.minor" from a semver-like string.

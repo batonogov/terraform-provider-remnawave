@@ -91,7 +91,7 @@ tasks:
       - defer: docker compose down -v
       - ./scripts/wait-for-remnawave-api.sh http://localhost:3000
       - >-
-        curl -sf -X POST http://localhost:3000/api/auth/register
+        curl -q -sf --connect-timeout 2 --max-time 10 --output /dev/null -X POST http://localhost:3000/api/auth/register
         -H "Content-Type: application/json"
         -H "X-Forwarded-For: 127.0.0.1"
         -H "X-Forwarded-Proto: https"

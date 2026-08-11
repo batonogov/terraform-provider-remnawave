@@ -2,8 +2,13 @@ package provider
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"regexp"
+	"sync/atomic"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -49,13 +54,7 @@ func TestAccSnippetResourceSyncNodesOnChange(t *testing.T) {
 	testAccPreCheck(t)
 	endpoint, authBlock := testAccProviderBlock()
 	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
-	createConfig := providerCfg + `
-resource "remnawave_snippet" "sync" {
-  name                 = "test-snippet-sync"
-  snippet              = jsonencode([{ "type" = "field", "domain" = ["geosite:category-ads"] }])
-  sync_nodes_on_change = true
-}
-`
+	createConfig := testAccSnippetSyncConfig(providerCfg, `["geosite:category-ads"]`)
 
 	if !isBackendAtLeast3_2_3() {
 		resource.Test(t, resource.TestCase{
@@ -75,22 +74,189 @@ resource "remnawave_snippet" "sync" {
 				Config: createConfig,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("remnawave_snippet.sync", "sync_nodes_on_change", "true"),
+					resource.TestCheckResourceAttr("remnawave_snippet.sync", "sync_pending", snippetSyncPhaseNone),
+					resource.TestCheckResourceAttrSet("remnawave_config_profile.sync", "uuid"),
+					resource.TestCheckResourceAttrSet("remnawave_node.sync", "uuid"),
 				),
 			},
 			{
-				Config: providerCfg + `
-resource "remnawave_snippet" "sync" {
-  name                 = "test-snippet-sync"
-  snippet              = jsonencode([{ "type" = "field", "domain" = ["geosite:category-ads", "geosite:google"] }])
-  sync_nodes_on_change = true
-}
-`,
+				Config: testAccSnippetSyncConfig(providerCfg, `["geosite:category-ads", "geosite:google"]`),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("remnawave_snippet.sync", "sync_nodes_on_change", "true"),
+					resource.TestCheckResourceAttr("remnawave_snippet.sync", "sync_pending", snippetSyncPhaseNone),
+					resource.TestCheckResourceAttrSet("remnawave_config_profile.sync", "uuid"),
+					resource.TestCheckResourceAttrSet("remnawave_node.sync", "uuid"),
 				),
 			},
 		},
 	})
+}
+
+func testAccSnippetSyncConfig(providerCfg, domains string) string {
+	return providerCfg + fmt.Sprintf(`
+resource "remnawave_snippet" "sync" {
+  name                 = "test-snippet-sync"
+  snippet              = jsonencode([{ "type" = "field", "domain" = %s }])
+  sync_nodes_on_change = true
+}
+
+resource "remnawave_config_profile" "sync" {
+  name = "snippet-sync-profile"
+  config = jsonencode({
+    log = { loglevel = "warning" }
+    inbounds = [{
+      tag      = "VLESS_SNIPPET_SYNC_ACC"
+      listen   = "0.0.0.0"
+      port     = 443
+      protocol = "vless"
+      settings = { clients = [], decryption = "none" }
+      streamSettings = {
+        network  = "tcp"
+        security = "reality"
+        realitySettings = {
+          show        = false
+          target      = "xray.com"
+          xver        = 0
+          serverNames = ["xray.com"]
+          privateKey  = ""
+          shortIds    = []
+        }
+      }
+      sniffing = { enabled = true, destOverride = ["http", "tls", "quic"] }
+    }]
+    outbounds = [
+      { tag = "direct", protocol = "freedom", settings = {} },
+      { tag = "block", protocol = "blackhole", settings = {} }
+    ]
+    routing = {
+      domainStrategy = "AsIs"
+      rules          = [{ snippet = remnawave_snippet.sync.name }]
+    }
+  })
+}
+
+resource "remnawave_node" "sync" {
+  name                    = "terraform-snippet-sync"
+  address                 = "127.0.0.32"
+  port                    = 2232
+  country_code            = "NL"
+  config_profile_uuid     = remnawave_config_profile.sync.uuid
+  config_profile_inbounds = [remnawave_config_profile.sync.inbounds[0].uuid]
+}
+`, domains)
+}
+
+func TestAccSnippetSyncRecoveryAcrossRefresh(t *testing.T) {
+	testAccPreCheck(t)
+	if !isBackendAtLeast3_2_3() {
+		t.Skip("snippet sync recovery requires Remnawave 3.2.3+")
+	}
+
+	endpoint, authBlock := testAccProviderBlock()
+	target, err := url.Parse(endpoint)
+	if err != nil {
+		t.Fatalf("parse backend endpoint: %v", err)
+	}
+	reverseProxy := httputil.NewSingleHostReverseProxy(target)
+	var failNextSync atomic.Bool
+	var syncCalls atomic.Int32
+	failNextSync.Store(true)
+
+	proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.Method == http.MethodPost && req.URL.Path == "/api/snippets/actions/sync" {
+			syncCalls.Add(1)
+			if failNextSync.CompareAndSwap(true, false) {
+				http.Error(w, "injected sync failure", http.StatusInternalServerError)
+				return
+			}
+		}
+		if req.Method == http.MethodDelete && req.URL.Path == "/api/snippets" {
+			reverseProxy.ServeHTTP(w, req)
+			failNextSync.Store(true)
+			return
+		}
+		reverseProxy.ServeHTTP(w, req)
+	}))
+	defer proxyServer.Close()
+
+	providerCfg := fmt.Sprintf(testAccProviderConfig, proxyServer.URL, authBlock)
+	createConfig := providerCfg + `
+resource "remnawave_snippet" "recovery" {
+  name                 = "test-snippet-recovery"
+  snippet              = jsonencode([{ "type" = "field", "domain" = ["geosite:category-ads"] }])
+  sync_nodes_on_change = true
+}
+`
+	updatedConfig := providerCfg + `
+resource "remnawave_snippet" "recovery" {
+  name                 = "test-snippet-recovery"
+  snippet              = jsonencode([{ "type" = "field", "domain" = ["geosite:category-ads", "geosite:google"] }])
+  sync_nodes_on_change = true
+}
+`
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: createConfig,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_snippet.recovery", "sync_pending", snippetSyncPhaseNone),
+				),
+			},
+			{
+				Config:      updatedConfig,
+				ExpectError: regexp.MustCompile(`Failed to synchronize snippet nodes`),
+			},
+			{
+				PreConfig: func() {
+					if got := syncCalls.Load(); got != 1 {
+						t.Fatalf("sync calls before update retry plan = %d, want 1", got)
+					}
+				},
+				Config:             updatedConfig,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				PreConfig: func() {
+					if got := syncCalls.Load(); got != 1 {
+						t.Fatalf("planning performed sync: calls = %d, want 1", got)
+					}
+				},
+				Config: updatedConfig,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_snippet.recovery", "sync_pending", snippetSyncPhaseNone),
+				),
+			},
+			{
+				Config:      providerCfg,
+				ExpectError: regexp.MustCompile(`Failed to synchronize snippet nodes`),
+			},
+			{
+				PreConfig: func() {
+					if got := syncCalls.Load(); got != 3 {
+						t.Fatalf("sync calls before delete retry plan = %d, want 3", got)
+					}
+				},
+				Config:             providerCfg,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				PreConfig: func() {
+					if got := syncCalls.Load(); got != 3 {
+						t.Fatalf("delete planning performed sync: calls = %d, want 3", got)
+					}
+				},
+				Config: providerCfg,
+			},
+		},
+	})
+
+	if got := syncCalls.Load(); got != 4 {
+		t.Fatalf("sync calls = %d, want 4 (failed and resumed update plus failed and resumed delete)", got)
+	}
 }
 
 func TestAccNodePluginResource(t *testing.T) {
