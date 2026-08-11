@@ -35,14 +35,14 @@ tasks:
   test:vuln:
     desc: Scan reachable Go code for known vulnerabilities
     cmds:
-      - go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
+      - GOTOOLCHAIN=go$(awk '$1 == "go" { print $2; exit }' go.mod) go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
 
   docs:
     desc: Format examples and generate Terraform Registry documentation
     cmds:
       - terraform fmt -recursive examples
       - terraform fmt -recursive scripts/testdata/example-fixtures
-      - go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.24.0 generate --provider-dir .
+      - go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.24.0 generate --provider-dir . --provider-name remnawave --rendered-provider-name terraform-provider-remnawave
 
   docs:check:
     desc: Validate docs and fail if generated documentation is stale
@@ -50,8 +50,8 @@ tasks:
       - terraform fmt -check -recursive examples
       - terraform fmt -check -recursive scripts/testdata/example-fixtures
       - ./scripts/validate-provider-examples.sh
-      - go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.24.0 generate --provider-dir .
-      - go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.24.0 validate --provider-dir .
+      - go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.24.0 generate --provider-dir . --provider-name remnawave --rendered-provider-name terraform-provider-remnawave
+      - go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.24.0 validate --provider-dir . --provider-name remnawave
       - ./scripts/check-docs-inventory.sh
       - ./scripts/check-docs-drift.sh
 
@@ -89,8 +89,9 @@ tasks:
       - docker compose down -v 2>/dev/null || true
       - docker compose up --detach --wait --quiet-pull
       - defer: docker compose down -v
+      - ./scripts/wait-for-remnawave-api.sh http://localhost:3000
       - >-
-        curl -sf -X POST http://localhost:3000/api/auth/register
+        curl -q -sf --connect-timeout 2 --max-time 10 --output /dev/null -X POST http://localhost:3000/api/auth/register
         -H "Content-Type: application/json"
         -H "X-Forwarded-For: 127.0.0.1"
         -H "X-Forwarded-Proto: https"

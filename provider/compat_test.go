@@ -193,6 +193,49 @@ func TestVersionDetection3_2_2(t *testing.T) {
 	}
 }
 
+func TestVersionDetection3_2_3(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		version string
+		want    bool
+		wantErr bool
+	}{
+		{version: "3.2.2", want: false},
+		{version: "3.2.2+build.9", want: false},
+		{version: "3.2.3", want: true},
+		{version: "v3.2.3+build.7", want: true},
+		{version: "3.3.0", want: true},
+		{version: "3.2.3-rc.1", wantErr: true},
+		{version: "3.2.3+", wantErr: true},
+		{version: "3.2.3+build..7", wantErr: true},
+	} {
+		t.Run(tt.version, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = io.WriteString(w, `{"response":{"version":"`+tt.version+`"}}`)
+			}))
+			defer server.Close()
+
+			client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "test-token"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := client.isVersionAtLeast3_2_3(context.Background())
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("isVersionAtLeast3_2_3() = %v, nil, want error", got)
+				}
+				return
+			}
+			if err != nil || got != tt.want {
+				t.Errorf("isVersionAtLeast3_2_3() = %v, %v, want %v, nil", got, err, tt.want)
+			}
+		})
+	}
+}
+
 func TestVersionDetectionRejectsOversizedMetadata(t *testing.T) {
 	t.Parallel()
 

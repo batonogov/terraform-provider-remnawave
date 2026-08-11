@@ -22,6 +22,9 @@ resource "remnawave_snippet" "routing_rules" {
       domain      = ["geosite:category-ads"]
     }
   ])
+
+  # Remnawave 3.2.3+: restart affected nodes after update or deletion.
+  # sync_nodes_on_change = true
 }
 ```
 
@@ -32,6 +35,14 @@ resource "remnawave_snippet" "routing_rules" {
 
 - `name` (String) Snippet name (2-255 chars).
 - `snippet` (String) Snippet content as JSON array string.
+
+### Optional
+
+- `sync_nodes_on_change` (Boolean) Restart nodes using config profiles that reference this snippet after update or deletion. Requires Remnawave 3.2.3+, system:metadata (or broader system:read) for version detection, and snippets:sync in addition to the snippets:list/create/update/delete scopes used by normal resource lifecycle operations. Defaults to false because synchronization is disruptive.
+
+### Read-Only
+
+- `sync_pending` (String) Provider-managed recovery phase: none, update, delete, or recreate. A pending phase means an opt-in mutation may have reached the backend but node synchronization did not complete. Refresh remains read-only and preserves a reachable sync-only plan; recovery is at-least-once, so an ambiguous transport failure can cause a duplicate restart.
 
 ## Import
 

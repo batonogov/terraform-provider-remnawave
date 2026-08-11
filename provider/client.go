@@ -37,7 +37,7 @@ type Client struct {
 	versionMu     sync.Mutex
 	serverVersion string
 	// serverFullVersion retains the patch component for features introduced in
-	// a patch release, such as node IP management in Remnawave 3.2.2.
+	// patch releases, such as node IP management in 3.2.2 and snippet sync in 3.2.3.
 	serverFullVersion string
 }
 
@@ -650,6 +650,11 @@ func (c *Client) isVersionAtLeast3_2_2(ctx context.Context) (bool, error) {
 	return c.isVersionAtLeastPatch(ctx, 3, 2, 2)
 }
 
+// isVersionAtLeast3_2_3 returns true when explicit snippet synchronization is available.
+func (c *Client) isVersionAtLeast3_2_3(ctx context.Context) (bool, error) {
+	return c.isVersionAtLeastPatch(ctx, 3, 2, 3)
+}
+
 func (c *Client) isVersionAtLeast(ctx context.Context, requiredMajor, requiredMinor int) (bool, error) {
 	if err := c.detectVersion(ctx); err != nil {
 		return false, err
@@ -702,9 +707,17 @@ func (c *Client) isVersionAtLeastPatch(ctx context.Context, requiredMajor, requi
 
 func parseVersion(version string) (major, minor, patch int, ok bool) {
 	version = strings.TrimPrefix(strings.TrimSpace(version), "v")
-	version, _, _ = strings.Cut(version, "+")
-	version, _, _ = strings.Cut(version, "-")
-	parts := strings.Split(version, ".")
+	core, buildMetadata, hasBuildMetadata := strings.Cut(version, "+")
+	if hasBuildMetadata && !validSemverBuildMetadata(buildMetadata) {
+		return 0, 0, 0, false
+	}
+	// Stable capability gates fail closed for prereleases. A backend reporting
+	// 3.2.3-rc.1 is lower than the final 3.2.3 contract even when its numeric
+	// core is identical.
+	if strings.Contains(core, "-") {
+		return 0, 0, 0, false
+	}
+	parts := strings.Split(core, ".")
 	if len(parts) < 2 || len(parts) > 3 {
 		return 0, 0, 0, false
 	}
@@ -718,6 +731,21 @@ func parseVersion(version string) (major, minor, patch int, ok bool) {
 		values[i] = value
 	}
 	return values[0], values[1], values[2], true
+}
+
+func validSemverBuildMetadata(metadata string) bool {
+	for _, identifier := range strings.Split(metadata, ".") {
+		if identifier == "" {
+			return false
+		}
+		for _, r := range identifier {
+			if r >= '0' && r <= '9' || r >= 'A' && r <= 'Z' || r >= 'a' && r <= 'z' || r == '-' {
+				continue
+			}
+			return false
+		}
+	}
+	return true
 }
 
 // parseMajorMinor extracts "major.minor" from a semver-like string.
@@ -1376,6 +1404,10 @@ func (c *Client) UpdateSnippet(ctx context.Context, s *Snippet) (*snippetsListRe
 
 func (c *Client) DeleteSnippet(ctx context.Context, name string) error {
 	return c.doRequest(ctx, http.MethodDelete, "/api/snippets", map[string]string{"name": name}, nil)
+}
+
+func (c *Client) SyncSnippet(ctx context.Context, name string) error {
+	return c.doRequest(ctx, http.MethodPost, "/api/snippets/actions/sync", map[string]string{"name": name}, nil)
 }
 
 // ─── Node Plugin API ───
