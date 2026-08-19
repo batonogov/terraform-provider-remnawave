@@ -655,6 +655,12 @@ func (c *Client) isVersionAtLeast3_2_3(ctx context.Context) (bool, error) {
 	return c.isVersionAtLeastPatch(ctx, 3, 2, 3)
 }
 
+// isVersionAtLeast3_3 returns true when node integrations, global shared lists,
+// host mappers, and node integration assignments are available.
+func (c *Client) isVersionAtLeast3_3(ctx context.Context) (bool, error) {
+	return c.isVersionAtLeast(ctx, 3, 3)
+}
+
 func (c *Client) isVersionAtLeast(ctx context.Context, requiredMajor, requiredMinor int) (bool, error) {
 	if err := c.detectVersion(ctx); err != nil {
 		return false, err
@@ -1429,15 +1435,123 @@ func (c *Client) GetNodePluginByUUID(ctx context.Context, uuid string) (*NodePlu
 }
 
 func (c *Client) UpdateNodePlugin(ctx context.Context, p *NodePlugin) (*NodePlugin, error) {
+	payload := p
+	var legacySharedLists any
+	if config, ok := p.PluginConfig.(map[string]any); ok {
+		is3_3, err := c.isVersionAtLeast3_3(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("detect node plugin contract: %w", err)
+		}
+		if is3_3 {
+			editorConfig := make(map[string]any, len(config))
+			for key, value := range config {
+				if key == "sharedLists" {
+					legacySharedLists = value
+					continue
+				}
+				editorConfig[key] = value
+			}
+			copy := *p
+			copy.PluginConfig = editorConfig
+			payload = &copy
+		}
+	}
 	var out NodePlugin
-	if err := c.doRequest(ctx, http.MethodPatch, "/api/node-plugins", p, &out); err != nil {
+	if err := c.doRequest(ctx, http.MethodPatch, "/api/node-plugins", payload, &out); err != nil {
 		return nil, err
+	}
+	// Remnawave 3.3 stores shared lists globally and omits them from PATCH
+	// responses. Preserve the logical legacy value for the apply result; a
+	// subsequent GET resolves referenced global lists into the same field.
+	if legacySharedLists != nil {
+		config, ok := out.PluginConfig.(map[string]any)
+		if !ok || config == nil {
+			config = map[string]any{}
+		}
+		config["sharedLists"] = legacySharedLists
+		out.PluginConfig = config
 	}
 	return &out, nil
 }
 
 func (c *Client) DeleteNodePlugin(ctx context.Context, uuid string) error {
 	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/node-plugins/%s", uuid), nil, nil)
+}
+
+// ─── Node Integration API (Remnawave 3.3+) ───
+
+func (c *Client) CreateNodeIntegration(ctx context.Context, integration *NodeIntegration) (*NodeIntegration, error) {
+	var out NodeIntegration
+	if err := c.doRequest(ctx, http.MethodPost, "/api/node-integrations", integration, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) GetAllNodeIntegrations(ctx context.Context) (*nodeIntegrationsListResponse, error) {
+	var out nodeIntegrationsListResponse
+	if err := c.doRequest(ctx, http.MethodGet, "/api/node-integrations", nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) GetNodeIntegrationByUUID(ctx context.Context, uuid string) (*NodeIntegration, error) {
+	var out NodeIntegration
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/node-integrations/%s", uuid), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) UpdateNodeIntegration(ctx context.Context, integration *NodeIntegration) (*NodeIntegration, error) {
+	var out NodeIntegration
+	if err := c.doRequest(ctx, http.MethodPatch, "/api/node-integrations", integration, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) DeleteNodeIntegration(ctx context.Context, uuid string) error {
+	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/node-integrations/%s", uuid), nil, nil)
+}
+
+// ─── Node Plugin Shared List API (Remnawave 3.3+) ───
+
+func (c *Client) CreateSharedList(ctx context.Context, list *SharedList) (*SharedList, error) {
+	var out SharedList
+	if err := c.doRequest(ctx, http.MethodPost, "/api/node-plugins/shared-lists", list, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) GetAllSharedLists(ctx context.Context) (*sharedListsListResponse, error) {
+	var out sharedListsListResponse
+	if err := c.doRequest(ctx, http.MethodGet, "/api/node-plugins/shared-lists", nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) GetSharedListByName(ctx context.Context, name string) (*SharedList, error) {
+	var out SharedList
+	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/node-plugins/shared-lists/%s", name), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) UpdateSharedList(ctx context.Context, list *SharedList) (*SharedList, error) {
+	var out SharedList
+	if err := c.doRequest(ctx, http.MethodPatch, "/api/node-plugins/shared-lists", list, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) DeleteSharedList(ctx context.Context, name string) error {
+	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/node-plugins/shared-lists/%s", name), nil, nil)
 }
 
 // ─── API Token API ───

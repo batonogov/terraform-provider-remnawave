@@ -230,6 +230,8 @@ func (p *RemnawaveProvider) Resources(_ context.Context) []func() resource.Resou
 		NewPasskeyResource,
 		NewUserBulkActionResource,
 		NewNodeBulkActionResource,
+		NewNodeIntegrationResource,
+		NewSharedListResource,
 	}
 }
 
@@ -260,6 +262,8 @@ func (p *RemnawaveProvider) DataSources(_ context.Context) []func() datasource.D
 		NewPasskeysDataSource,
 		NewInternalSquadsDataSource,
 		NewExternalSquadsDataSource,
+		NewNodeIntegrationsDataSource,
+		NewSharedListsDataSource,
 	}
 }
 

@@ -21,7 +21,7 @@ func isBackendAtLeast3_1() bool {
 func isBackendAtLeast3_2_2() bool {
 	version := os.Getenv("REMNAWAVE_VERSION")
 	if version == "" {
-		return true // docker-compose.yaml defaults to Remnawave 3.2.3
+		return true // docker-compose.yaml defaults to Remnawave 3.3.0
 	}
 	major, minor, patch, ok := parseVersion(version)
 	if !ok {
@@ -33,7 +33,7 @@ func isBackendAtLeast3_2_2() bool {
 func isBackendAtLeast3_2_3() bool {
 	version := os.Getenv("REMNAWAVE_VERSION")
 	if version == "" {
-		return true // docker-compose.yaml defaults to Remnawave 3.2.3
+		return true // docker-compose.yaml defaults to Remnawave 3.3.0
 	}
 	major, minor, patch, ok := parseVersion(version)
 	if !ok {
@@ -42,10 +42,14 @@ func isBackendAtLeast3_2_3() bool {
 	return major > 3 || major == 3 && (minor > 2 || minor == 2 && patch >= 3)
 }
 
+func isBackendAtLeast3_3() bool {
+	return isBackendAtLeast(3, 3)
+}
+
 func isBackendAtLeast(requiredMajor, requiredMinor int) bool {
 	version := strings.TrimPrefix(os.Getenv("REMNAWAVE_VERSION"), "v")
 	if version == "" {
-		return true // docker-compose.yaml defaults to Remnawave 3.2.3
+		return true // docker-compose.yaml defaults to Remnawave 3.3.0
 	}
 	majorPart, remainder, ok := strings.Cut(version, ".")
 	if !ok {

@@ -23,7 +23,7 @@ mkdir -p "$fixture_repo" "$dist_dir" "$build_dir"
   git init -q
   git config user.name "Release Test"
   git config user.email "release-test@example.com"
-  printf 'module %s\n\ngo 1.26.5\n' "$module_path" >go.mod
+  printf 'module %s\n\ngo 1.26.6\n' "$module_path" >go.mod
   printf 'package main\n\nimport "fmt"\n\nvar version = "dev"\n\nfunc main() { fmt.Println(version) }\n' >main.go
   git add go.mod main.go
   git -c commit.gpgsign=false commit -qm "test fixture"

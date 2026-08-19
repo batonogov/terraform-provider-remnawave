@@ -13,15 +13,15 @@ unsafe and misleading provider design.
 - Contract inventory: 184 `*.command.ts` files under `libs/contract/commands`
 
 This backend inventory is a historical contract snapshot. The provider now
-supports Remnawave 2.7.x, 2.8.x, 3.0.x, 3.1.x, and 3.2.x and adapts
+supports Remnawave 2.7.x, 2.8.x, 3.0.x, 3.1.x, 3.2.x, and 3.3.x and adapts
 version-specific contracts at runtime.
 
 ## Current provider surface
 
-- Resources: 26
-- Data sources: 25
-- Exported client operations: 110
-- Acceptance test entry points: 83
+- Resources: 28
+- Data sources: 27
+- Exported client operations: 120
+- Acceptance test entry points: 85
 
 The historical backend command count and current client operation count above
 are intentionally different metrics. Backend commands include authentication,
@@ -34,15 +34,17 @@ Terraform state.
 | API family | Declarative/read coverage | Remaining backend surface |
 | --- | --- | --- |
 | Users | CRUD resource, list data source, subscription lookup, connection keys, metadata, HWID, single-user actions and bulk actions | Selectors, tags, accessible nodes, stream and detailed per-user history |
-| Nodes | Full create/update payload, computed runtime/system/version state, list/metrics data sources, metadata, single-node actions and bulk actions | Tags and reorder operations |
-| Hosts | Full create/update payload including transport JSON, TLS verification, Mihomo, template and exclusion fields; list/tags data sources and bulk actions | Reorder operations |
+| Nodes | Full create/update payload including 3.3+ integration assignments, computed runtime/system/version state, list/metrics data sources, metadata, single-node actions and bulk actions | Tags and reorder operations; 3.3+ geocheck jobs |
+| Hosts | Full create/update payload including transport JSON, TLS verification, Mihomo, template and exclusion fields, and 3.3+ host mappers; list/tags data sources and bulk actions | Reorder operations |
 | Config profiles | CRUD, computed inbounds/nodes, list data source | Computed-config and standalone inbound queries, reorder |
 | Internal squads | CRUD, list data source and computed accessible nodes | Reorder and bulk membership operations |
 | External squads | CRUD and list data source including templates, subscription/HWID settings, remarks, versioned headers, host overrides and subpage | Reorder and bulk membership operations |
 | Subscription settings | Version-adaptive singleton resource including remarks, response headers/rules and HWID settings | Covered for supported contracts |
 | Subscription templates | CRUD including type and template body | List data source and reorder |
 | Subscription page configs | CRUD | List data source, clone and reorder |
-| Node plugins | CRUD with the 2.x plugin configuration document and the 3.1+ pre-start stage | List data source, clone/reorder, executor, torrent reports and report truncation |
+| Node plugins | CRUD with the 2.x plugin configuration document, the 3.1+ pre-start stage, and version-aware 3.3+ global shared-list handling | Plugin list data source, clone/reorder/sync, executor, torrent reports and report truncation |
+| Node integrations | 3.3+ CRUD resource and list data source, including optional node restart on update; node assignment through `remnawave_node` | Covered for supported contracts |
+| Shared lists | 3.3+ global IP/CIDR and ASN list CRUD resource and preview-list data source | Explicit shared-list synchronization action |
 | Snippets | CRUD plus opt-in node synchronization after update/delete on 3.2.3+ | Covered for supported contracts |
 | API tokens | Create, existence read through list, delete, expiry and scopes | Scopes discovery data source |
 | Panel settings | Singleton resource | Covered for supported contracts; requires administrator JWT |
@@ -64,7 +66,7 @@ The following checks are required for supported functionality:
    envelope handling.
 2. Every registered resource and data source that can be exercised
    non-interactively has real-panel acceptance coverage against the pinned
-   Remnawave 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 images. The import-only passkey
+   Remnawave 3.3.0, 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 images. The import-only passkey
    resource is the explicit exception because creating its fixture requires a
    WebAuthn ceremony.
 3. Declarative resources exercise representative lifecycle paths; this matrix

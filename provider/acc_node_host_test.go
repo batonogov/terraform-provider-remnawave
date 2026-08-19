@@ -38,6 +38,8 @@ func TestAccNodeResource(t *testing.T) {
 	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
 	nodeIPFields := ""
 	nodeIPUpdateFields := ""
+	nodeIntegrationResource := ""
+	nodeIntegrationFields := ""
 	if isBackendAtLeast3_2_2() {
 		nodeIPFields = `  ips = [{
     ip     = "192.0.2.10"
@@ -45,6 +47,20 @@ func TestAccNodeResource(t *testing.T) {
   }]
 `
 		nodeIPUpdateFields = "  ips = []\n"
+	}
+	if isBackendAtLeast3_3() {
+		nodeIntegrationResource = `
+resource "remnawave_node_integration" "node" {
+  name        = "node-acceptance-integration"
+  description = "Managed by Terraform acceptance tests"
+  config = jsonencode({
+    environmentVariables = {
+      TERRAFORM_ACCEPTANCE = "true"
+    }
+  })
+}
+`
+		nodeIntegrationFields = "  integration_uuids = [remnawave_node_integration.node.uuid]\n"
 	}
 	checks := []resource.TestCheckFunc{
 		resource.TestCheckResourceAttrSet("remnawave_node.test", "uuid"),
@@ -63,6 +79,9 @@ func TestAccNodeResource(t *testing.T) {
 			resource.TestCheckResourceAttr("remnawave_node.test", "ips.0.status", "MANAGEMENT"),
 		)
 	}
+	if isBackendAtLeast3_3() {
+		checks = append(checks, resource.TestCheckResourceAttr("remnawave_node.test", "integration_uuids.#", "1"))
+	}
 	updateChecks := []resource.TestCheckFunc{
 		resource.TestCheckResourceAttr("remnawave_node.test", "name", "terraform-node-updated"),
 		resource.TestCheckResourceAttr("remnawave_node.test", "country_code", "DE"),
@@ -71,12 +90,15 @@ func TestAccNodeResource(t *testing.T) {
 	if isBackendAtLeast3_2_2() {
 		updateChecks = append(updateChecks, resource.TestCheckResourceAttr("remnawave_node.test", "ips.#", "0"))
 	}
+	if isBackendAtLeast3_3() {
+		updateChecks = append(updateChecks, resource.TestCheckResourceAttr("remnawave_node.test", "integration_uuids.#", "1"))
+	}
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: providerCfg + testAccProfileConfig("node-profile", "VLESS_TCP_NODE_ACC") + fmt.Sprintf(`
+				Config: providerCfg + testAccProfileConfig("node-profile", "VLESS_TCP_NODE_ACC") + nodeIntegrationResource + fmt.Sprintf(`
 resource "remnawave_node" "test" {
   name                        = "terraform-node"
   address                     = "127.0.0.10"
@@ -88,14 +110,14 @@ resource "remnawave_node" "test" {
   notify_percent              = 80
   consumption_multiplier      = 1.2
   tags                        = ["ACC_NODE"]
-%s  config_profile_uuid         = remnawave_config_profile.profile.uuid
+%s%s  config_profile_uuid         = remnawave_config_profile.profile.uuid
   config_profile_inbounds     = [remnawave_config_profile.profile.inbounds[0].uuid]
 }
-`, nodeIPFields),
+`, nodeIPFields, nodeIntegrationFields),
 				Check: resource.ComposeAggregateTestCheckFunc(checks...),
 			},
 			{
-				Config: providerCfg + testAccProfileConfig("node-profile", "VLESS_TCP_NODE_ACC") + fmt.Sprintf(`
+				Config: providerCfg + testAccProfileConfig("node-profile", "VLESS_TCP_NODE_ACC") + nodeIntegrationResource + fmt.Sprintf(`
 resource "remnawave_node" "test" {
   name                        = "terraform-node-updated"
   address                     = "127.0.0.10"
@@ -104,10 +126,10 @@ resource "remnawave_node" "test" {
   is_traffic_tracking_active  = true
   consumption_multiplier      = 2.0
   tags                        = ["ACC_NODE", "UPDATED"]
-%s  config_profile_uuid         = remnawave_config_profile.profile.uuid
+%s%s  config_profile_uuid         = remnawave_config_profile.profile.uuid
   config_profile_inbounds     = [remnawave_config_profile.profile.inbounds[0].uuid]
 }
-`, nodeIPUpdateFields),
+`, nodeIPUpdateFields, nodeIntegrationFields),
 				Check: resource.ComposeAggregateTestCheckFunc(updateChecks...),
 			},
 			{
@@ -175,10 +197,43 @@ func TestAccHostResource(t *testing.T) {
 	updatedTags := `  tags = ["ACC_HOST", "UPDATED"]
 `
 	updatedTagCount := "2"
+	hostMapperInitial := ""
+	hostMapperUpdated := ""
 	if isBackend2_7() {
 		updatedTags = `  tags = ["UPDATED"]
 `
 		updatedTagCount = "1"
+	}
+	if isBackendAtLeast3_3() {
+		hostMapperInitial = `  mapper = jsonencode({
+    mihomo = [{ op = "set", to = "tfo", value = true }]
+  })
+`
+		hostMapperUpdated = `  mapper = jsonencode({
+    mihomo = [{ op = "set", to = "tfo", value = false }]
+    singbox = [{ op = "set", to = "tcp_fast_open", value = true }]
+  })
+`
+	}
+	initialChecks := []resource.TestCheckFunc{
+		resource.TestCheckResourceAttrSet("remnawave_host.test", "uuid"),
+		resource.TestCheckResourceAttr("remnawave_host.test", "remark", "terraform-host"),
+		resource.TestCheckResourceAttr("remnawave_host.test", "address", "host.example.com"),
+		resource.TestCheckResourceAttr("remnawave_host.test", "tags.#", "1"),
+		resource.TestCheckResourceAttr("remnawave_host.test", "vless_route_id", "7"),
+		resource.TestCheckResourceAttr("remnawave_host.test", "exclude_from_subscription_types.#", "2"),
+	}
+	updatedChecks := []resource.TestCheckFunc{
+		resource.TestCheckResourceAttr("remnawave_host.test", "remark", "terraform-host-updated"),
+		resource.TestCheckResourceAttr("remnawave_host.test", "port", "8443"),
+		resource.TestCheckResourceAttr("remnawave_host.test", "is_hidden", "true"),
+		resource.TestCheckResourceAttr("remnawave_host.test", "tags.#", updatedTagCount),
+		resource.TestCheckResourceAttr("remnawave_host.test", "vless_route_id", "8"),
+		resource.TestCheckResourceAttr("remnawave_host.test", "exclude_from_subscription_types.#", "1"),
+	}
+	if isBackendAtLeast3_3() {
+		initialChecks = append(initialChecks, resource.TestCheckResourceAttrSet("remnawave_host.test", "mapper"))
+		updatedChecks = append(updatedChecks, resource.TestCheckResourceAttrSet("remnawave_host.test", "mapper"))
 	}
 
 	resource.Test(t, resource.TestCase{
@@ -195,7 +250,7 @@ resource "remnawave_host" "test" {
   override_sni_from_address   = true
   keep_sni_blank              = false
   vless_route_id              = 7
-%s
+%s%s
   xray_json_template_uuid     = remnawave_subscription_template.host.uuid
   exclude_from_subscription_types = ["MIHOMO", "SINGBOX"]
 %s
@@ -207,15 +262,8 @@ resource "remnawave_subscription_template" "host" {
   name          = "host-acceptance-template"
   template_type = "XRAY_JSON"
 }
-`, hostV28Fields("auto", "true", "true", "false"), initialTags),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("remnawave_host.test", "uuid"),
-					resource.TestCheckResourceAttr("remnawave_host.test", "remark", "terraform-host"),
-					resource.TestCheckResourceAttr("remnawave_host.test", "address", "host.example.com"),
-					resource.TestCheckResourceAttr("remnawave_host.test", "tags.#", "1"),
-					resource.TestCheckResourceAttr("remnawave_host.test", "vless_route_id", "7"),
-					resource.TestCheckResourceAttr("remnawave_host.test", "exclude_from_subscription_types.#", "2"),
-				),
+`, hostV28Fields("auto", "true", "true", "false"), hostMapperInitial, initialTags),
+				Check: resource.ComposeAggregateTestCheckFunc(initialChecks...),
 			},
 			{
 				Config: providerCfg + testAccProfileConfig("host-profile", "VLESS_TCP_HOST_ACC") + fmt.Sprintf(`
@@ -229,7 +277,7 @@ resource "remnawave_host" "test" {
   override_sni_from_address   = true
   keep_sni_blank              = false
   vless_route_id              = 8
-%s
+%s%s
   xray_json_template_uuid     = remnawave_subscription_template.host.uuid
   exclude_from_subscription_types = ["CLASH"]
 %s
@@ -241,15 +289,8 @@ resource "remnawave_subscription_template" "host" {
   name          = "host-acceptance-template"
   template_type = "XRAY_JSON"
 }
-`, hostV28Fields("packet-up", "false", "false", "true"), updatedTags),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("remnawave_host.test", "remark", "terraform-host-updated"),
-					resource.TestCheckResourceAttr("remnawave_host.test", "port", "8443"),
-					resource.TestCheckResourceAttr("remnawave_host.test", "is_hidden", "true"),
-					resource.TestCheckResourceAttr("remnawave_host.test", "tags.#", updatedTagCount),
-					resource.TestCheckResourceAttr("remnawave_host.test", "vless_route_id", "8"),
-					resource.TestCheckResourceAttr("remnawave_host.test", "exclude_from_subscription_types.#", "1"),
-				),
+`, hostV28Fields("packet-up", "false", "false", "true"), hostMapperUpdated, updatedTags),
+				Check: resource.ComposeAggregateTestCheckFunc(updatedChecks...),
 			},
 			{
 				ResourceName:      "remnawave_host.test",

@@ -33,7 +33,7 @@ func (r *nodePluginResource) Schema(_ context.Context, _ resource.SchemaRequest,
 		Attributes: map[string]schema.Attribute{
 			"uuid":          schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 			"name":          schema.StringAttribute{Required: true, Description: "Plugin name (2-30 chars)."},
-			"plugin_config": schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{nodePluginJSONPlanModifier{}}, Description: "Plugin config as JSON. Supported keys are sharedLists, torrentBlocker, ingressFilter, egressFilter, connectionDrop, and preStart (Remnawave 3.1+)."},
+			"plugin_config": schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{nodePluginJSONPlanModifier{}}, Description: "Plugin config as JSON. Supported keys are sharedLists, torrentBlocker, ingressFilter, egressFilter, connectionDrop, and preStart (Remnawave 3.1+). On Remnawave 3.3+, sharedLists is read as an effective compatibility view and omitted from plugin writes; manage global list contents with remnawave_shared_list."},
 		},
 	}
 }
@@ -130,7 +130,12 @@ func (r *nodePluginResource) Read(ctx context.Context, req resource.ReadRequest,
 	state.UUID = types.StringValue(plugin.UUID)
 	state.Name = types.StringValue(plugin.Name)
 	if plugin.PluginConfig != nil {
-		b, err := json.Marshal(plugin.PluginConfig)
+		pluginConfig, err := r.pluginConfigForState(ctx, plugin.PluginConfig, state.PluginConfig)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to normalize plugin_config", err.Error())
+			return
+		}
+		b, err := json.Marshal(pluginConfig)
 		if err != nil {
 			resp.Diagnostics.AddError("Failed to marshal plugin_config", err.Error())
 			return
@@ -140,6 +145,39 @@ func (r *nodePluginResource) Read(ctx context.Context, req resource.ReadRequest,
 		state.PluginConfig = types.StringNull()
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
+
+func (r *nodePluginResource) pluginConfigForState(ctx context.Context, remote any, previous types.String) (any, error) {
+	is3_3, err := r.client.isVersionAtLeast3_3(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("detect node plugin contract: %w", err)
+	}
+	if !is3_3 {
+		return remote, nil
+	}
+
+	remoteConfig, ok := remote.(map[string]any)
+	if !ok || remoteConfig == nil {
+		return remote, nil
+	}
+	normalized := make(map[string]any, len(remoteConfig))
+	for key, value := range remoteConfig {
+		if key != "sharedLists" {
+			normalized[key] = value
+		}
+	}
+	normalized["sharedLists"] = []any{}
+	if previous.IsNull() || previous.IsUnknown() || previous.ValueString() == "" {
+		return normalized, nil
+	}
+	_, previousConfig, err := canonicalNodePluginJSON(previous.ValueString())
+	if err != nil {
+		return nil, fmt.Errorf("normalize prior plugin_config: %w", err)
+	}
+	if sharedLists, exists := previousConfig["sharedLists"]; exists {
+		normalized["sharedLists"] = sharedLists
+	}
+	return normalized, nil
 }
 
 func (r *nodePluginResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {

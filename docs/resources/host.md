@@ -20,6 +20,12 @@ resource "remnawave_host" "vless" {
   config_profile_uuid         = remnawave_config_profile.default.uuid
   config_profile_inbound_uuid = remnawave_config_profile.default.inbounds[0].uuid
   tags                        = ["EU", "PREMIUM"]
+
+  # Remnawave 3.3+: rewrite generated client configuration per output format.
+  mapper = jsonencode({
+    mihomo  = [{ op = "set", to = "tfo", value = true }]
+    singbox = [{ op = "set", to = "tcp_fast_open", value = true }]
+  })
 }
 ```
 
@@ -45,6 +51,7 @@ resource "remnawave_host" "vless" {
 - `is_disabled` (Boolean) Whether the host is disabled.
 - `is_hidden` (Boolean) Hide host from subscription.
 - `keep_sni_blank` (Boolean) Keep SNI blank instead of deriving it.
+- `mapper` (String) Per-client host mapper operations as JSON (Remnawave 3.3+). Supports xrayJson, mihomo, base64, and singbox operation arrays.
 - `mihomo_ip_version` (String) Mihomo IP version preference.
 - `mihomo_x25519` (Boolean) Enable Mihomo X25519 proxy.
 - `mux_params` (String) Mux parameters as JSON.

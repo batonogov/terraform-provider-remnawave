@@ -12,14 +12,14 @@ Registry: `batonogov/remnawave`. All provider code lives in `provider/`.
 The Remnawave backend (`github.com/remnawave/backend`) is a NestJS TypeScript
 application with a clean REST API. The panel uses PostgreSQL + Redis (Valkey).
 
-**Compatibility:** Remnawave v2.7.x, v2.8.x, v3.0.x, v3.1.x, and v3.2.x.
-Docker Compose and acceptance tests default to the `remnawave/backend:3.2.2`
-image pinned by digest; CI runs matrix entries against `remnawave/backend:3.1.0`,
-`remnawave/backend:3.0.0`, `remnawave/backend:2.8.1`, and
+**Compatibility:** Remnawave v2.7.x, v2.8.x, v3.0.x, v3.1.x, v3.2.x, and v3.3.x.
+Docker Compose and acceptance tests default to the `remnawave/backend:3.3.0`
+image pinned by digest; CI runs matrix entries against `remnawave/backend:3.2.3`,
+`remnawave/backend:3.1.0`, `remnawave/backend:3.0.0`, `remnawave/backend:2.8.1`, and
 `remnawave/backend:2.7.4`. All compose images
 are pinned by `sha256` digest for reproducibility. To run an explicit
 compatibility check against a different build, override both the tag and its
-digest, e.g. `REMNAWAVE_VERSION=3.2.2 REMNAWAVE_DIGEST=sha256:<digest>`.
+digest, e.g. `REMNAWAVE_VERSION=3.3.0 REMNAWAVE_DIGEST=sha256:<digest>`.
 
 The client auto-detects the server version via `/api/system/metadata` on
 the first version-dependent operation. Version-specific behaviour:
@@ -51,9 +51,20 @@ the first version-dependent operation. Version-specific behaviour:
   webhook configuration, strict VLESS UUID validation, and internal cache/query
   fixes. The provider exposes node `ips` only on 3.2.2+; plugin `webhookUrl`
   remains available through the existing `plugin_config` JSON contract.
+- **3.3.x**: Adds host mapper operations, reusable node integrations and node
+  `integrationUuids`, global node-plugin shared lists, explicit plugin/list sync,
+  connection geocheck jobs, and `respondWithRemarks` in subscription response
+  rules. The provider exposes host mappers, node integration CRUD/list and node
+  assignments, and global shared-list CRUD/list. Response rules remain opaque
+  JSON. Geocheck and explicit plugin/list sync are not yet provider surfaces.
+  Node-plugin writes omit the legacy inline `sharedLists`; reads preserve the
+  configured compatibility view while global list contents are managed through
+  `remnawave_shared_list`.
 
 Existing configurations require no changes — the provider transparently
-adapts. The optional node `ips` attribute requires Remnawave 3.2.2 or later.
+adapts. The optional node `ips` attribute requires Remnawave 3.2.2 or later;
+host `mapper`, node `integration_uuids`, node integrations, and global shared
+lists require Remnawave 3.3 or later.
 
 ## Commands
 
@@ -89,7 +100,7 @@ Panel branding PATCH payloads must include both `title` and `logoUrl` keys when
 `brandingSettings` is present. Remnawave accepts `null` values, so do not add
 `omitempty` to those nested JSON fields.
 
-### Resources (26)
+### Resources (28)
 
 | Resource | File | API Base |
 | --- | --- | --- |
@@ -104,6 +115,8 @@ Panel branding PATCH payloads must include both `title` and `logoUrl` keys when
 | `remnawave_panel_settings` | `resource_panel_settings.go` | `/api/remnawave-settings` |
 | `remnawave_snippet` | `resource_snippet.go` | `/api/snippets` |
 | `remnawave_node_plugin` | `resource_node_plugin.go` | `/api/node-plugins` |
+| `remnawave_node_integration` | `resource_node_integration.go` | `/api/node-integrations` |
+| `remnawave_shared_list` | `resource_shared_list.go` | `/api/node-plugins/shared-lists` |
 | `remnawave_api_token` | `resource_api_token.go` | `/api/tokens` |
 | `remnawave_infra_provider` | `resource_infra_provider.go` | `/api/infra-billing/providers` |
 | `remnawave_billing_node` | `resource_billing_node.go` | `/api/infra-billing/nodes` |
@@ -120,7 +133,7 @@ Panel branding PATCH payloads must include both `title` and `logoUrl` keys when
 | `remnawave_user_action` | `resource_user_action.go` | `/api/users/:identifier/actions/{enable,disable,reset-traffic,revoke,extend}` |
 | `remnawave_passkey` | `resource_passkey.go` | `/api/passkeys` |
 
-### Data Sources (25)
+### Data Sources (27)
 
 Data sources live in `data_sources.go` (original) and `data_source_*.go` (newer).
 
@@ -151,6 +164,8 @@ Data sources live in `data_sources.go` (original) and `data_source_*.go` (newer)
 | `remnawave_passkeys` | `data_source_passkeys.go` | `/api/passkeys` |
 | `remnawave_internal_squads` | `data_source_internal_squads.go` | `/api/internal-squads` |
 | `remnawave_external_squads` | `data_source_external_squads.go` | `/api/external-squads` |
+| `remnawave_node_integrations` | `data_source_node_integrations.go` | `/api/node-integrations` |
+| `remnawave_shared_lists` | `data_source_shared_lists.go` | `/api/node-plugins/shared-lists` |
 
 ### Acceptance Tests
 
@@ -212,7 +227,7 @@ removes untracked duplicate/generated files such as `docs/* 2.md`; preview with
 | Build | `go build ./...` |
 | Unit Tests | `go test ./provider -skip TestAcc`, race detector, **30% coverage floor** |
 | Documentation | `terraform fmt -check` on examples; `tfplugindocs generate/validate`; fails if `docs/` drifts |
-| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against 3.2.2 (default), 3.1.0, 3.0.0, 2.8.1, and 2.7.4 |
+| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against 3.3.0 (default), 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 |
 
 All GitHub Actions across the repo **must be pinned by commit SHA**
 (see `release-please.yml`); Dependabot keeps them current. Do not switch

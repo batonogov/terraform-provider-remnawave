@@ -22,16 +22,17 @@ type nodesDataSourceModel struct {
 }
 
 type nodeItem struct {
-	UUID        types.String `tfsdk:"uuid"`
-	ID          types.Int64  `tfsdk:"id"`
-	Name        types.String `tfsdk:"name"`
-	Address     types.String `tfsdk:"address"`
-	Port        types.Int64  `tfsdk:"port"`
-	CountryCode types.String `tfsdk:"country_code"`
-	IsConnected types.Bool   `tfsdk:"is_connected"`
-	IsDisabled  types.Bool   `tfsdk:"is_disabled"`
-	UsersOnline types.Int64  `tfsdk:"users_online"`
-	IPs         types.Set    `tfsdk:"ips"`
+	UUID             types.String `tfsdk:"uuid"`
+	ID               types.Int64  `tfsdk:"id"`
+	Name             types.String `tfsdk:"name"`
+	Address          types.String `tfsdk:"address"`
+	Port             types.Int64  `tfsdk:"port"`
+	CountryCode      types.String `tfsdk:"country_code"`
+	IsConnected      types.Bool   `tfsdk:"is_connected"`
+	IsDisabled       types.Bool   `tfsdk:"is_disabled"`
+	UsersOnline      types.Int64  `tfsdk:"users_online"`
+	IntegrationUUIDs types.Set    `tfsdk:"integration_uuids"`
+	IPs              types.Set    `tfsdk:"ips"`
 }
 
 func NewNodesDataSource() datasource.DataSource {
@@ -63,6 +64,11 @@ func nodesDataSourceSchema() schema.Schema {
 						"is_connected": schema.BoolAttribute{Computed: true},
 						"is_disabled":  schema.BoolAttribute{Computed: true},
 						"users_online": schema.Int64Attribute{Computed: true},
+						"integration_uuids": schema.SetAttribute{
+							Computed:    true,
+							ElementType: types.StringType,
+							Description: "Node integration UUIDs (available on Remnawave 3.3+).",
+						},
 						"ips": schema.SetNestedAttribute{
 							Computed: true,
 							NestedObject: schema.NestedAttributeObject{
@@ -113,6 +119,13 @@ func nodeToItem(ctx context.Context, n Node) (nodeItem, diag.Diagnostics) {
 		item.Port = types.Int64Null()
 	}
 	item.IPs, diagnostics = nodeIPsToSet(ctx, n.IPs)
+	if n.IntegrationUUIDs != nil {
+		var integrationDiagnostics diag.Diagnostics
+		item.IntegrationUUIDs, integrationDiagnostics = types.SetValueFrom(ctx, types.StringType, *n.IntegrationUUIDs)
+		diagnostics.Append(integrationDiagnostics...)
+	} else {
+		item.IntegrationUUIDs = types.SetNull(types.StringType)
+	}
 	return item, diagnostics
 }
 

@@ -103,6 +103,18 @@ func TestClientAPIContracts(t *testing.T) {
 		{name: "UpdateNodePlugin", method: http.MethodPatch, path: "/api/node-plugins", args: []any{&NodePlugin{UUID: "item-id", Name: "plugin"}}},
 		{name: "DeleteNodePlugin", method: http.MethodDelete, path: "/api/node-plugins/item-id", args: []any{"item-id"}},
 
+		{name: "CreateNodeIntegration", method: http.MethodPost, path: "/api/node-integrations", args: []any{&NodeIntegration{Name: "integration", Config: map[string]any{}}}, wantJSON: map[string]any{"name": "integration", "description": nil, "config": map[string]any{}}},
+		{name: "GetAllNodeIntegrations", method: http.MethodGet, path: "/api/node-integrations"},
+		{name: "GetNodeIntegrationByUUID", method: http.MethodGet, path: "/api/node-integrations/item-id", args: []any{"item-id"}},
+		{name: "UpdateNodeIntegration", method: http.MethodPatch, path: "/api/node-integrations", args: []any{&NodeIntegration{UUID: "item-id", Name: "integration", Config: map[string]any{}, RestartNodes: true}}, wantJSON: map[string]any{"uuid": "item-id", "name": "integration", "description": nil, "config": map[string]any{}, "restartNodes": true}},
+		{name: "DeleteNodeIntegration", method: http.MethodDelete, path: "/api/node-integrations/item-id", args: []any{"item-id"}},
+
+		{name: "CreateSharedList", method: http.MethodPost, path: "/api/node-plugins/shared-lists", args: []any{&SharedList{Name: "private", Config: map[string]any{"type": "ipList", "items": []any{}}}}, wantJSON: map[string]any{"name": "private", "config": map[string]any{"type": "ipList", "items": []any{}}}},
+		{name: "GetAllSharedLists", method: http.MethodGet, path: "/api/node-plugins/shared-lists"},
+		{name: "GetSharedListByName", method: http.MethodGet, path: "/api/node-plugins/shared-lists/private", args: []any{"private"}},
+		{name: "UpdateSharedList", method: http.MethodPatch, path: "/api/node-plugins/shared-lists", args: []any{&SharedList{Name: "private", Config: map[string]any{"type": "ipList", "items": []any{}}}}, wantJSON: map[string]any{"name": "private", "config": map[string]any{"type": "ipList", "items": []any{}}}},
+		{name: "DeleteSharedList", method: http.MethodDelete, path: "/api/node-plugins/shared-lists/private", args: []any{"private"}},
+
 		{name: "CreateApiToken", method: http.MethodPost, path: "/api/tokens", args: []any{&ApiToken{Name: "token", ExpiresInDays: 7, Scopes: []string{"users:read"}}}, wantJSON: map[string]any{"name": "token", "expiresInDays": float64(7), "scopes": []any{"users:read"}}},
 		{name: "DeleteApiToken", method: http.MethodDelete, path: "/api/tokens/item-id", args: []any{"item-id"}},
 		{name: "GetAllApiTokens", method: http.MethodGet, path: "/api/tokens"},
@@ -398,11 +410,13 @@ func TestNodeUpdateContractIncludesExplicitEmptyIPs(t *testing.T) {
 	}
 
 	emptyIPs := []NodeIP{}
+	emptyIntegrations := []string{}
 	_, err = client.UpdateNode(context.Background(), &Node{
-		UUID:    "node-uuid",
-		Name:    "test-node",
-		Address: "10.0.0.1",
-		IPs:     &emptyIPs,
+		UUID:             "node-uuid",
+		Name:             "test-node",
+		Address:          "10.0.0.1",
+		IntegrationUUIDs: &emptyIntegrations,
+		IPs:              &emptyIPs,
 	})
 	if err != nil {
 		t.Fatalf("UpdateNode() error = %v", err)
@@ -415,6 +429,59 @@ func TestNodeUpdateContractIncludesExplicitEmptyIPs(t *testing.T) {
 	ips, ok := got["ips"].([]any)
 	if !ok || len(ips) != 0 {
 		t.Fatalf("ips = %#v, present = %v, want explicit empty array", got["ips"], ok)
+	}
+	integrations, ok := got["integrationUuids"].([]any)
+	if !ok || len(integrations) != 0 {
+		t.Fatalf("integrationUuids = %#v, present = %v, want explicit empty array", got["integrationUuids"], ok)
+	}
+}
+
+func TestNodePluginUpdateContractStripsLegacySharedListsOn3_3(t *testing.T) {
+	var captured []byte
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/api/system/metadata" {
+			_, _ = io.WriteString(w, `{"response":{"version":"3.3.0"}}`)
+			return
+		}
+		if r.Method != http.MethodPatch || r.URL.Path != "/api/node-plugins" {
+			t.Errorf("request = %s %s", r.Method, r.URL.Path)
+		}
+		captured, _ = io.ReadAll(r.Body)
+		_, _ = io.WriteString(w, `{"response":{"uuid":"plugin-id","name":"plugin","pluginConfig":{"connectionDrop":{"enabled":false}}}}`)
+	}))
+	defer server.Close()
+
+	client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "contract-token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := map[string]any{
+		"sharedLists":    []any{map[string]any{"name": "ext:private", "type": "ipList", "items": []any{"10.0.0.0/8"}}},
+		"connectionDrop": map[string]any{"enabled": false},
+	}
+	updated, err := client.UpdateNodePlugin(t.Context(), &NodePlugin{UUID: "plugin-id", Name: "plugin", PluginConfig: original})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var body map[string]any
+	if err := json.Unmarshal(captured, &body); err != nil {
+		t.Fatal(err)
+	}
+	config, ok := body["pluginConfig"].(map[string]any)
+	if !ok {
+		t.Fatalf("pluginConfig = %#v", body["pluginConfig"])
+	}
+	if _, exists := config["sharedLists"]; exists {
+		t.Fatalf("3.3 PATCH contains legacy sharedLists: %s", captured)
+	}
+	if _, exists := original["sharedLists"]; !exists {
+		t.Fatal("UpdateNodePlugin mutated the caller's plugin config")
+	}
+	responseConfig, ok := updated.PluginConfig.(map[string]any)
+	if !ok || responseConfig["sharedLists"] == nil {
+		t.Fatalf("response pluginConfig = %#v, want preserved sharedLists", updated.PluginConfig)
 	}
 }
 

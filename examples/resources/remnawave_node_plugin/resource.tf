@@ -2,7 +2,6 @@ resource "remnawave_node_plugin" "pre_start" {
   name = "Pre-Start Cleanup"
 
   plugin_config = jsonencode({
-    sharedLists = []
     preStart = {
       enabled = true
       cleanupSockets = {
