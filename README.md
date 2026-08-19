@@ -91,7 +91,7 @@ terraform {
   required_providers {
     remnawave = {
       source  = "batonogov/remnawave"
-      version = "~> 1.5.0" # x-release-please-version
+      version = "~> 1.6.0" # x-release-please-version
     }
   }
 }
@@ -417,7 +417,7 @@ terraform {
   required_providers {
     remnawave = {
       source  = "batonogov/remnawave"
-      version = "~> 1.5.0" # x-release-please-version
+      version = "~> 1.6.0" # x-release-please-version
     }
   }
 }
