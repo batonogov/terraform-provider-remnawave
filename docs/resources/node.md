@@ -37,6 +37,7 @@ resource "remnawave_node" "de_fra_01" {
 - `config_profile_inbounds` (Set of String) Set of inbound UUIDs enabled for this node's config profile. When omitted, the prior state value is preserved, preventing accidental removal of all active inbounds on update.
 - `consumption_multiplier` (Number) User traffic consumption multiplier (0.0-100.0).
 - `country_code` (String) ISO 3166-1 alpha-2 country code (2 chars).
+- `integration_uuids` (Set of String) Node integration UUIDs (Remnawave 3.3+, up to 20). Changing this set force-restarts the active node profile.
 - `ips` (Attributes Set) IP addresses assigned to the node and their traffic roles (Remnawave 3.2.2+, up to 64). (see [below for nested schema](#nestedatt--ips))
 - `is_traffic_tracking_active` (Boolean) Enable traffic tracking for this node.
 - `node_consumption_multiplier` (Number) Node traffic consumption multiplier (0.0-100.0).

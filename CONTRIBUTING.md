@@ -3,7 +3,7 @@
 ## Development Setup
 
 ```bash
-# Install Go 1.26.5+, Terraform 1.12+, Task, and Docker
+# Install Go 1.26.6+, Terraform 1.12+, Task, and Docker
 
 # Clone
 git clone https://github.com/batonogov/terraform-provider-remnawave.git
@@ -26,7 +26,7 @@ task docs:check
 task test:acc
 
 # Test a different explicitly pinned backend build
-REMNAWAVE_VERSION=3.2.3 REMNAWAVE_DIGEST=sha256:<digest> task test:acc
+REMNAWAVE_VERSION=3.3.0 REMNAWAVE_DIGEST=sha256:<digest> task test:acc
 ```
 
 ## PR Workflow

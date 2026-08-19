@@ -158,6 +158,42 @@ func TestNodePluginPreStartVersion(t *testing.T) {
 	}
 }
 
+func TestNodePlugin3_3StateKeepsConfiguredSharedLists(t *testing.T) {
+	t.Parallel()
+
+	resource := nodePluginResource{client: &Client{serverVersion: "3.3"}}
+	remote := map[string]any{
+		"connectionDrop": map[string]any{"enabled": true, "whitelistIps": []any{"ext:private"}},
+		"sharedLists":    []any{map[string]any{"name": "ext:private", "type": "ipList", "items": []any{"10.0.0.0/8"}}},
+	}
+
+	configured, err := resource.pluginConfigForState(t.Context(), remote, types.StringValue(`{"connectionDrop":{"enabled":true,"whitelistIps":["ext:private"]},"sharedLists":[]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	configuredMap := configured.(map[string]any)
+	if lists := configuredMap["sharedLists"].([]any); len(lists) != 0 {
+		t.Fatalf("configured empty sharedLists = %#v", lists)
+	}
+
+	legacy, err := resource.pluginConfigForState(t.Context(), remote, types.StringValue(`{"connectionDrop":{"enabled":true,"whitelistIps":["ext:private"]},"sharedLists":[{"name":"ext:private","type":"ipList","items":["10.0.0.0/8"]}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyMap := legacy.(map[string]any)
+	if lists := legacyMap["sharedLists"].([]any); len(lists) != 1 {
+		t.Fatalf("legacy sharedLists = %#v", lists)
+	}
+
+	imported, err := resource.pluginConfigForState(t.Context(), remote, types.StringNull())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lists := imported.(map[string]any)["sharedLists"].([]any); len(lists) != 0 {
+		t.Fatalf("imported sharedLists = %#v", lists)
+	}
+}
+
 func TestCanonicalHeaderJSON(t *testing.T) {
 	t.Parallel()
 
@@ -518,6 +554,7 @@ func TestNodeModelConversions(t *testing.T) {
 		ConsumptionMultiplier:     types.Float64Value(1.2),
 		NodeConsumptionMultiplier: types.Float64Value(1.3),
 		Tags:                      testStringSet("NODE", "TEST"),
+		IntegrationUUIDs:          testStringSet("integration-1", "integration-2"),
 		IPs:                       ips,
 		ProviderUUID:              types.StringValue("provider-id"),
 		ActivePluginUUID:          types.StringValue("plugin-id"),
@@ -536,7 +573,7 @@ func TestNodeModelConversions(t *testing.T) {
 	for _, item := range *node.IPs {
 		gotIPs[item.IP] = item.Status
 	}
-	if node.UUID != "node-id" || node.Port == nil || *node.Port != 2222 || node.ProxyURL == nil || *node.ProxyURL != "socks5://proxy.example.com:1080" || node.Note == nil || *node.Note != "note" || node.ConfigProfile == nil || len(node.ConfigProfile.ActiveInbounds) != 2 || node.ConsumptionMultiplier == nil || *node.ConsumptionMultiplier != 1.2 || len(node.Tags) != 2 || len(*node.IPs) != 2 || gotIPs["192.0.2.10"] != "MANAGEMENT" || gotIPs["2001:db8::10"] != "INBOUND" {
+	if node.UUID != "node-id" || node.Port == nil || *node.Port != 2222 || node.ProxyURL == nil || *node.ProxyURL != "socks5://proxy.example.com:1080" || node.Note == nil || *node.Note != "note" || node.ConfigProfile == nil || len(node.ConfigProfile.ActiveInbounds) != 2 || node.ConsumptionMultiplier == nil || *node.ConsumptionMultiplier != 1.2 || len(node.Tags) != 2 || node.IntegrationUUIDs == nil || len(*node.IntegrationUUIDs) != 2 || len(*node.IPs) != 2 || gotIPs["192.0.2.10"] != "MANAGEMENT" || gotIPs["2001:db8::10"] != "INBOUND" {
 		t.Errorf("planToNode() = %#v", node)
 	}
 
@@ -567,6 +604,7 @@ func TestNodeModelConversions(t *testing.T) {
 	proxyURL := "socks5://proxy.example.com:1080"
 	providerUUID := "provider-id"
 	pluginUUID := "plugin-id"
+	integrationUUIDs := []string{"integration-1"}
 	note := "from server"
 	lastStatusChange := "2026-04-01T00:00:00.000Z"
 	lastStatusMessage := "connected"
@@ -578,7 +616,7 @@ func TestNodeModelConversions(t *testing.T) {
 		TrafficLimitBytes: &traffic, TrafficResetDay: &reset, NotifyPercent: &notify,
 		CountryCode: "DE", Note: &note, UsersOnline: 5, ProxyURL: &proxyURL,
 		ConsumptionMultiplier: &consumption, NodeConsumptionMultiplier: &nodeConsumption,
-		Tags: []string{"NODE"}, IPs: &[]NodeIP{{IP: "192.0.2.10", Status: "MANAGEMENT"}}, ProviderUUID: &providerUUID, ActivePluginUUID: &pluginUUID,
+		Tags: []string{"NODE"}, IntegrationUUIDs: &integrationUUIDs, IPs: &[]NodeIP{{IP: "192.0.2.10", Status: "MANAGEMENT"}}, ProviderUUID: &providerUUID, ActivePluginUUID: &pluginUUID,
 		LastStatusChange: &lastStatusChange, LastStatusMessage: &lastStatusMessage,
 		Provider: json.RawMessage(`{"uuid":"provider-id","name":"provider"}`),
 		System:   json.RawMessage(`{"info":{"hostname":"node"}}`), Versions: json.RawMessage(`{"xray":"1.0","node":"2.0"}`),
@@ -587,15 +625,38 @@ func TestNodeModelConversions(t *testing.T) {
 	if diagnostics.HasError() {
 		t.Fatalf("nodeToPlan diagnostics = %v", diagnostics)
 	}
-	if state.UUID.ValueString() != "node-id" || state.ID.ValueInt64() != 42 || state.Port.ValueInt64() != 2222 || state.UsersOnline.ValueInt64() != 5 || state.ConfigProfileInbounds.Elements()[0].(types.String).ValueString() != "inbound-1" || state.ProxyURL.ValueString() != proxyURL || state.ConsumptionMultiplier.ValueFloat64() != 1.5 || len(state.Tags.Elements()) != 1 || len(state.IPs.Elements()) != 1 || state.LastStatusMessage.ValueString() != "connected" || state.ProviderDetails.IsNull() || state.System.ValueString() != `{"info":{"hostname":"node"}}` || state.Versions.IsNull() {
+	if state.UUID.ValueString() != "node-id" || state.ID.ValueInt64() != 42 || state.Port.ValueInt64() != 2222 || state.UsersOnline.ValueInt64() != 5 || state.ConfigProfileInbounds.Elements()[0].(types.String).ValueString() != "inbound-1" || state.ProxyURL.ValueString() != proxyURL || state.ConsumptionMultiplier.ValueFloat64() != 1.5 || len(state.Tags.Elements()) != 1 || len(state.IntegrationUUIDs.Elements()) != 1 || len(state.IPs.Elements()) != 1 || state.LastStatusMessage.ValueString() != "connected" || state.ProviderDetails.IsNull() || state.System.ValueString() != `{"info":{"hostname":"node"}}` || state.Versions.IsNull() {
 		t.Errorf("nodeToPlan() = %#v", state)
 	}
 	diagnostics = nodeToPlan(t.Context(), &Node{UUID: "legacy-node", Name: "legacy", Address: "127.0.0.1"}, &state)
 	if diagnostics.HasError() {
 		t.Fatalf("legacy nodeToPlan diagnostics = %v", diagnostics)
 	}
-	if !state.ID.IsNull() {
-		t.Errorf("nodeToPlan() legacy id = %#v, want null", state.ID)
+	if !state.ID.IsNull() || !state.IntegrationUUIDs.IsNull() {
+		t.Errorf("nodeToPlan() legacy versioned fields = %#v, %#v, want null", state.ID, state.IntegrationUUIDs)
+	}
+}
+
+func TestNodeIntegrationsRequire3_3(t *testing.T) {
+	t.Parallel()
+
+	integrations := testStringSet("00000000-0000-0000-0000-000000000001")
+	for _, tt := range []struct {
+		version string
+		wantErr bool
+	}{
+		{version: "3.2", wantErr: true},
+		{version: "3.3", wantErr: false},
+		{version: "4.0", wantErr: false},
+	} {
+		t.Run(tt.version, func(t *testing.T) {
+			t.Parallel()
+			resource := nodeResource{client: &Client{serverVersion: tt.version}}
+			err := resource.validateIntegrationsVersion(context.Background(), integrations)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateIntegrationsVersion() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }
 
@@ -646,6 +707,7 @@ func TestHostModelConversions(t *testing.T) {
 		MuxParams:                    types.StringValue(`{"enabled":true}`),
 		SockoptParams:                types.StringValue(`{"tcpFastOpen":true}`),
 		FinalMask:                    types.StringValue(`{"enabled":false}`),
+		Mapper:                       types.StringValue(`{"mihomo":[{"op":"set","to":"tfo","value":true}]}`),
 		ServerDescription:            types.StringValue("description"),
 		IsHidden:                     types.BoolValue(true),
 		OverrideSniFromAddress:       types.BoolValue(true),
@@ -666,13 +728,13 @@ func TestHostModelConversions(t *testing.T) {
 		Path:                         types.StringValue("/ws"),
 	}
 	host := planToHost(plan)
-	if host.UUID != "host-id" || host.SNI == nil || *host.SNI != "sni.example.com" || host.Inbound == nil || host.Inbound.ConfigProfileUUID != "profile-id" || !reflect.DeepEqual(host.Tags, []string{"TAG_1", "TAG_2"}) || host.Path == nil || *host.Path != "/ws" || host.VlessRouteID == nil || *host.VlessRouteID != 42 || len(host.ExcludeFromSubscriptionTypes) != 2 {
+	if host.UUID != "host-id" || host.SNI == nil || *host.SNI != "sni.example.com" || host.Inbound == nil || host.Inbound.ConfigProfileUUID != "profile-id" || !reflect.DeepEqual(host.Tags, []string{"TAG_1", "TAG_2"}) || host.Path == nil || *host.Path != "/ws" || host.VlessRouteID == nil || *host.VlessRouteID != 42 || len(host.ExcludeFromSubscriptionTypes) != 2 || string(host.Mapper) != `{"mihomo":[{"op":"set","to":"tfo","value":true}]}` {
 		t.Errorf("planToHost() = %#v", host)
 	}
 
 	state := hostResourceModel{}
 	hostToPlan(host, &state)
-	if state.UUID.ValueString() != "host-id" || state.SNI.ValueString() != "sni.example.com" || len(state.Tags.Elements()) != 2 || state.ConfigProfileInboundUUID.ValueString() != "inbound-id" || state.Path.ValueString() != "/ws" || state.VlessRouteID.ValueInt64() != 42 || state.XHTTPExtraParams.ValueString() != `{"mode":"auto"}` || len(state.ExcludeFromSubscriptionTypes.Elements()) != 2 {
+	if state.UUID.ValueString() != "host-id" || state.SNI.ValueString() != "sni.example.com" || len(state.Tags.Elements()) != 2 || state.ConfigProfileInboundUUID.ValueString() != "inbound-id" || state.Path.ValueString() != "/ws" || state.VlessRouteID.ValueInt64() != 42 || state.XHTTPExtraParams.ValueString() != `{"mode":"auto"}` || state.Mapper.IsNull() || len(state.ExcludeFromSubscriptionTypes.Elements()) != 2 {
 		t.Errorf("hostToPlan() = %#v", state)
 	}
 

@@ -22,7 +22,7 @@ a modern proxy management panel built on top of Xray-core. This project is not
 affiliated with or endorsed by the Remnawave project. Manage VPN users, nodes,
 hosts, squads, billing, subscription pages, and more as infrastructure-as-code.
 
-**At a glance:** 26 resources · 25 data sources · 5 Remnawave versions tested
+**At a glance:** 28 resources · 27 data sources · 6 Remnawave versions tested
 in CI · signed checksums, SBOMs, and build provenance for every release
 
 [Get started in 5 minutes](examples/getting-started/) ·
@@ -64,13 +64,14 @@ also invited to [share what they manage](https://github.com/batonogov/terraform-
 
 ## Compatibility
 
-The provider supports Remnawave panel **v2.7.x, v2.8.x, v3.0.x, v3.1.x, and v3.2.x**.
-The acceptance test suite runs against all five versions in CI on every push
+The provider supports Remnawave panel **v2.7.x, v2.8.x, v3.0.x, v3.1.x, v3.2.x, and v3.3.x**.
+The acceptance test suite runs against all six versions in CI on every push
 to `main` and every pull request — [see the full CI matrix](https://github.com/batonogov/terraform-provider-remnawave/actions/workflows/ci.yml).
 
 | Remnawave version | Status |
 | --- | --- |
-| v3.2.3 | ✅ Tested (primary) |
+| v3.3.0 | ✅ Tested (primary) |
+| v3.2.3 | ✅ Tested (matrix) |
 | v3.1.0 | ✅ Tested (matrix) |
 | v3.0.0 | ✅ Tested (matrix) |
 | v2.8.1 | ✅ Tested (matrix) |
@@ -216,7 +217,7 @@ bodies have a zero-byte limit and are never read or included in diagnostics.
 
 ## Resources
 
-The provider exposes **26 resources** across 7 functional areas:
+The provider exposes **28 resources** across 7 functional areas:
 
 ### Core VPN Management
 
@@ -226,6 +227,7 @@ The provider exposes **26 resources** across 7 functional areas:
 | [`remnawave_node`](docs/resources/node.md) | Xray server node with traffic tracking, tags, consumption multipliers |
 | [`remnawave_host`](docs/resources/host.md) | Connection endpoint (host) for VPN subscriptions |
 | [`remnawave_config_profile`](docs/resources/config_profile.md) | Xray config profile with inbounds, routing, sniffing |
+| [`remnawave_node_integration`](docs/resources/node_integration.md) | Reusable Remnawave 3.3+ node integration configuration |
 
 ### Access Control & Routing
 
@@ -244,6 +246,7 @@ The provider exposes **26 resources** across 7 functional areas:
 | [`remnawave_panel_settings`](docs/resources/panel_settings.md) | Panel branding, auth, passkey settings (singleton) |
 | [`remnawave_snippet`](docs/resources/snippet.md) | Xray config snippet (reusable JSON fragments) |
 | [`remnawave_node_plugin`](docs/resources/node_plugin.md) | Node plugin (e.g. torrent blocker) |
+| [`remnawave_shared_list`](docs/resources/shared_list.md) | Global Remnawave 3.3+ IP/CIDR or ASN list for node plugins |
 
 ### Infrastructure Billing
 
@@ -284,7 +287,7 @@ These resources trigger one-shot operations on `terraform apply`. Use the
 
 ## Data Sources
 
-**25 data sources** for reading panel state:
+**27 data sources** for reading panel state:
 
 ### Inventory
 
@@ -298,6 +301,8 @@ These resources trigger one-shot operations on `terraform apply`. Use the
 | [`remnawave_external_squads`](docs/data-sources/external_squads.md) | List all external squads and their subscription configuration |
 | [`remnawave_host_tags`](docs/data-sources/host_tags.md) | List all unique host tags |
 | [`remnawave_passkeys`](docs/data-sources/passkeys.md) | List WebAuthn passkeys for the current admin |
+| [`remnawave_node_integrations`](docs/data-sources/node_integrations.md) | List Remnawave 3.3+ node integrations and their configuration |
+| [`remnawave_shared_lists`](docs/data-sources/shared_lists.md) | List Remnawave 3.3+ global shared-list previews |
 
 ### System & Health
 
@@ -339,7 +344,7 @@ These resources trigger one-shot operations on `terraform apply`. Use the
 ## Examples
 
 Start with the standalone [`examples/getting-started/`](examples/getting-started/)
-configuration, then browse [`examples/`](examples/) for 51 focused resource and
+configuration, then browse [`examples/`](examples/) for 55 focused resource and
 data-source examples. Some schema examples reference resources or variables
 supplied by the surrounding configuration:
 
@@ -431,7 +436,7 @@ that validate the archive, SBOM, source commit, and workflow identity.
 
 | Tool | Version |
 | --- | --- |
-| [Go](https://go.dev/dl/) | 1.26.5+ (see [`go.mod`](go.mod)) |
+| [Go](https://go.dev/dl/) | 1.26.6+ (see [`go.mod`](go.mod)) |
 | [Terraform CLI](https://developer.hashicorp.com/terraform/install) | 1.12+ |
 | [Task](https://taskfile.dev) | Latest (optional, for `task` commands) |
 | [Docker](https://www.docker.com/) | Required for acceptance tests |
@@ -475,7 +480,7 @@ Acceptance tests run against a real Remnawave panel via Docker Compose
 task test:acc
 
 # Override the Remnawave version under test
-REMNAWAVE_VERSION=3.2.3 REMNAWAVE_DIGEST=sha256:<digest> task test:acc
+REMNAWAVE_VERSION=3.3.0 REMNAWAVE_DIGEST=sha256:<digest> task test:acc
 ```
 
 All compose images are pinned by `sha256` digest for reproducibility.
@@ -501,8 +506,8 @@ Contributions are welcome! Please:
 3. Add or update tests for any changed behavior.
 4. Run `gofmt`, `golangci-lint`, and the relevant test suite before submitting
    a pull request.
-5. Ensure CI is green — acceptance tests run against Remnawave v3.2.3,
-   v3.1.0, v3.0.0, v2.8.1, and v2.7.4.
+5. Ensure CI is green — acceptance tests run against Remnawave v3.3.0,
+   v3.2.3, v3.1.0, v3.0.0, v2.8.1, and v2.7.4.
 
 Releases are machine-gated: the release workflow runs only after successful CI
 for the exact current `main` commit, then verifies the CI jobs, tag target, and

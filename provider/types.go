@@ -88,7 +88,8 @@ type Node struct {
 	ConsumptionMultiplier     *float64           `json:"consumptionMultiplier,omitempty"`
 	NodeConsumptionMultiplier *float64           `json:"nodeConsumptionMultiplier,omitempty"`
 	Tags                      []string           `json:"tags,omitempty"`
-	IPs                       *[]NodeIP          `json:"ips,omitempty"` // v3.2.2+
+	IntegrationUUIDs          *[]string          `json:"integrationUuids,omitempty"` // v3.3+
+	IPs                       *[]NodeIP          `json:"ips,omitempty"`              // v3.2.2+
 	ConfigProfile             *NodeConfigProfile `json:"configProfile,omitempty"`
 	ProviderUUID              *string            `json:"providerUuid,omitempty"`
 	Provider                  json.RawMessage    `json:"provider,omitempty"`
@@ -175,6 +176,7 @@ type Host struct {
 	XrayJsonTemplateUUID         *string         `json:"xrayJsonTemplateUuid,omitempty"`
 	ExcludedInternalSquads       []string        `json:"excludedInternalSquads,omitempty"`
 	ExcludeFromSubscriptionTypes []string        `json:"excludeFromSubscriptionTypes,omitempty"`
+	Mapper                       json.RawMessage `json:"mapper,omitempty"` // v3.3+
 	ViewPosition                 int             `json:"viewPosition,omitempty"`
 	CreatedAt                    string          `json:"createdAt,omitempty"`
 	UpdatedAt                    string          `json:"updatedAt,omitempty"`
@@ -332,6 +334,37 @@ type NodePlugin struct {
 	UUID         string `json:"uuid,omitempty"`
 	Name         string `json:"name"`
 	PluginConfig any    `json:"pluginConfig,omitempty"`
+}
+
+// NodeIntegration maps to the Remnawave 3.3+ node-integrations model.
+type NodeIntegration struct {
+	UUID         string         `json:"uuid,omitempty"`
+	Name         string         `json:"name"`
+	Description  *string        `json:"description"`
+	Config       map[string]any `json:"config"`
+	RestartNodes bool           `json:"restartNodes,omitempty"`
+}
+
+type nodeIntegrationsListResponse struct {
+	Total            int               `json:"total"`
+	NodeIntegrations []NodeIntegration `json:"nodeIntegrations"`
+}
+
+// SharedList maps to the Remnawave 3.3+ global node-plugin shared-list model.
+type SharedList struct {
+	Name   string         `json:"name"`
+	Config map[string]any `json:"config"`
+}
+
+type SharedListPreview struct {
+	Name       string `json:"name"`
+	Type       string `json:"type"`
+	ItemsCount int64  `json:"itemsCount"`
+}
+
+type sharedListsListResponse struct {
+	Total       int                 `json:"total"`
+	SharedLists []SharedListPreview `json:"sharedLists"`
 }
 
 // ApiToken maps to the Remnawave ApiToken model.

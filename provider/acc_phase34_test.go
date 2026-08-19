@@ -349,26 +349,44 @@ func TestAccNodePluginIPv6_3_2_3(t *testing.T) {
 	}
 	endpoint, authBlock := testAccProviderBlock()
 	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
+	sharedListResource := ""
+	sharedListsConfig := `sharedLists = [{
+      name  = "ext:ipv6-6to4"
+      type  = "ipList"
+      items = ["2002:c000:204::1", "2002:c000:204::/48"]
+    }]`
+	whitelist := `"2002:c000:204::1"`
+	pluginDependency := ""
+	if isBackendAtLeast3_3() {
+		sharedListResource = `
+resource "remnawave_shared_list" "ipv6" {
+  name = "ipv6-6to4"
+  config = jsonencode({
+    type  = "ipList"
+    items = ["2002:c000:204::1", "2002:c000:204::/48"]
+  })
+}
+`
+		sharedListsConfig = "sharedLists = []"
+		whitelist = `"ext:ipv6-6to4"`
+		pluginDependency = "  depends_on = [remnawave_shared_list.ipv6]\n"
+	}
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
 		Steps: []resource.TestStep{{
-			Config: providerCfg + `
+			Config: providerCfg + sharedListResource + fmt.Sprintf(`
 resource "remnawave_node_plugin" "ipv6" {
   name = "test-plugin-ipv6-6to4"
-  plugin_config = jsonencode({
-    sharedLists = [{
-      name  = "ext:ipv6-6to4"
-      type  = "ipList"
-      items = ["2002:c000:204::1", "2002:c000:204::/48"]
-    }]
+%s  plugin_config = jsonencode({
+    %s
     connectionDrop = {
       enabled      = true
-      whitelistIps = ["2002:c000:204::1"]
+      whitelistIps = [%s]
     }
   })
 }
-`,
+`, pluginDependency, sharedListsConfig, whitelist),
 			Check: resource.ComposeAggregateTestCheckFunc(
 				resource.TestCheckResourceAttrSet("remnawave_node_plugin.ipv6", "uuid"),
 				resource.TestCheckResourceAttrSet("remnawave_node_plugin.ipv6", "plugin_config"),

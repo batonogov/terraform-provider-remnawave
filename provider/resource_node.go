@@ -42,6 +42,7 @@ type nodeResourceModel struct {
 	ConsumptionMultiplier     types.Float64 `tfsdk:"consumption_multiplier"`
 	NodeConsumptionMultiplier types.Float64 `tfsdk:"node_consumption_multiplier"`
 	Tags                      types.Set     `tfsdk:"tags"`
+	IntegrationUUIDs          types.Set     `tfsdk:"integration_uuids"`
 	IPs                       types.Set     `tfsdk:"ips"`
 	ProviderUUID              types.String  `tfsdk:"provider_uuid"`
 	ActivePluginUUID          types.String  `tfsdk:"active_plugin_uuid"`
@@ -222,6 +223,15 @@ func (r *nodeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				ElementType: types.StringType,
 				Description: "Node tags (up to 10).",
 			},
+			"integration_uuids": schema.SetAttribute{
+				Optional:    true,
+				Computed:    true,
+				ElementType: types.StringType,
+				Description: "Node integration UUIDs (Remnawave 3.3+, up to 20). Changing this set force-restarts the active node profile.",
+				Validators: []validator.Set{
+					setvalidator.SizeAtMost(20),
+				},
+			},
 			"ips": schema.SetNestedAttribute{
 				Optional:    true,
 				Computed:    true,
@@ -337,6 +347,10 @@ func (r *nodeResource) Create(ctx context.Context, req resource.CreateRequest, r
 		resp.Diagnostics.AddError("Unsupported node IP configuration", err.Error())
 		return
 	}
+	if err := r.validateIntegrationsVersion(ctx, plan.IntegrationUUIDs); err != nil {
+		resp.Diagnostics.AddError("Unsupported node integration configuration", err.Error())
+		return
+	}
 	node, diagnostics := planToNode(ctx, &plan)
 	resp.Diagnostics.Append(diagnostics...)
 	if resp.Diagnostics.HasError() {
@@ -396,6 +410,10 @@ func (r *nodeResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		resp.Diagnostics.AddError("Unsupported node IP configuration", err.Error())
 		return
 	}
+	if err := r.validateIntegrationsVersion(ctx, plan.IntegrationUUIDs); err != nil {
+		resp.Diagnostics.AddError("Unsupported node integration configuration", err.Error())
+		return
+	}
 	node, diagnostics := planToNode(ctx, &plan)
 	resp.Diagnostics.Append(diagnostics...)
 	if resp.Diagnostics.HasError() {
@@ -449,6 +467,13 @@ func (r *nodeResource) validateIPsVersion(ctx context.Context, ips types.Set) er
 	return nil
 }
 
+func (r *nodeResource) validateIntegrationsVersion(ctx context.Context, integrations types.Set) error {
+	if integrations.IsNull() || integrations.IsUnknown() || len(integrations.Elements()) == 0 {
+		return nil
+	}
+	return requireBackend3_3(ctx, r.client, "node integration assignments")
+}
+
 // ─── Conversions ───
 
 func planToNode(ctx context.Context, p *nodeResourceModel) (*Node, diag.Diagnostics) {
@@ -492,6 +517,13 @@ func planToNode(ctx context.Context, p *nodeResourceModel) (*Node, diag.Diagnost
 		for _, value := range p.Tags.Elements() {
 			n.Tags = append(n.Tags, value.(types.String).ValueString())
 		}
+	}
+	if !p.IntegrationUUIDs.IsNull() && !p.IntegrationUUIDs.IsUnknown() {
+		integrationUUIDs := make([]string, 0, len(p.IntegrationUUIDs.Elements()))
+		for _, value := range p.IntegrationUUIDs.Elements() {
+			integrationUUIDs = append(integrationUUIDs, value.(types.String).ValueString())
+		}
+		n.IntegrationUUIDs = &integrationUUIDs
 	}
 	if !p.IPs.IsNull() && !p.IPs.IsUnknown() {
 		var ips []nodeIPResourceModel
@@ -656,6 +688,12 @@ func nodeToPlan(ctx context.Context, n *Node, p *nodeResourceModel) diag.Diagnos
 	var conversionDiagnostics diag.Diagnostics
 	p.Tags, conversionDiagnostics = types.SetValueFrom(ctx, types.StringType, n.Tags)
 	diagnostics.Append(conversionDiagnostics...)
+	if n.IntegrationUUIDs != nil {
+		p.IntegrationUUIDs, conversionDiagnostics = types.SetValueFrom(ctx, types.StringType, *n.IntegrationUUIDs)
+		diagnostics.Append(conversionDiagnostics...)
+	} else {
+		p.IntegrationUUIDs = types.SetNull(types.StringType)
+	}
 	p.IPs, conversionDiagnostics = nodeIPsToSet(ctx, n.IPs)
 	diagnostics.Append(conversionDiagnostics...)
 	if n.ProviderUUID != nil {

@@ -17,7 +17,6 @@ resource "remnawave_node_plugin" "pre_start" {
   name = "Pre-Start Cleanup"
 
   plugin_config = jsonencode({
-    sharedLists = []
     preStart = {
       enabled = true
       cleanupSockets = {
@@ -38,7 +37,7 @@ resource "remnawave_node_plugin" "pre_start" {
 
 ### Optional
 
-- `plugin_config` (String) Plugin config as JSON. Supported keys are sharedLists, torrentBlocker, ingressFilter, egressFilter, connectionDrop, and preStart (Remnawave 3.1+).
+- `plugin_config` (String) Plugin config as JSON. Supported keys are sharedLists, torrentBlocker, ingressFilter, egressFilter, connectionDrop, and preStart (Remnawave 3.1+). On Remnawave 3.3+, sharedLists is read as an effective compatibility view and omitted from plugin writes; manage global list contents with remnawave_shared_list.
 
 ### Read-Only
 

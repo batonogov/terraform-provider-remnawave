@@ -36,6 +36,7 @@ type hostResourceModel struct {
 	MuxParams              types.String `tfsdk:"mux_params"`
 	SockoptParams          types.String `tfsdk:"sockopt_params"`
 	FinalMask              types.String `tfsdk:"final_mask"`
+	Mapper                 types.String `tfsdk:"mapper"`
 	ServerDescription      types.String `tfsdk:"server_description"`
 	IsHidden               types.Bool   `tfsdk:"is_hidden"`
 	OverrideSniFromAddress types.Bool   `tfsdk:"override_sni_from_address"`
@@ -129,6 +130,12 @@ func (r *hostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"mux_params":         schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Mux parameters as JSON."},
 			"sockopt_params":     schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Socket options as JSON."},
 			"final_mask":         schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}}, Description: "Final mask configuration as JSON."},
+			"mapper": schema.StringAttribute{
+				Optional:      true,
+				Computed:      true,
+				PlanModifiers: []planmodifier.String{canonicalJSONPlanModifier{}},
+				Description:   "Per-client host mapper operations as JSON (Remnawave 3.3+). Supports xrayJson, mihomo, base64, and singbox operation arrays.",
+			},
 			"server_description": schema.StringAttribute{
 				Optional:    true,
 				Description: "Short server description (max 30 chars).",
@@ -234,6 +241,10 @@ func (r *hostResource) Create(ctx context.Context, req resource.CreateRequest, r
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	if err := r.validateMapperVersion(ctx, plan.Mapper); err != nil {
+		resp.Diagnostics.AddError("Unsupported host mapper", err.Error())
+		return
+	}
 
 	host := planToHost(&plan)
 	created, err := r.client.CreateHost(ctx, host)
@@ -279,6 +290,10 @@ func (r *hostResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	if err := r.validateMapperVersion(ctx, plan.Mapper); err != nil {
+		resp.Diagnostics.AddError("Unsupported host mapper", err.Error())
+		return
+	}
 
 	host := planToHost(&plan)
 	host.UUID = plan.UUID.ValueString()
@@ -309,6 +324,13 @@ func (r *hostResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 
 func (r *hostResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("uuid"), types.StringValue(req.ID))...)
+}
+
+func (r *hostResource) validateMapperVersion(ctx context.Context, mapper types.String) error {
+	if mapper.IsNull() || mapper.IsUnknown() || mapper.ValueString() == "" {
+		return nil
+	}
+	return requireBackend3_3(ctx, r.client, "host mappers")
 }
 
 // ─── Conversions ───
@@ -357,6 +379,9 @@ func planToHost(p *hostResourceModel) *Host {
 	}
 	if !p.FinalMask.IsNull() && !p.FinalMask.IsUnknown() {
 		h.FinalMask = json.RawMessage(p.FinalMask.ValueString())
+	}
+	if !p.Mapper.IsNull() && !p.Mapper.IsUnknown() {
+		h.Mapper = json.RawMessage(p.Mapper.ValueString())
 	}
 	if !p.PinnedPeerCertSha256.IsNull() && !p.PinnedPeerCertSha256.IsUnknown() {
 		value := p.PinnedPeerCertSha256.ValueString()
@@ -461,6 +486,7 @@ func hostToPlan(h *Host, p *hostResourceModel) {
 	p.MuxParams = rawJSONToString(h.MuxParams)
 	p.SockoptParams = rawJSONToString(h.SockoptParams)
 	p.FinalMask = rawJSONToString(h.FinalMask)
+	p.Mapper = rawJSONToString(h.Mapper)
 	if h.PinnedPeerCertSha256 != nil {
 		p.PinnedPeerCertSha256 = types.StringValue(*h.PinnedPeerCertSha256)
 	} else {

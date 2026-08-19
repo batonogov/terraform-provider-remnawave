@@ -6,7 +6,7 @@ after verification.
 
 ## Prerequisites
 
-- A running Remnawave panel in the supported 2.7.x–3.2.x range
+- A running Remnawave panel in the supported 2.7.x–3.3.x range
 - Terraform 1.x
 - An API token created in the Remnawave panel
 
