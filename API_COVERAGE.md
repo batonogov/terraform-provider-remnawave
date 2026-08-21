@@ -21,7 +21,7 @@ version-specific contracts at runtime.
 - Resources: 28
 - Data sources: 27
 - Exported client operations: 120
-- Acceptance test entry points: 85
+- Acceptance test entry points: 86
 
 The historical backend command count and current client operation count above
 are intentionally different metrics. Backend commands include authentication,
