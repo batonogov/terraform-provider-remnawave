@@ -2,9 +2,12 @@ package provider
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 func TestAccNodeIntegrationResourceAndDataSource(t *testing.T) {
@@ -136,4 +139,68 @@ resource "remnawave_shared_list" "test" {
 			},
 		},
 	})
+}
+
+// TestAccNodePluginTorrentBlocker exercises the torrentBlocker plugin contract
+// and the 3.3.1 rulePlacement key. On 3.3.1 the backend injects its own
+// rulePlacement default, so the first step also covers the provider's
+// normalization of that value.
+func TestAccNodePluginTorrentBlocker(t *testing.T) {
+	testAccPreCheck(t)
+	if !isBackendAtLeast3_3() {
+		t.Skip("the shared-list free torrentBlocker contract requires Remnawave 3.3+")
+	}
+	endpoint, authBlock := testAccProviderBlock()
+	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
+
+	config := func(rulePlacement string) string {
+		return providerCfg + fmt.Sprintf(`
+resource "remnawave_node_plugin" "torrent_blocker" {
+  name = "test-plugin-torrent-blocker"
+  plugin_config = jsonencode({
+    sharedLists = []
+    torrentBlocker = {
+      enabled       = false
+      blockDuration = 3600
+      ignoreLists   = {}
+%s    }
+  })
+}
+`, rulePlacement)
+	}
+
+	steps := []resource.TestStep{{
+		Config: config(""),
+		Check: resource.ComposeAggregateTestCheckFunc(
+			resource.TestCheckResourceAttrSet("remnawave_node_plugin.torrent_blocker", "uuid"),
+			testAccCheckNodePluginConfigOmitsRulePlacement("remnawave_node_plugin.torrent_blocker"),
+		),
+	}}
+	if isBackendAtLeast3_3_1() {
+		steps = append(steps, resource.TestStep{
+			Config: config("      rulePlacement = 5\n"),
+			Check: resource.ComposeAggregateTestCheckFunc(
+				resource.TestMatchResourceAttr("remnawave_node_plugin.torrent_blocker", "plugin_config",
+					regexp.MustCompile(`"rulePlacement":5`)),
+			),
+		})
+	}
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+		Steps:                    steps,
+	})
+}
+
+func testAccCheckNodePluginConfigOmitsRulePlacement(name string) resource.TestCheckFunc {
+	return func(state *terraform.State) error {
+		rs, ok := state.RootModule().Resources[name]
+		if !ok {
+			return fmt.Errorf("resource %s not found in state", name)
+		}
+		if strings.Contains(rs.Primary.Attributes["plugin_config"], "rulePlacement") {
+			return fmt.Errorf("plugin_config kept a backend-injected rulePlacement: %s", rs.Primary.Attributes["plugin_config"])
+		}
+		return nil
+	}
 }

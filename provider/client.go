@@ -655,6 +655,12 @@ func (c *Client) isVersionAtLeast3_2_3(ctx context.Context) (bool, error) {
 	return c.isVersionAtLeastPatch(ctx, 3, 2, 3)
 }
 
+// isVersionAtLeast3_3_1 returns true when the node-plugin schema accepts
+// torrentBlocker.rulePlacement.
+func (c *Client) isVersionAtLeast3_3_1(ctx context.Context) (bool, error) {
+	return c.isVersionAtLeastPatch(ctx, 3, 3, 1)
+}
+
 // isVersionAtLeast3_3 returns true when node integrations, global shared lists,
 // host mappers, and node integration assignments are available.
 func (c *Client) isVersionAtLeast3_3(ctx context.Context) (bool, error) {

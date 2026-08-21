@@ -158,6 +158,83 @@ func TestNodePluginPreStartVersion(t *testing.T) {
 	}
 }
 
+func TestNodePluginRulePlacementVersion(t *testing.T) {
+	t.Parallel()
+
+	config := map[string]any{"torrentBlocker": map[string]any{"enabled": true, "rulePlacement": float64(5)}}
+	for _, tt := range []struct {
+		version string
+		wantErr bool
+	}{
+		{version: "3.3.0", wantErr: true},
+		{version: "3.3.1", wantErr: false},
+		{version: "3.3.2", wantErr: false},
+		{version: "3.4.0", wantErr: false},
+	} {
+		t.Run(tt.version, func(t *testing.T) {
+			t.Parallel()
+			resource := nodePluginResource{client: &Client{serverVersion: "3.3", serverFullVersion: tt.version}}
+			err := resource.validatePluginConfigVersion(t.Context(), config)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validatePluginConfigVersion() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestAlignNodePluginRulePlacement(t *testing.T) {
+	t.Parallel()
+
+	blocker := func(extra map[string]any) map[string]any {
+		config := map[string]any{"enabled": true, "blockDuration": float64(3600)}
+		for key, value := range extra {
+			config[key] = value
+		}
+		return map[string]any{"torrentBlocker": config}
+	}
+
+	// Remnawave 3.3.1 injects its schema default when the config omits the key.
+	got := alignNodePluginRulePlacement(blocker(nil), blocker(map[string]any{"rulePlacement": float64(0)}))
+	remote, ok := got.(map[string]any)
+	if !ok {
+		t.Fatalf("alignNodePluginRulePlacement() = %#v, want a map", got)
+	}
+	if _, exists := remote["torrentBlocker"].(map[string]any)["rulePlacement"]; exists {
+		t.Errorf("alignNodePluginRulePlacement() kept the injected rulePlacement default: %#v", remote)
+	}
+
+	// A configured value must survive untouched.
+	configured := blocker(map[string]any{"rulePlacement": float64(5)})
+	got = alignNodePluginRulePlacement(configured, blocker(map[string]any{"rulePlacement": float64(5)}))
+	remote, ok = got.(map[string]any)
+	if !ok {
+		t.Fatalf("alignNodePluginRulePlacement() = %#v, want a map", got)
+	}
+	if placement := remote["torrentBlocker"].(map[string]any)["rulePlacement"]; placement != float64(5) {
+		t.Errorf("alignNodePluginRulePlacement() dropped a configured rulePlacement: %#v", remote)
+	}
+
+	// An explicitly configured zero is not the injected default.
+	configured = blocker(map[string]any{"rulePlacement": float64(0)})
+	got = alignNodePluginRulePlacement(configured, blocker(map[string]any{"rulePlacement": float64(0)}))
+	if _, exists := got.(map[string]any)["torrentBlocker"].(map[string]any)["rulePlacement"]; !exists {
+		t.Errorf("alignNodePluginRulePlacement() dropped an explicit zero: %#v", got)
+	}
+
+	// Configs without a torrentBlocker object pass through unchanged.
+	preStart := map[string]any{"preStart": map[string]any{"enabled": true}}
+	if got := alignNodePluginRulePlacement(nil, preStart); !reflect.DeepEqual(got, preStart) {
+		t.Errorf("alignNodePluginRulePlacement() = %#v, want %#v", got, preStart)
+	}
+
+	// The source response must not be mutated.
+	source := blocker(map[string]any{"rulePlacement": float64(0)})
+	alignNodePluginRulePlacement(blocker(nil), source)
+	if _, exists := source["torrentBlocker"].(map[string]any)["rulePlacement"]; !exists {
+		t.Error("alignNodePluginRulePlacement() mutated the backend response")
+	}
+}
+
 func TestNodePlugin3_3StateKeepsConfiguredSharedLists(t *testing.T) {
 	t.Parallel()
 

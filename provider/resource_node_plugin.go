@@ -33,7 +33,7 @@ func (r *nodePluginResource) Schema(_ context.Context, _ resource.SchemaRequest,
 		Attributes: map[string]schema.Attribute{
 			"uuid":          schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 			"name":          schema.StringAttribute{Required: true, Description: "Plugin name (2-30 chars)."},
-			"plugin_config": schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{nodePluginJSONPlanModifier{}}, Description: "Plugin config as JSON. Supported keys are sharedLists, torrentBlocker, ingressFilter, egressFilter, connectionDrop, and preStart (Remnawave 3.1+). On Remnawave 3.3+, sharedLists is read as an effective compatibility view and omitted from plugin writes; manage global list contents with remnawave_shared_list."},
+			"plugin_config": schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{nodePluginJSONPlanModifier{}}, Description: "Plugin config as JSON. Supported keys are sharedLists, torrentBlocker, ingressFilter, egressFilter, connectionDrop, and preStart (Remnawave 3.1+). On Remnawave 3.3+, sharedLists is read as an effective compatibility view and omitted from plugin writes; manage global list contents with remnawave_shared_list. The torrentBlocker object accepts rulePlacement (0-1000) on Remnawave 3.3.1+ to position the injected routing rule; Remnawave 3.3.1 returns a default of 0 for that key, which the provider drops unless the configuration sets it."},
 		},
 	}
 }
@@ -91,7 +91,7 @@ func (r *nodePluginResource) Create(ctx context.Context, req resource.CreateRequ
 			return
 		}
 		if updated.PluginConfig != nil {
-			b, err := json.Marshal(updated.PluginConfig)
+			b, err := json.Marshal(alignNodePluginRulePlacement(pluginConfig, updated.PluginConfig))
 			if err != nil {
 				rollback("Failed to marshal plugin_config", err)
 				return
@@ -177,7 +177,7 @@ func (r *nodePluginResource) pluginConfigForState(ctx context.Context, remote an
 	if sharedLists, exists := previousConfig["sharedLists"]; exists {
 		normalized["sharedLists"] = sharedLists
 	}
-	return normalized, nil
+	return alignNodePluginRulePlacement(previousConfig, normalized), nil
 }
 
 func (r *nodePluginResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -208,7 +208,7 @@ func (r *nodePluginResource) Update(ctx context.Context, req resource.UpdateRequ
 		return
 	}
 	if updated.PluginConfig != nil {
-		b, err := json.Marshal(updated.PluginConfig)
+		b, err := json.Marshal(alignNodePluginRulePlacement(pluginConfig, updated.PluginConfig))
 		if err != nil {
 			resp.Diagnostics.AddError("Failed to marshal plugin_config", err.Error())
 			return
@@ -239,15 +239,70 @@ func (r *nodePluginResource) validatePluginConfigVersion(ctx context.Context, pl
 	if pluginConfig == nil {
 		return nil
 	}
-	if _, ok := pluginConfig["preStart"]; !ok {
-		return nil
+	if _, ok := pluginConfig["preStart"]; ok {
+		supported, err := r.client.isVersionAtLeast3_1(ctx)
+		if err != nil {
+			return fmt.Errorf("detect backend version for preStart: %w", err)
+		}
+		if !supported {
+			return fmt.Errorf("preStart requires Remnawave 3.1 or newer")
+		}
 	}
-	supported, err := r.client.isVersionAtLeast3_1(ctx)
-	if err != nil {
-		return fmt.Errorf("detect backend version for preStart: %w", err)
-	}
-	if !supported {
-		return fmt.Errorf("preStart requires Remnawave 3.1 or newer")
+	if nodePluginHasRulePlacement(pluginConfig) {
+		supported, err := r.client.isVersionAtLeast3_3_1(ctx)
+		if err != nil {
+			return fmt.Errorf("detect backend version for torrentBlocker.rulePlacement: %w", err)
+		}
+		if !supported {
+			return fmt.Errorf("torrentBlocker.rulePlacement requires Remnawave 3.3.1 or newer")
+		}
 	}
 	return nil
+}
+
+// nodePluginHasRulePlacement reports whether a plugin config sets
+// torrentBlocker.rulePlacement. Remnawave rejects nothing for the key on older
+// panels: its schema is not strict, so 3.3.0 silently strips it instead.
+func nodePluginHasRulePlacement(pluginConfig map[string]any) bool {
+	torrentBlocker, ok := pluginConfig["torrentBlocker"].(map[string]any)
+	if !ok {
+		return false
+	}
+	_, exists := torrentBlocker["rulePlacement"]
+	return exists
+}
+
+// alignNodePluginRulePlacement drops torrentBlocker.rulePlacement from a backend
+// response when the configuration did not set it. Remnawave 3.3.1 applies a
+// schema default of 0 to that key and stores the parsed config, so without this
+// the value written to state would differ from Terraform's planned value.
+// Remnawave 3.3.2 removed the default, which is why the provider must not
+// materialize one of its own.
+func alignNodePluginRulePlacement(configured map[string]any, remote any) any {
+	remoteConfig, ok := remote.(map[string]any)
+	if !ok || remoteConfig == nil {
+		return remote
+	}
+	remoteBlocker, ok := remoteConfig["torrentBlocker"].(map[string]any)
+	if !ok {
+		return remote
+	}
+	if _, exists := remoteBlocker["rulePlacement"]; !exists {
+		return remote
+	}
+	if configured != nil && nodePluginHasRulePlacement(configured) {
+		return remote
+	}
+	torrentBlocker := make(map[string]any, len(remoteBlocker))
+	for key, value := range remoteBlocker {
+		if key != "rulePlacement" {
+			torrentBlocker[key] = value
+		}
+	}
+	normalized := make(map[string]any, len(remoteConfig))
+	for key, value := range remoteConfig {
+		normalized[key] = value
+	}
+	normalized["torrentBlocker"] = torrentBlocker
+	return normalized
 }
