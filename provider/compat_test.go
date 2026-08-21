@@ -245,6 +245,8 @@ func TestVersionDetection3_3(t *testing.T) {
 	}{
 		{version: "3.2.3", want: false},
 		{version: "3.3.0", want: true},
+		{version: "3.3.1", want: true},
+		{version: "3.3.2", want: true},
 		{version: "3.4.0", want: true},
 	} {
 		t.Run(tt.version, func(t *testing.T) {

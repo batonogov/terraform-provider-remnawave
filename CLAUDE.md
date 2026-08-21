@@ -1,4 +1,4 @@
-# AGENTS.md
+# CLAUDE.md
 
 This file provides guidance to AI coding agents when working with this repository.
 
@@ -13,13 +13,13 @@ The Remnawave backend (`github.com/remnawave/backend`) is a NestJS TypeScript
 application with a clean REST API. The panel uses PostgreSQL + Redis (Valkey).
 
 **Compatibility:** Remnawave v2.7.x, v2.8.x, v3.0.x, v3.1.x, v3.2.x, and v3.3.x.
-Docker Compose and acceptance tests default to the `remnawave/backend:3.3.0`
+Docker Compose and acceptance tests default to the `remnawave/backend:3.3.2`
 image pinned by digest; CI runs matrix entries against `remnawave/backend:3.2.3`,
 `remnawave/backend:3.1.0`, `remnawave/backend:3.0.0`, `remnawave/backend:2.8.1`, and
 `remnawave/backend:2.7.4`. All compose images
 are pinned by `sha256` digest for reproducibility. To run an explicit
 compatibility check against a different build, override both the tag and its
-digest, e.g. `REMNAWAVE_VERSION=3.3.0 REMNAWAVE_DIGEST=sha256:<digest>`.
+digest, e.g. `REMNAWAVE_VERSION=3.3.2 REMNAWAVE_DIGEST=sha256:<digest>`.
 
 The client auto-detects the server version via `/api/system/metadata` on
 the first version-dependent operation. Version-specific behaviour:
@@ -59,7 +59,12 @@ the first version-dependent operation. Version-specific behaviour:
   JSON. Geocheck and explicit plugin/list sync are not yet provider surfaces.
   Node-plugin writes omit the legacy inline `sharedLists`; reads preserve the
   configured compatibility view while global list contents are managed through
-  `remnawave_shared_list`.
+  `remnawave_shared_list`. Versions 3.3.1 and 3.3.2 are contract-compatible
+  patches: they add the optional `torrentBlocker.rulePlacement` key (0-1000,
+  no schema default) to the opaque `plugin_config` JSON, fix node-plugin
+  reordering, which previously wrote `viewPosition` to the wrong table, and
+  change an internal Telegram notification URL. No provider changes are
+  required beyond the compatibility matrix.
 
 Existing configurations require no changes — the provider transparently
 adapts. The optional node `ips` attribute requires Remnawave 3.2.2 or later;
@@ -227,7 +232,7 @@ removes untracked duplicate/generated files such as `docs/* 2.md`; preview with
 | Build | `go build ./...` |
 | Unit Tests | `go test ./provider -skip TestAcc`, race detector, **30% coverage floor** |
 | Documentation | `terraform fmt -check` on examples; `tfplugindocs generate/validate`; fails if `docs/` drifts |
-| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against 3.3.0 (default), 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 |
+| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against 3.3.2 (default), 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 |
 
 All GitHub Actions across the repo **must be pinned by commit SHA**
 (see `release-please.yml`); Dependabot keeps them current. Do not switch

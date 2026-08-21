@@ -83,7 +83,7 @@ readme_data_source_links=$(awk '/\]\(docs\/data-sources\// { count++ } END { pri
 [ "$readme_data_source_links" -eq "$data_source_count" ] || fail "README lists $readme_data_source_links of $data_source_count data sources"
 
 require_text README.md "**$data_source_count data sources**"
-require_text AGENTS.md "### Data Sources ($data_source_count)"
+require_text CLAUDE.md "### Data Sources ($data_source_count)"
 require_text API_COVERAGE.md "- Resources: $resource_count"
 require_text API_COVERAGE.md "- Data sources: $data_source_count"
 require_text API_COVERAGE.md "- Exported client operations: $client_operation_count"

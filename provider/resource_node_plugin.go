@@ -33,7 +33,7 @@ func (r *nodePluginResource) Schema(_ context.Context, _ resource.SchemaRequest,
 		Attributes: map[string]schema.Attribute{
 			"uuid":          schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 			"name":          schema.StringAttribute{Required: true, Description: "Plugin name (2-30 chars)."},
-			"plugin_config": schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{nodePluginJSONPlanModifier{}}, Description: "Plugin config as JSON. Supported keys are sharedLists, torrentBlocker, ingressFilter, egressFilter, connectionDrop, and preStart (Remnawave 3.1+). On Remnawave 3.3+, sharedLists is read as an effective compatibility view and omitted from plugin writes; manage global list contents with remnawave_shared_list."},
+			"plugin_config": schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{nodePluginJSONPlanModifier{}}, Description: "Plugin config as JSON. Supported keys are sharedLists, torrentBlocker, ingressFilter, egressFilter, connectionDrop, and preStart (Remnawave 3.1+). On Remnawave 3.3+, sharedLists is read as an effective compatibility view and omitted from plugin writes; manage global list contents with remnawave_shared_list. The torrentBlocker object accepts rulePlacement (0-1000) on Remnawave 3.3.1+ to position the injected routing rule."},
 		},
 	}
 }
