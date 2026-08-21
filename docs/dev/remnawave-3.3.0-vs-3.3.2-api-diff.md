@@ -33,15 +33,34 @@ default so an omitted key stays absent instead of being materialized in stored
 plugin configuration.
 
 `remnawave_node_plugin.plugin_config` is an opaque JSON string that the provider
-normalizes rather than models field by field, so the key is usable without a
-schema change. The backend still validates the payload, so `rulePlacement`
-requires Remnawave 3.3.1 or later; sending it to 3.3.0 fails backend
-validation. The removed 3.3.1 default is the reason the provider must not add
-a client-side default of its own — that would produce a permanent diff against
-3.3.2 panels that omit the key.
+normalizes rather than models field by field, so the key needs no schema change.
+Both patch releases still change provider behavior, because
+`TorrentBlockerPluginSchema` is a plain non-strict `z.object` and
+`node-plugins.service.ts` stores the parsed output (`inputConfig =
+validatedConfig.data`) rather than the request body:
 
-The resource description and the `remnawave_node_plugin` example record the
-version requirement. Provider state handling is unchanged.
+- **3.3.0 silently strips the key.** It is not a validation error. The panel
+  stores and returns the object without `rulePlacement`, and because Create and
+  Update write the response into state, Terraform would abort with "Provider
+  produced inconsistent result after apply" — an opaque provider bug report
+  rather than a version message. The provider therefore gates the nested key
+  with `isVersionAtLeast3_3_1` and fails with `torrentBlocker.rulePlacement
+  requires Remnawave 3.3.1 or newer`.
+- **3.3.1 injects `rulePlacement: 0`.** Its schema default materializes the key
+  for every `torrentBlocker` config that omits it, which breaks apply and leaves
+  permanent drift on refresh for configurations that were valid on 3.3.0. The
+  provider drops a returned `rulePlacement` when the configuration did not set
+  one (`alignNodePluginRulePlacement`), applied on create, update, and refresh.
+  A configured value — including an explicit `0` — is preserved.
+
+3.3.2 removed the default, which is why the provider must not materialize one of
+its own the way it does for `sharedLists`: that would produce a permanent diff
+against 3.3.2 panels that omit the key.
+
+Note for examples and tests: `enabled`, `blockDuration`, and `ignoreLists` are
+required by `TorrentBlockerPluginSchema` on every 3.3.x release, and the
+`ignoreLists.ip` entries accept plain addresses or `ext:` list references, not
+CIDR ranges.
 
 ### Node-plugin reorder fix
 
@@ -87,20 +106,13 @@ Runnable platforms inspected before the compatibility bump:
 The additional `unknown/unknown` manifests are OCI attestations, not runtime
 platforms.
 
-## Verification
-
-The complete `TestAcc*` suite from provider `main` commit
-`3c5b06613cfd9966d8a3d53dcbc290d059a115a2` passed against the exact 3.3.2 index
-digest — 84 passed, 1 skipped (`TestAccPasskeyResource_ImportSkip`, which needs
-a WebAuthn fixture):
-
-```text
-PASS
-ok  github.com/batonogov/terraform-provider-remnawave/provider  66.487s
-```
-
 ## Compatibility matrix
 
 The default acceptance image moves from `remnawave/backend:3.3.0` to
 `remnawave/backend:3.3.2`. The supported minor line remains `3.3.x`; CI retains
 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 to protect older supported API contracts.
+
+3.3.1 is added as its own matrix entry rather than being folded into the 3.3.x
+line. It is the only release that injects a `rulePlacement` default, so it is
+the only place the normalization above can regress; without a dedicated job that
+behavior would have no CI coverage at all.

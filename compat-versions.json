@@ -11,6 +11,16 @@
       }
     },
     {
+      "version": "v3.3.1",
+      "supported": true,
+      "digest": "sha256:1d0354e476a218a9f5611c23cab39299a63a83a9c7d94353628b911154f569af",
+      "token_payload": {
+        "name": "acceptance-tests",
+        "expiresInDays": 1,
+        "scopes": ["*"]
+      }
+    },
+    {
       "version": "v3.2.3",
       "supported": true,
       "digest": "sha256:bee71b9c3974e24007de4c13efd4aa6d5ec04b7fbf97cbe81095faac075a41b4",

@@ -207,4 +207,4 @@ These are internal TypeScript validation changes. The JSON wire format is unchan
 
 11. Docker compose → `remnawave/backend:3.0.0`
 12. Test matrix: add v3.0.0, keep v2.8.1 and v2.7.4
-13. AGENTS.md: update compatibility section
+13. CLAUDE.md (formerly AGENTS.md): update compatibility section

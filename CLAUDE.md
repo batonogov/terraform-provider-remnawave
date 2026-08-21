@@ -14,9 +14,11 @@ application with a clean REST API. The panel uses PostgreSQL + Redis (Valkey).
 
 **Compatibility:** Remnawave v2.7.x, v2.8.x, v3.0.x, v3.1.x, v3.2.x, and v3.3.x.
 Docker Compose and acceptance tests default to the `remnawave/backend:3.3.2`
-image pinned by digest; CI runs matrix entries against `remnawave/backend:3.2.3`,
-`remnawave/backend:3.1.0`, `remnawave/backend:3.0.0`, `remnawave/backend:2.8.1`, and
-`remnawave/backend:2.7.4`. All compose images
+image pinned by digest; CI runs matrix entries against `remnawave/backend:3.3.1`,
+`remnawave/backend:3.2.3`, `remnawave/backend:3.1.0`, `remnawave/backend:3.0.0`,
+`remnawave/backend:2.8.1`, and `remnawave/backend:2.7.4`. Remnawave 3.3.1 stays in
+the matrix even though 3.3.2 supersedes it, because 3.3.1 is the only version
+that injects a `torrentBlocker.rulePlacement` default. All compose images
 are pinned by `sha256` digest for reproducibility. To run an explicit
 compatibility check against a different build, override both the tag and its
 digest, e.g. `REMNAWAVE_VERSION=3.3.2 REMNAWAVE_DIGEST=sha256:<digest>`.
@@ -60,16 +62,23 @@ the first version-dependent operation. Version-specific behaviour:
   Node-plugin writes omit the legacy inline `sharedLists`; reads preserve the
   configured compatibility view while global list contents are managed through
   `remnawave_shared_list`. Versions 3.3.1 and 3.3.2 are contract-compatible
-  patches: they add the optional `torrentBlocker.rulePlacement` key (0-1000,
-  no schema default) to the opaque `plugin_config` JSON, fix node-plugin
-  reordering, which previously wrote `viewPosition` to the wrong table, and
-  change an internal Telegram notification URL. No provider changes are
-  required beyond the compatibility matrix.
+  patches, but not behavior-neutral: 3.3.1 adds the optional
+  `torrentBlocker.rulePlacement` key (0-1000) to the opaque `plugin_config`
+  JSON *with* a schema default of `0`, and 3.3.2 removes that default. The
+  node-plugin schema is not strict and the backend stores the parsed config, so
+  3.3.0 silently strips the key while 3.3.1 injects it. The provider gates the
+  nested key on 3.3.1+ and drops a returned `rulePlacement` that the
+  configuration did not set (`alignNodePluginRulePlacement`); it must never
+  materialize a default of its own, which would drift against 3.3.2. The
+  patches also fix node-plugin reordering, which previously wrote `viewPosition`
+  to the `externalSquads` table, and change an internal Telegram notification
+  URL.
 
 Existing configurations require no changes — the provider transparently
 adapts. The optional node `ips` attribute requires Remnawave 3.2.2 or later;
 host `mapper`, node `integration_uuids`, node integrations, and global shared
-lists require Remnawave 3.3 or later.
+lists require Remnawave 3.3 or later; `torrentBlocker.rulePlacement` in
+`plugin_config` requires Remnawave 3.3.1 or later.
 
 ## Commands
 
@@ -232,7 +241,7 @@ removes untracked duplicate/generated files such as `docs/* 2.md`; preview with
 | Build | `go build ./...` |
 | Unit Tests | `go test ./provider -skip TestAcc`, race detector, **30% coverage floor** |
 | Documentation | `terraform fmt -check` on examples; `tfplugindocs generate/validate`; fails if `docs/` drifts |
-| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against 3.3.2 (default), 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 |
+| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against 3.3.2 (default), 3.3.1, 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 |
 
 All GitHub Actions across the repo **must be pinned by commit SHA**
 (see `release-please.yml`); Dependabot keeps them current. Do not switch
