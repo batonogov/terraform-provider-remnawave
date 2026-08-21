@@ -106,6 +106,18 @@ Runnable platforms inspected before the compatibility bump:
 The additional `unknown/unknown` manifests are OCI attestations, not runtime
 platforms.
 
+## Verification
+
+The complete `TestAcc*` suite from this branch at commit
+`2b4d124` passed against both index digests — 85 passed, 1 skipped
+(`TestAccPasskeyResource_ImportSkip`, which needs a WebAuthn fixture). The
+3.3.1 run is the one that exercises the injected `rulePlacement` default:
+
+```text
+3.3.2  PASS  ok  github.com/batonogov/terraform-provider-remnawave/provider  57.215s
+3.3.1  PASS  ok  github.com/batonogov/terraform-provider-remnawave/provider  58.322s
+```
+
 ## Compatibility matrix
 
 The default acceptance image moves from `remnawave/backend:3.3.0` to
