@@ -514,9 +514,11 @@ func planToNode(ctx context.Context, p *nodeResourceModel) (*Node, diag.Diagnost
 		n.NodeConsumptionMultiplier = &value
 	}
 	if !p.Tags.IsNull() && !p.Tags.IsUnknown() {
+		tags := make([]string, 0, len(p.Tags.Elements()))
 		for _, value := range p.Tags.Elements() {
-			n.Tags = append(n.Tags, value.(types.String).ValueString())
+			tags = append(tags, value.(types.String).ValueString())
 		}
+		n.Tags = &tags
 	}
 	if !p.IntegrationUUIDs.IsNull() && !p.IntegrationUUIDs.IsUnknown() {
 		integrationUUIDs := make([]string, 0, len(p.IntegrationUUIDs.Elements()))
@@ -686,7 +688,11 @@ func nodeToPlan(ctx context.Context, n *Node, p *nodeResourceModel) diag.Diagnos
 		p.NodeConsumptionMultiplier = types.Float64Null()
 	}
 	var conversionDiagnostics diag.Diagnostics
-	p.Tags, conversionDiagnostics = types.SetValueFrom(ctx, types.StringType, n.Tags)
+	tags := []string{}
+	if n.Tags != nil {
+		tags = *n.Tags
+	}
+	p.Tags, conversionDiagnostics = types.SetValueFrom(ctx, types.StringType, tags)
 	diagnostics.Append(conversionDiagnostics...)
 	if n.IntegrationUUIDs != nil {
 		p.IntegrationUUIDs, conversionDiagnostics = types.SetValueFrom(ctx, types.StringType, *n.IntegrationUUIDs)

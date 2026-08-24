@@ -246,7 +246,7 @@ resource "remnawave_subscription_template" "host" {
 						t.Fatalf("fetch host for drift mutation: %v", err)
 					}
 					host.Remark = "drift-host-mutated"
-					host.IsHidden = true
+					host.IsHidden = new(true)
 					if _, err := client.UpdateHost(ctx, host); err != nil {
 						t.Fatalf("mutate host remark/is_hidden out-of-band: %v", err)
 					}

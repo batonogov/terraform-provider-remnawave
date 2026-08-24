@@ -650,7 +650,7 @@ func TestNodeModelConversions(t *testing.T) {
 	for _, item := range *node.IPs {
 		gotIPs[item.IP] = item.Status
 	}
-	if node.UUID != "node-id" || node.Port == nil || *node.Port != 2222 || node.ProxyURL == nil || *node.ProxyURL != "socks5://proxy.example.com:1080" || node.Note == nil || *node.Note != "note" || node.ConfigProfile == nil || len(node.ConfigProfile.ActiveInbounds) != 2 || node.ConsumptionMultiplier == nil || *node.ConsumptionMultiplier != 1.2 || len(node.Tags) != 2 || node.IntegrationUUIDs == nil || len(*node.IntegrationUUIDs) != 2 || len(*node.IPs) != 2 || gotIPs["192.0.2.10"] != "MANAGEMENT" || gotIPs["2001:db8::10"] != "INBOUND" {
+	if node.UUID != "node-id" || node.Port == nil || *node.Port != 2222 || node.ProxyURL == nil || *node.ProxyURL != "socks5://proxy.example.com:1080" || node.Note == nil || *node.Note != "note" || node.ConfigProfile == nil || len(node.ConfigProfile.ActiveInbounds) != 2 || node.ConsumptionMultiplier == nil || *node.ConsumptionMultiplier != 1.2 || node.Tags == nil || len(*node.Tags) != 2 || node.IntegrationUUIDs == nil || len(*node.IntegrationUUIDs) != 2 || len(*node.IPs) != 2 || gotIPs["192.0.2.10"] != "MANAGEMENT" || gotIPs["2001:db8::10"] != "INBOUND" {
 		t.Errorf("planToNode() = %#v", node)
 	}
 
@@ -693,7 +693,7 @@ func TestNodeModelConversions(t *testing.T) {
 		TrafficLimitBytes: &traffic, TrafficResetDay: &reset, NotifyPercent: &notify,
 		CountryCode: "DE", Note: &note, UsersOnline: 5, ProxyURL: &proxyURL,
 		ConsumptionMultiplier: &consumption, NodeConsumptionMultiplier: &nodeConsumption,
-		Tags: []string{"NODE"}, IntegrationUUIDs: &integrationUUIDs, IPs: &[]NodeIP{{IP: "192.0.2.10", Status: "MANAGEMENT"}}, ProviderUUID: &providerUUID, ActivePluginUUID: &pluginUUID,
+		Tags: new([]string{"NODE"}), IntegrationUUIDs: &integrationUUIDs, IPs: &[]NodeIP{{IP: "192.0.2.10", Status: "MANAGEMENT"}}, ProviderUUID: &providerUUID, ActivePluginUUID: &pluginUUID,
 		LastStatusChange: &lastStatusChange, LastStatusMessage: &lastStatusMessage,
 		Provider: json.RawMessage(`{"uuid":"provider-id","name":"provider"}`),
 		System:   json.RawMessage(`{"info":{"hostname":"node"}}`), Versions: json.RawMessage(`{"xray":"1.0","node":"2.0"}`),
@@ -805,7 +805,7 @@ func TestHostModelConversions(t *testing.T) {
 		Path:                         types.StringValue("/ws"),
 	}
 	host := planToHost(plan)
-	if host.UUID != "host-id" || host.SNI == nil || *host.SNI != "sni.example.com" || host.Inbound == nil || host.Inbound.ConfigProfileUUID != "profile-id" || !reflect.DeepEqual(host.Tags, []string{"TAG_1", "TAG_2"}) || host.Path == nil || *host.Path != "/ws" || host.VlessRouteID == nil || *host.VlessRouteID != 42 || len(host.ExcludeFromSubscriptionTypes) != 2 || string(host.Mapper) != `{"mihomo":[{"op":"set","to":"tfo","value":true}]}` {
+	if host.UUID != "host-id" || host.SNI == nil || *host.SNI != "sni.example.com" || host.Inbound == nil || host.Inbound.ConfigProfileUUID != "profile-id" || host.Tags == nil || !reflect.DeepEqual(*host.Tags, []string{"TAG_1", "TAG_2"}) || host.Path == nil || *host.Path != "/ws" || host.VlessRouteID == nil || *host.VlessRouteID != 42 || host.ExcludeFromSubscriptionTypes == nil || len(*host.ExcludeFromSubscriptionTypes) != 2 || string(host.Mapper) != `{"mihomo":[{"op":"set","to":"tfo","value":true}]}` || host.IsDisabled == nil || !*host.IsDisabled || host.IsHidden == nil || !*host.IsHidden || host.KeepSniBlank == nil || *host.KeepSniBlank {
 		t.Errorf("planToHost() = %#v", host)
 	}
 

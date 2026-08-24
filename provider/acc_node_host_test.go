@@ -293,6 +293,47 @@ resource "remnawave_subscription_template" "host" {
 				Check: resource.ComposeAggregateTestCheckFunc(updatedChecks...),
 			},
 			{
+				// Regression test: flipping is_hidden/override_sni_from_address
+				// true -> false, and clearing list attributes to [], must
+				// actually reach the API. Host's bool and slice fields used to
+				// be plain (non-pointer) `bool`/`[]string` tagged `omitempty`,
+				// so encoding/json dropped explicit false/empty values from the
+				// PATCH body (zero value for bool, len()==0 for slices). The API
+				// then left the field unchanged, and Terraform reported
+				// "produced inconsistent result after apply" on the false case,
+				// or a perpetual non-converging diff on the empty-list case.
+				Config: providerCfg + testAccProfileConfig("host-profile", "VLESS_TCP_HOST_ACC") + fmt.Sprintf(`
+resource "remnawave_host" "test" {
+  remark                      = "terraform-host-updated"
+  address                     = "updated.example.com"
+  port                        = 8443
+  sni                         = "updated.example.com"
+  security_layer              = "TLS"
+  is_hidden                   = false
+  override_sni_from_address   = false
+  keep_sni_blank              = false
+  vless_route_id              = 8
+%s%s
+  xray_json_template_uuid     = remnawave_subscription_template.host.uuid
+  exclude_from_subscription_types = []
+%s
+  config_profile_uuid         = remnawave_config_profile.profile.uuid
+  config_profile_inbound_uuid = remnawave_config_profile.profile.inbounds[0].uuid
+}
+
+resource "remnawave_subscription_template" "host" {
+  name          = "host-acceptance-template"
+  template_type = "XRAY_JSON"
+}
+`, hostV28Fields("packet-up", "false", "false", "true"), hostMapperUpdated, "  tags = []\n"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("remnawave_host.test", "is_hidden", "false"),
+					resource.TestCheckResourceAttr("remnawave_host.test", "override_sni_from_address", "false"),
+					resource.TestCheckResourceAttr("remnawave_host.test", "tags.#", "0"),
+					resource.TestCheckResourceAttr("remnawave_host.test", "exclude_from_subscription_types.#", "0"),
+				),
+			},
+			{
 				ResourceName:      "remnawave_host.test",
 				ImportState:       true,
 				ImportStateVerify: true,

@@ -367,7 +367,7 @@ func TestHostRequestV27UsesSingularTag(t *testing.T) {
 		t.Fatal(err)
 	}
 	host, err := client.CreateHost(context.Background(), &Host{
-		Remark: "host", Address: "host.example.com", Port: 443, Tags: []string{"LEGACY"},
+		Remark: "host", Address: "host.example.com", Port: 443, Tags: new([]string{"LEGACY"}),
 	})
 	if err != nil {
 		t.Fatalf("CreateHost() error = %v", err)
@@ -376,7 +376,7 @@ func TestHostRequestV27UsesSingularTag(t *testing.T) {
 		t.Fatalf("response legacy tag = %#v", host.Tag)
 	}
 
-	_, err = client.UpdateHost(context.Background(), &Host{Tags: []string{"ONE", "TWO"}})
+	_, err = client.UpdateHost(context.Background(), &Host{Tags: new([]string{"ONE", "TWO"})})
 	if err == nil || !strings.Contains(err.Error(), "at most one host tag") {
 		t.Fatalf("UpdateHost() multi-tag error = %v", err)
 	}

@@ -950,15 +950,19 @@ func (c *Client) hostRequest(ctx context.Context, host *Host) (*Host, error) {
 	if !c.isVersion2_7(ctx) {
 		return host, nil
 	}
-	if len(host.Tags) > 1 {
-		return nil, fmt.Errorf("remnawave 2.7 supports at most one host tag, got %d", len(host.Tags))
+	tagCount := 0
+	if host.Tags != nil {
+		tagCount = len(*host.Tags)
+	}
+	if tagCount > 1 {
+		return nil, fmt.Errorf("remnawave 2.7 supports at most one host tag, got %d", tagCount)
 	}
 
 	legacy := *host
 	legacy.Tags = nil
 	legacy.Tag = nil
-	if len(host.Tags) == 1 {
-		tag := host.Tags[0]
+	if tagCount == 1 {
+		tag := (*host.Tags)[0]
 		legacy.Tag = &tag
 	}
 	return &legacy, nil

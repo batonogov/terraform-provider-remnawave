@@ -536,6 +536,67 @@ func TestHostCreateContract(t *testing.T) {
 	}
 }
 
+// TestHostUpdateContractIncludesExplicitFalseAndEmptyValues is a regression
+// test for the bug where Host's bool and slice fields, being plain (non-
+// pointer) `bool`/`[]string` tagged `omitempty`, silently dropped explicit
+// `false`/`[]` values from the PATCH body: Go's encoding/json treats false
+// and an empty (or nil) slice as the zero value, so `omitempty` omitted the
+// key entirely regardless of whether the caller meant to unset it. The API
+// then left the field unchanged, so a `true -> false` update over Terraform
+// never took effect and Terraform reported "produced inconsistent result
+// after apply". These fields must serialize as explicit pointers so that
+// false/empty values reach the wire, matching how Node.IntegrationUUIDs/IPs
+// already handle this via *[]string.
+func TestHostUpdateContractIncludesExplicitFalseAndEmptyValues(t *testing.T) {
+	var captured []byte
+	server := captureRequestServer(t, http.MethodPatch, "/api/hosts", &captured)
+	defer server.Close()
+
+	client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "contract-token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	emptyTags := []string{}
+	_, err = client.UpdateHost(context.Background(), &Host{
+		UUID:                   "host-uuid",
+		Remark:                 "test-host",
+		Address:                "host.example.com",
+		Port:                   443,
+		IsDisabled:             new(false),
+		IsHidden:               new(false),
+		OverrideSniFromAddress: new(false),
+		KeepSniBlank:           new(false),
+		ShuffleHost:            new(false),
+		MihomoX25519:           new(false),
+		Tags:                   &emptyTags,
+	})
+	if err != nil {
+		t.Fatalf("UpdateHost() error = %v", err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(captured, &got); err != nil {
+		t.Fatalf("decode request JSON: %v\nbody: %s", err, captured)
+	}
+
+	for _, k := range []string{"isDisabled", "isHidden", "overrideSniFromAddress", "keepSniBlank", "shuffleHost", "mihomoX25519"} {
+		v, ok := got[k]
+		if !ok {
+			t.Errorf("expected explicit %q:false in host update body, key was omitted: %s", k, captured)
+			continue
+		}
+		if b, ok := v.(bool); !ok || b {
+			t.Errorf("%s = %#v, want explicit false", k, v)
+		}
+	}
+
+	tags, ok := got["tags"].([]any)
+	if !ok || len(tags) != 0 {
+		t.Fatalf("tags = %#v, present = %v, want explicit empty array", got["tags"], ok)
+	}
+}
+
 // TestUserCreateContract verifies the JSON field names sent to POST /api/users.
 // Drift in: username, expireAt, trafficLimitBytes would break user creation.
 func TestUserCreateContract(t *testing.T) {
