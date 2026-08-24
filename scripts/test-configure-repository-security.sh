@@ -103,4 +103,25 @@ if run_policy --check-solo >/dev/null 2>&1; then
   exit 1
 fi
 
+# The branch ruleset and the release gate must demand the same CI jobs. The
+# gate derives its acceptance matrix from compat-versions.json, while the
+# ruleset is static JSON, so a newly supported version silently becomes
+# non-blocking: a pull request could merge with that version red, land it on
+# main, and stall the release the gate then refuses to pass.
+missing_contexts=$(
+  jq -r --slurpfile compat "$repository_dir/compat-versions.json" '
+    [$compat[0].versions[] | select(.supported)
+      | "Acceptance Tests (\(.version | ltrimstr("v")))"] as $expected
+    | [.rules[] | select(.type == "required_status_checks")
+      | .parameters.required_status_checks[].context] as $declared
+    | $expected - $declared
+    | .[]
+  ' "$repository_dir/.github/repository-settings/main-ruleset.json"
+)
+if [ -n "$missing_contexts" ]; then
+  echo "main ruleset does not require every supported acceptance job:" >&2
+  printf '%s\n' "$missing_contexts" | sed 's/^/  /' >&2
+  exit 1
+fi
+
 echo "repository security policy tests passed"
