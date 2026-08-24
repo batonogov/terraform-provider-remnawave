@@ -336,17 +336,22 @@ func (r *hostResource) validateMapperVersion(ctx context.Context, mapper types.S
 // ─── Conversions ───
 
 func planToHost(p *hostResourceModel) *Host {
+	isDisabled := p.IsDisabled.ValueBool()
+	isHidden := p.IsHidden.ValueBool()
+	overrideSniFromAddress := p.OverrideSniFromAddress.ValueBool()
+	keepSniBlank := p.KeepSniBlank.ValueBool()
+	shuffleHost := p.ShuffleHost.ValueBool()
 	h := &Host{
 		UUID:                   p.UUID.ValueString(),
 		Remark:                 p.Remark.ValueString(),
 		Address:                p.Address.ValueString(),
 		Port:                   int(p.Port.ValueInt64()),
-		IsDisabled:             p.IsDisabled.ValueBool(),
+		IsDisabled:             &isDisabled,
 		SecurityLayer:          p.SecurityLayer.ValueString(),
-		IsHidden:               p.IsHidden.ValueBool(),
-		OverrideSniFromAddress: p.OverrideSniFromAddress.ValueBool(),
-		KeepSniBlank:           p.KeepSniBlank.ValueBool(),
-		ShuffleHost:            p.ShuffleHost.ValueBool(),
+		IsHidden:               &isHidden,
+		OverrideSniFromAddress: &overrideSniFromAddress,
+		KeepSniBlank:           &keepSniBlank,
+		ShuffleHost:            &shuffleHost,
 	}
 	if !p.SNI.IsNull() {
 		sni := p.SNI.ValueString()
@@ -399,22 +404,23 @@ func planToHost(p *hostResourceModel) *Host {
 		ConfigProfileUUID:        p.ConfigProfileUUID.ValueString(),
 		ConfigProfileInboundUUID: p.ConfigProfileInboundUUID.ValueString(),
 	}
-	if !p.Tags.IsNull() {
+	if !p.Tags.IsNull() && !p.Tags.IsUnknown() {
 		tags := []string{}
 		for _, v := range p.Tags.Elements() {
 			tags = append(tags, v.(types.String).ValueString())
 		}
-		h.Tags = tags
+		h.Tags = &tags
 	}
-	if !p.Nodes.IsNull() {
+	if !p.Nodes.IsNull() && !p.Nodes.IsUnknown() {
 		nodes := []string{}
 		for _, v := range p.Nodes.Elements() {
 			nodes = append(nodes, v.(types.String).ValueString())
 		}
-		h.Nodes = nodes
+		h.Nodes = &nodes
 	}
 	if !p.MihomoX25519.IsNull() {
-		h.MihomoX25519 = p.MihomoX25519.ValueBool()
+		mihomoX25519 := p.MihomoX25519.ValueBool()
+		h.MihomoX25519 = &mihomoX25519
 	}
 	if !p.MihomoIPVersion.IsNull() && !p.MihomoIPVersion.IsUnknown() {
 		value := p.MihomoIPVersion.ValueString()
@@ -424,17 +430,19 @@ func planToHost(p *hostResourceModel) *Host {
 		value := p.XrayJSONTemplateUUID.ValueString()
 		h.XrayJsonTemplateUUID = &value
 	}
-	if !p.ExcludedInternalSquads.IsNull() {
+	if !p.ExcludedInternalSquads.IsNull() && !p.ExcludedInternalSquads.IsUnknown() {
 		squads := []string{}
 		for _, v := range p.ExcludedInternalSquads.Elements() {
 			squads = append(squads, v.(types.String).ValueString())
 		}
-		h.ExcludedInternalSquads = squads
+		h.ExcludedInternalSquads = &squads
 	}
 	if !p.ExcludeFromSubscriptionTypes.IsNull() && !p.ExcludeFromSubscriptionTypes.IsUnknown() {
+		excludeTypes := []string{}
 		for _, value := range p.ExcludeFromSubscriptionTypes.Elements() {
-			h.ExcludeFromSubscriptionTypes = append(h.ExcludeFromSubscriptionTypes, value.(types.String).ValueString())
+			excludeTypes = append(excludeTypes, value.(types.String).ValueString())
 		}
+		h.ExcludeFromSubscriptionTypes = &excludeTypes
 	}
 	if !p.Path.IsNull() {
 		pathVal := p.Path.ValueString()
@@ -448,11 +456,11 @@ func hostToPlan(h *Host, p *hostResourceModel) {
 	p.Remark = types.StringValue(h.Remark)
 	p.Address = types.StringValue(h.Address)
 	p.Port = types.Int64Value(int64(h.Port))
-	p.IsDisabled = types.BoolValue(h.IsDisabled)
-	p.IsHidden = types.BoolValue(h.IsHidden)
-	p.OverrideSniFromAddress = types.BoolValue(h.OverrideSniFromAddress)
-	p.KeepSniBlank = types.BoolValue(h.KeepSniBlank)
-	p.ShuffleHost = types.BoolValue(h.ShuffleHost)
+	p.IsDisabled = types.BoolValue(derefOr(h.IsDisabled, false))
+	p.IsHidden = types.BoolValue(derefOr(h.IsHidden, false))
+	p.OverrideSniFromAddress = types.BoolValue(derefOr(h.OverrideSniFromAddress, false))
+	p.KeepSniBlank = types.BoolValue(derefOr(h.KeepSniBlank, false))
+	p.ShuffleHost = types.BoolValue(derefOr(h.ShuffleHost, false))
 
 	if h.SecurityLayer != "" {
 		p.SecurityLayer = types.StringValue(h.SecurityLayer)
@@ -508,8 +516,8 @@ func hostToPlan(h *Host, p *hostResourceModel) {
 	}
 	switch {
 	case h.Tags != nil:
-		elems := make([]attr.Value, 0, len(h.Tags))
-		for _, t := range h.Tags {
+		elems := make([]attr.Value, 0, len(*h.Tags))
+		for _, t := range *h.Tags {
 			elems = append(elems, types.StringValue(t))
 		}
 		tagsList, _ := types.ListValue(types.StringType, elems)
@@ -520,8 +528,8 @@ func hostToPlan(h *Host, p *hostResourceModel) {
 		p.Tags = types.ListValueMust(types.StringType, []attr.Value{})
 	}
 	if h.Nodes != nil {
-		elems := make([]attr.Value, 0, len(h.Nodes))
-		for _, n := range h.Nodes {
+		elems := make([]attr.Value, 0, len(*h.Nodes))
+		for _, n := range *h.Nodes {
 			elems = append(elems, types.StringValue(n))
 		}
 		nodesList, _ := types.ListValue(types.StringType, elems)
@@ -529,7 +537,7 @@ func hostToPlan(h *Host, p *hostResourceModel) {
 	} else {
 		p.Nodes = types.ListValueMust(types.StringType, []attr.Value{})
 	}
-	p.MihomoX25519 = types.BoolValue(h.MihomoX25519)
+	p.MihomoX25519 = types.BoolValue(derefOr(h.MihomoX25519, false))
 	if h.MihomoIPVersion != nil {
 		p.MihomoIPVersion = types.StringValue(*h.MihomoIPVersion)
 	} else {
@@ -541,8 +549,8 @@ func hostToPlan(h *Host, p *hostResourceModel) {
 		p.XrayJSONTemplateUUID = types.StringNull()
 	}
 	if h.ExcludedInternalSquads != nil {
-		elems := make([]attr.Value, 0, len(h.ExcludedInternalSquads))
-		for _, s := range h.ExcludedInternalSquads {
+		elems := make([]attr.Value, 0, len(*h.ExcludedInternalSquads))
+		for _, s := range *h.ExcludedInternalSquads {
 			elems = append(elems, types.StringValue(s))
 		}
 		squadsList, _ := types.ListValue(types.StringType, elems)
@@ -550,7 +558,11 @@ func hostToPlan(h *Host, p *hostResourceModel) {
 	} else {
 		p.ExcludedInternalSquads = types.ListValueMust(types.StringType, []attr.Value{})
 	}
-	p.ExcludeFromSubscriptionTypes, _ = types.SetValueFrom(context.Background(), types.StringType, h.ExcludeFromSubscriptionTypes)
+	excludeFromSubscriptionTypes := []string{}
+	if h.ExcludeFromSubscriptionTypes != nil {
+		excludeFromSubscriptionTypes = *h.ExcludeFromSubscriptionTypes
+	}
+	p.ExcludeFromSubscriptionTypes, _ = types.SetValueFrom(context.Background(), types.StringType, excludeFromSubscriptionTypes)
 	if h.Path != nil {
 		p.Path = types.StringValue(*h.Path)
 	}

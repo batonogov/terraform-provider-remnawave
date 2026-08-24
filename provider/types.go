@@ -2,6 +2,16 @@ package provider
 
 import "encoding/json"
 
+// derefOr dereferences p, or returns def if p is nil. The API is expected to
+// always populate these pointer fields on a response; def is a defensive
+// fallback, not an expected code path.
+func derefOr[T any](p *T, def T) T {
+	if p == nil {
+		return def
+	}
+	return *p
+}
+
 // User maps to the Remnawave Users model.
 // API: /api/users (POST create, PATCH update, DELETE /:uuid, GET /:uuid)
 // v3.0: uuid field removed; id is the primary key used in routes.
@@ -87,7 +97,7 @@ type Node struct {
 	CountryCode               string             `json:"countryCode,omitempty"`
 	ConsumptionMultiplier     *float64           `json:"consumptionMultiplier,omitempty"`
 	NodeConsumptionMultiplier *float64           `json:"nodeConsumptionMultiplier,omitempty"`
-	Tags                      []string           `json:"tags,omitempty"`
+	Tags                      *[]string          `json:"tags,omitempty"`
 	IntegrationUUIDs          *[]string          `json:"integrationUuids,omitempty"` // v3.3+
 	IPs                       *[]NodeIP          `json:"ips,omitempty"`              // v3.2.2+
 	ConfigProfile             *NodeConfigProfile `json:"configProfile,omitempty"`
@@ -153,7 +163,7 @@ type Host struct {
 	HostHeader                   *string         `json:"host,omitempty"`
 	ALPN                         *string         `json:"alpn,omitempty"`
 	Fingerprint                  *string         `json:"fingerprint,omitempty"`
-	IsDisabled                   bool            `json:"isDisabled,omitempty"`
+	IsDisabled                   *bool           `json:"isDisabled,omitempty"`
 	SecurityLayer                string          `json:"securityLayer,omitempty"`
 	XHTTPExtraParams             json.RawMessage `json:"xhttpExtraParams,omitempty"`
 	MuxParams                    json.RawMessage `json:"muxParams,omitempty"`
@@ -161,21 +171,21 @@ type Host struct {
 	FinalMask                    json.RawMessage `json:"finalMask,omitempty"`
 	ServerDescription            *string         `json:"serverDescription,omitempty"`
 	Tag                          *string         `json:"tag,omitempty"`
-	Tags                         []string        `json:"tags,omitempty"`
-	IsHidden                     bool            `json:"isHidden,omitempty"`
-	OverrideSniFromAddress       bool            `json:"overrideSniFromAddress,omitempty"`
-	KeepSniBlank                 bool            `json:"keepSniBlank,omitempty"`
+	Tags                         *[]string       `json:"tags,omitempty"`
+	IsHidden                     *bool           `json:"isHidden,omitempty"`
+	OverrideSniFromAddress       *bool           `json:"overrideSniFromAddress,omitempty"`
+	KeepSniBlank                 *bool           `json:"keepSniBlank,omitempty"`
 	PinnedPeerCertSha256         *string         `json:"pinnedPeerCertSha256,omitempty"`
 	VerifyPeerCertByName         *string         `json:"verifyPeerCertByName,omitempty"`
 	VlessRouteID                 *int            `json:"vlessRouteId,omitempty"`
-	ShuffleHost                  bool            `json:"shuffleHost,omitempty"`
-	MihomoX25519                 bool            `json:"mihomoX25519,omitempty"`
+	ShuffleHost                  *bool           `json:"shuffleHost,omitempty"`
+	MihomoX25519                 *bool           `json:"mihomoX25519,omitempty"`
 	MihomoIPVersion              *string         `json:"mihomoIpVersion,omitempty"`
 	Inbound                      *HostInbound    `json:"inbound,omitempty"`
-	Nodes                        []string        `json:"nodes,omitempty"`
+	Nodes                        *[]string       `json:"nodes,omitempty"`
 	XrayJsonTemplateUUID         *string         `json:"xrayJsonTemplateUuid,omitempty"`
-	ExcludedInternalSquads       []string        `json:"excludedInternalSquads,omitempty"`
-	ExcludeFromSubscriptionTypes []string        `json:"excludeFromSubscriptionTypes,omitempty"`
+	ExcludedInternalSquads       *[]string       `json:"excludedInternalSquads,omitempty"`
+	ExcludeFromSubscriptionTypes *[]string       `json:"excludeFromSubscriptionTypes,omitempty"`
 	Mapper                       json.RawMessage `json:"mapper,omitempty"` // v3.3+
 	ViewPosition                 int             `json:"viewPosition,omitempty"`
 	CreatedAt                    string          `json:"createdAt,omitempty"`

@@ -367,7 +367,7 @@ func TestHostRequestV27UsesSingularTag(t *testing.T) {
 		t.Fatal(err)
 	}
 	host, err := client.CreateHost(context.Background(), &Host{
-		Remark: "host", Address: "host.example.com", Port: 443, Tags: []string{"LEGACY"},
+		Remark: "host", Address: "host.example.com", Port: 443, Tags: new([]string{"LEGACY"}),
 	})
 	if err != nil {
 		t.Fatalf("CreateHost() error = %v", err)
@@ -376,7 +376,7 @@ func TestHostRequestV27UsesSingularTag(t *testing.T) {
 		t.Fatalf("response legacy tag = %#v", host.Tag)
 	}
 
-	_, err = client.UpdateHost(context.Background(), &Host{Tags: []string{"ONE", "TWO"}})
+	_, err = client.UpdateHost(context.Background(), &Host{Tags: new([]string{"ONE", "TWO"})})
 	if err == nil || !strings.Contains(err.Error(), "at most one host tag") {
 		t.Fatalf("UpdateHost() multi-tag error = %v", err)
 	}
@@ -773,6 +773,66 @@ func TestClient_HostRequestV27_ZeroTagsOmitsTagFieldOnUpdate(t *testing.T) {
 	}
 	if v, ok := got["tag"]; ok {
 		t.Errorf("2.7 PATCH body contained singular tag field with zero tags: %v", v)
+	}
+	if v, ok := got["tags"]; ok {
+		t.Errorf("2.7 PATCH body contained plural tags field: %v", v)
+	}
+}
+
+// TestClient_HostRequestV27_ExplicitEmptyTagsClearsTagOnUpdate verifies the
+// case that TestClient_HostRequestV27_ZeroTagsOmitsTagFieldOnUpdate doesn't
+// cover: Host.Tags explicitly set to a non-nil empty slice (as planToHost
+// builds it when Terraform config has `tags = []`, i.e. "clear the tag"), not
+// left nil ("tags attribute untouched"). The 2.7 PATCH path must send an
+// explicit JSON null "tag" so the legacy singular field actually clears on
+// the wire. An explicit empty string ("tag":"") is NOT the right value here:
+// against a live 2.7.4 panel it's rejected with a 400 ("Tag can only contain
+// uppercase letters, numbers, underscores and colons" — the DTO's regex
+// validator runs even on an explicitly-empty string, only null skips it).
+// Omitting the field entirely leaves the old tag untouched, which is what
+// caused the original bug: the API keeps the stale tag, the response still
+// contains it, and Terraform reports "produced inconsistent result after
+// apply" for the acceptance step that clears tags on a 2.7.x backend.
+func TestClient_HostRequestV27_ExplicitEmptyTagsClearsTagOnUpdate(t *testing.T) {
+	t.Parallel()
+
+	var updateBody []byte
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/api/system/metadata" {
+			_, _ = io.WriteString(w, `{"response":{"version":"2.7.4"}}`)
+			return
+		}
+		if r.Method == http.MethodPatch && r.URL.Path == "/api/hosts" {
+			updateBody, _ = io.ReadAll(r.Body)
+			_, _ = io.WriteString(w, `{"response":{"uuid":"host-id","remark":"host","address":"host.example.com","port":443,"tag":null}}`)
+			return
+		}
+		_, _ = io.WriteString(w, `{"response":{}}`)
+	}))
+	defer server.Close()
+
+	client, err := NewClient(ClientConfig{Endpoint: server.URL, APIToken: "test-token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = client.UpdateHost(context.Background(), &Host{
+		Remark:  "host",
+		Address: "host.example.com",
+		Port:    443,
+		Tags:    new([]string{}), // explicitly cleared, not just unset
+	})
+	if err != nil {
+		t.Fatalf("UpdateHost() error = %v", err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(updateBody, &got); err != nil {
+		t.Fatalf("decode PATCH body: %v", err)
+	}
+	if v, ok := got["tag"]; !ok || v != nil {
+		t.Errorf("2.7 PATCH body tag = %#v, want explicit null", v)
 	}
 	if v, ok := got["tags"]; ok {
 		t.Errorf("2.7 PATCH body contained plural tags field: %v", v)

@@ -946,22 +946,51 @@ func (c *Client) ResetNodeTraffic(ctx context.Context, uuid string) (*Node, erro
 
 // ─── Host API ───
 
-func (c *Client) hostRequest(ctx context.Context, host *Host) (*Host, error) {
+// hostRequest adapts a Host request body for the target server version. On
+// 2.7.x it returns a JSON object (not *Host) so it can put an explicit
+// null in place of the "tag" field when the caller clears tags: the 2.7.x
+// DTO regex-validates "tag" ("uppercase letters, numbers, underscores and
+// colons"), which rejects an explicit empty string with a 400, but accepts
+// null as "clear this field". *Host's plain omitempty can't express that —
+// a nil *string is omitted from the wire entirely (leaves the old value
+// untouched), and a non-nil pointer to "" fails the regex — so the 2.7.x
+// path builds the request from host's own marshaled JSON instead of
+// reusing the *Host struct's tag field semantics.
+func (c *Client) hostRequest(ctx context.Context, host *Host) (any, error) {
 	if !c.isVersion2_7(ctx) {
 		return host, nil
 	}
-	if len(host.Tags) > 1 {
-		return nil, fmt.Errorf("remnawave 2.7 supports at most one host tag, got %d", len(host.Tags))
+	tagCount := 0
+	if host.Tags != nil {
+		tagCount = len(*host.Tags)
+	}
+	if tagCount > 1 {
+		return nil, fmt.Errorf("remnawave 2.7 supports at most one host tag, got %d", tagCount)
 	}
 
-	legacy := *host
-	legacy.Tags = nil
-	legacy.Tag = nil
-	if len(host.Tags) == 1 {
-		tag := host.Tags[0]
-		legacy.Tag = &tag
+	raw, err := json.Marshal(host)
+	if err != nil {
+		return nil, err
 	}
-	return &legacy, nil
+	var legacy map[string]any
+	if err := json.Unmarshal(raw, &legacy); err != nil {
+		return nil, err
+	}
+	delete(legacy, "tags")
+	switch {
+	case tagCount == 1:
+		legacy["tag"] = (*host.Tags)[0]
+	case host.Tags != nil:
+		// host.Tags was explicitly set to an empty list ("clear the tag").
+		// Send JSON null, not "": the 2.7.x DTO's regex validator rejects
+		// an empty string with a 400 but treats null as "clear".
+		legacy["tag"] = nil
+	default:
+		// host.Tags was never touched by the caller: leave "tag" exactly as
+		// *Host's own omitempty produced it (present only if the caller set
+		// Host.Tag directly).
+	}
+	return legacy, nil
 }
 
 func (c *Client) CreateHost(ctx context.Context, host *Host) (*Host, error) {
