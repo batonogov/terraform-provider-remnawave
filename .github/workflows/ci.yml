@@ -106,6 +106,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Test release CI verification
         run: ./scripts/test-verify-release-ci.sh
+      - name: Test documentation inventory across version bumps
+        run: ./scripts/test-docs-inventory-version-bumps.sh
 
   release-artifact-tests:
     name: Release Artifact Tests

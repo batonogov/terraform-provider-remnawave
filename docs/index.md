@@ -45,7 +45,7 @@ terraform {
   required_providers {
     remnawave = {
       source  = "batonogov/remnawave"
-      version = "~> 1.7.1" # x-release-please-version
+      version = "~> 1.0" # x-release-please-major
     }
   }
 }

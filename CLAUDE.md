@@ -317,11 +317,22 @@ tag or publish manually.**
 - **Never modify, re-tag, or replace a released version** — it breaks the
   published checksums for existing users. Ship a new version instead.
 - A tag must not share its name with a branch.
-- Copyable `required_providers` examples use a pessimistic patch-line
-  constraint (`~> X.Y.0`). When a release changes the minor or major line,
-  update the constraint in `README.md`, `examples/provider.tf`, and
-  `examples/provider/provider.tf`, then run `task docs` to regenerate
-  `docs/index.md`. Patch releases within the same minor line need no update.
+- Copyable `required_providers` examples pin the **major** line
+  (`version = "~> X.0"`), so users receive non-breaking minor and patch
+  releases without editing their configuration. The constraint is owned
+  end-to-end by `release-please` via the `# x-release-please-major`
+  annotation: its generic updater rewrites only the first integer on the line
+  and leaves the trailing `.0` intact, so the string changes on a major bump
+  and never on a minor or patch bump. Never use `# x-release-please-version`
+  here — it rewrites the patch component and breaks the invariant that
+  `scripts/check-docs-inventory.sh` enforces. Both the annotation and the
+  checker derive from `.release-please-manifest.json`, so they cannot drift
+  apart. `scripts/test-docs-inventory-version-bumps.sh` proves this by
+  replaying patch, minor, and major bumps through the updater's own
+  replacement semantics. The constraint appears in `README.md` (×2),
+  `examples/getting-started/main.tf`, `examples/provider.tf`, and
+  `examples/provider/provider.tf`; `docs/index.md` inherits it from the last
+  file through `task docs`.
 
 ### Required release environment secrets
 

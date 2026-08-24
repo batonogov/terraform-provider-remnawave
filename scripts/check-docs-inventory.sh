@@ -89,14 +89,24 @@ require_text API_COVERAGE.md "- Data sources: $data_source_count"
 require_text API_COVERAGE.md "- Exported client operations: $client_operation_count"
 require_text API_COVERAGE.md "- Acceptance test entry points: $acceptance_test_count"
 
+# The copyable required_providers snippet pins the major line (`~> X.0`), so the
+# string only changes on a major release. release-please owns it through the
+# `x-release-please-major` annotation, whose generic updater rewrites the first
+# integer on the line and leaves the trailing `.0` intact. Deriving the
+# expectation from the same manifest release-please writes keeps the invariant
+# and the generator from drifting apart on patch and minor bumps.
 provider_version=$(awk -F'"' '/"\."/ { print $4; exit }' .release-please-manifest.json)
-provider_minor=$(printf '%s\n' "$provider_version" | awk -F. '{ print $1 "." $2 }')
-provider_constraint="~> $provider_minor.0"
+provider_major=$(printf '%s\n' "$provider_version" | awk -F. '{ print $1 }')
+provider_constraint="~> $provider_major.0"
+constraint_marker="# x-release-please-major"
 for file in README.md docs/index.md examples/getting-started/main.tf examples/provider.tf examples/provider/provider.tf; do
-  require_text "$file" "version = \"$provider_constraint\""
-  constraint_count=$(grep -Fc -- "version = \"$provider_constraint\"" "$file" || true)
-  managed_constraint_count=$(grep -Fc -- "version = \"$provider_constraint\" # x-release-please-version" "$file" || true)
-  [ "$managed_constraint_count" -eq "$constraint_count" ] || fail "$file must mark every provider version constraint with x-release-please-version"
+  require_text "$file" "version = \"$provider_constraint\" $constraint_marker"
+  declared_count=$(grep -Ec '^[[:space:]]*version = "~>' "$file" || true)
+  managed_count=$(grep -Fc -- "version = \"$provider_constraint\" $constraint_marker" "$file" || true)
+  [ "$managed_count" -eq "$declared_count" ] ||
+    fail "$file must pin every provider version constraint to $provider_constraint with $constraint_marker"
+  ! grep -Fq -- "x-release-please-version" "$file" ||
+    fail "$file still carries the full-version annotation, which rewrites the patch component"
   require_text release-please-config.json "\"$file\""
 done
 
