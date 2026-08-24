@@ -336,17 +336,22 @@ func (r *hostResource) validateMapperVersion(ctx context.Context, mapper types.S
 // ─── Conversions ───
 
 func planToHost(p *hostResourceModel) *Host {
+	isDisabled := p.IsDisabled.ValueBool()
+	isHidden := p.IsHidden.ValueBool()
+	overrideSniFromAddress := p.OverrideSniFromAddress.ValueBool()
+	keepSniBlank := p.KeepSniBlank.ValueBool()
+	shuffleHost := p.ShuffleHost.ValueBool()
 	h := &Host{
 		UUID:                   p.UUID.ValueString(),
 		Remark:                 p.Remark.ValueString(),
 		Address:                p.Address.ValueString(),
 		Port:                   int(p.Port.ValueInt64()),
-		IsDisabled:             new(p.IsDisabled.ValueBool()),
+		IsDisabled:             &isDisabled,
 		SecurityLayer:          p.SecurityLayer.ValueString(),
-		IsHidden:               new(p.IsHidden.ValueBool()),
-		OverrideSniFromAddress: new(p.OverrideSniFromAddress.ValueBool()),
-		KeepSniBlank:           new(p.KeepSniBlank.ValueBool()),
-		ShuffleHost:            new(p.ShuffleHost.ValueBool()),
+		IsHidden:               &isHidden,
+		OverrideSniFromAddress: &overrideSniFromAddress,
+		KeepSniBlank:           &keepSniBlank,
+		ShuffleHost:            &shuffleHost,
 	}
 	if !p.SNI.IsNull() {
 		sni := p.SNI.ValueString()
@@ -399,14 +404,14 @@ func planToHost(p *hostResourceModel) *Host {
 		ConfigProfileUUID:        p.ConfigProfileUUID.ValueString(),
 		ConfigProfileInboundUUID: p.ConfigProfileInboundUUID.ValueString(),
 	}
-	if !p.Tags.IsNull() {
+	if !p.Tags.IsNull() && !p.Tags.IsUnknown() {
 		tags := []string{}
 		for _, v := range p.Tags.Elements() {
 			tags = append(tags, v.(types.String).ValueString())
 		}
 		h.Tags = &tags
 	}
-	if !p.Nodes.IsNull() {
+	if !p.Nodes.IsNull() && !p.Nodes.IsUnknown() {
 		nodes := []string{}
 		for _, v := range p.Nodes.Elements() {
 			nodes = append(nodes, v.(types.String).ValueString())
@@ -414,7 +419,8 @@ func planToHost(p *hostResourceModel) *Host {
 		h.Nodes = &nodes
 	}
 	if !p.MihomoX25519.IsNull() {
-		h.MihomoX25519 = new(p.MihomoX25519.ValueBool())
+		mihomoX25519 := p.MihomoX25519.ValueBool()
+		h.MihomoX25519 = &mihomoX25519
 	}
 	if !p.MihomoIPVersion.IsNull() && !p.MihomoIPVersion.IsUnknown() {
 		value := p.MihomoIPVersion.ValueString()
@@ -424,7 +430,7 @@ func planToHost(p *hostResourceModel) *Host {
 		value := p.XrayJSONTemplateUUID.ValueString()
 		h.XrayJsonTemplateUUID = &value
 	}
-	if !p.ExcludedInternalSquads.IsNull() {
+	if !p.ExcludedInternalSquads.IsNull() && !p.ExcludedInternalSquads.IsUnknown() {
 		squads := []string{}
 		for _, v := range p.ExcludedInternalSquads.Elements() {
 			squads = append(squads, v.(types.String).ValueString())
