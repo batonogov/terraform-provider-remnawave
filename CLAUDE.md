@@ -282,6 +282,15 @@ needs more grants it per job.
   reason in the PR. Keep build-only tools out of `go.mod` when practical.
 - Dependabot checks Go modules and GitHub Actions weekly; minor/patch updates
   are grouped, while major updates remain separate for review.
+- Dependabot **alerts** and **automated security fixes** must stay enabled, and
+  `scripts/configure-repository-security.sh` audits both. The weekly schedule
+  only refreshes versions; alerts are the out-of-band channel that opens a pull
+  request when a CVE is disclosed rather than waiting for the next Monday. Both
+  were off while the weekly updates ran, which reads as "dependencies are
+  watched" without the part that reacts to disclosures.
+- A long `go list -m -u all` is not by itself a reason to update. Most of that
+  graph arrives transitively through `terraform-plugin-testing` and never
+  compiles into the provider; `govulncheck` in CI is the signal that matters.
 
 ### Auth
 

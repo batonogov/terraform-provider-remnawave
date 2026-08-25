@@ -147,6 +147,14 @@ if [[ "$action" == "apply" ]]; then
   api --method PUT "repos/$repository/actions/permissions/workflow" \
     --input "$settings_dir/workflow-permissions.json" >/dev/null
 
+  # Dependabot version updates run on a weekly schedule. Alerts and their
+  # automated security fixes are the out-of-band channel that opens a pull
+  # request the moment a CVE lands in a dependency, instead of waiting for the
+  # next Monday. Both were off while the weekly updates ran, which reads as
+  # "dependencies are watched" without the part that reacts to disclosures.
+  api --method PUT "repos/$repository/vulnerability-alerts" >/dev/null
+  api --method PUT "repos/$repository/automated-security-fixes" >/dev/null
+
   api --method PUT "repos/$repository/environments/release" \
     --input "$environment_payload" >/dev/null
   echo "repository security: configured release environment"
@@ -273,6 +281,17 @@ fi
 api "repos/$repository/immutable-releases" >"$temporary_dir/immutable-releases.json"
 jq -e '.enabled == true' "$temporary_dir/immutable-releases.json" >/dev/null ||
   fail "release immutability is not enabled"
+
+# The alerts endpoint answers 204 when enabled and 404 when not, so the exit
+# status is the whole answer.
+api "repos/$repository/vulnerability-alerts" >/dev/null 2>&1 ||
+  fail "Dependabot vulnerability alerts are not enabled"
+
+api "repos/$repository/automated-security-fixes" \
+  >"$temporary_dir/automated-security-fixes.json"
+jq -e '.enabled == true and .paused == false' \
+  "$temporary_dir/automated-security-fixes.json" >/dev/null ||
+  fail "Dependabot automated security fixes are not enabled"
 
 if [[ "$action" == "check" ]]; then
   api "repos/$repository/actions/secrets" >"$temporary_dir/repository-secrets.json"

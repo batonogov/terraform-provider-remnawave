@@ -27,6 +27,10 @@ jq '{
   >"$temporary_dir/fixtures/environment.json"
 printf '%s\n' '{"enabled":true}' \
   >"$temporary_dir/fixtures/immutable-releases.json"
+printf '%s\n' '{"enabled":true}' \
+  >"$temporary_dir/fixtures/vulnerability-alerts.json"
+printf '%s\n' '{"enabled":true,"paused":false}' \
+  >"$temporary_dir/fixtures/automated-security-fixes.json"
 printf '%s\n' \
   '{"secrets":[{"name":"REPOSITORY_SECURITY_AUDIT_TOKEN"}]}' \
   >"$temporary_dir/fixtures/repository-secrets.json"
@@ -90,6 +94,27 @@ printf '%s\n' \
   '{"secrets":[{"name":"REPOSITORY_SECURITY_AUDIT_TOKEN"}]}' \
   >"$temporary_dir/fixtures/repository-secrets.json"
 
+printf '%s\n' '{"enabled":false}' \
+  >"$temporary_dir/fixtures/vulnerability-alerts.json"
+if run_policy --check-solo >/dev/null 2>&1; then
+  echo "policy audit unexpectedly accepted disabled Dependabot alerts" >&2
+  exit 1
+fi
+printf '%s\n' '{"enabled":true}' \
+  >"$temporary_dir/fixtures/vulnerability-alerts.json"
+
+printf '%s\n' '{"enabled":true,"paused":true}' \
+  >"$temporary_dir/fixtures/automated-security-fixes.json"
+if run_policy --check-solo >/dev/null 2>&1; then
+  echo "policy audit unexpectedly accepted paused security fixes" >&2
+  exit 1
+fi
+printf '%s\n' '{"enabled":true,"paused":false}' \
+  >"$temporary_dir/fixtures/automated-security-fixes.json"
+
+# Leave this one last among the audit cases: it overwrites main.json in place,
+# after which every later run_policy call fails for that reason alone and any
+# assertion placed below would pass without testing anything.
 jq '(.rules[]
   | select(.type == "required_status_checks")
   | .parameters.required_status_checks) |=
