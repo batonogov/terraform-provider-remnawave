@@ -27,41 +27,7 @@ fail() {
 [[ "$REMOTE_MAIN_SHA" == "$CI_RUN_HEAD_SHA" ]] ||
   fail "CI-tested SHA is stale relative to origin/main"
 
-jq -e '.jobs | type == "array" and length > 0' "$CI_JOBS_FILE" >/dev/null ||
-  fail "CI jobs response is missing or empty"
-
-non_successful_jobs=$(jq -r '
-  .jobs[]
-  | select(.status != "completed" or .conclusion != "success")
-  | "\(.name): status=\(.status), conclusion=\(.conclusion)"
-' "$CI_JOBS_FILE")
-[[ -z "$non_successful_jobs" ]] ||
-  fail "CI contains non-successful jobs: ${non_successful_jobs//$'\n'/; }"
-
-required_jobs=(
-  "Lint"
-  "Build"
-  "Unit Tests"
-  "Documentation"
-  "Prepare Compatibility Matrix"
-  "Release Gate Tests"
-  "Release Artifact Tests"
-  "Release Supply Chain Tests"
-  "Repository Policy Tests"
-  "Vulnerability Scan"
-)
-
-while IFS= read -r label; do
-  required_jobs+=("Acceptance Tests ($label)")
-done < <(jq -r '.versions[] | select(.supported) | .version | ltrimstr("v")' compat-versions.json)
-
-for required_job in "${required_jobs[@]}"; do
-  matches=$(jq --arg name "$required_job" '
-    [.jobs[] | select(.name == $name and .status == "completed" and .conclusion == "success")]
-    | length
-  ' "$CI_JOBS_FILE")
-  [[ "$matches" == "1" ]] ||
-    fail "required job $required_job has $matches successful results, want exactly 1"
-done
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+CI_JOBS_FILE="$CI_JOBS_FILE" "$script_dir/verify-ci-jobs.sh"
 
 echo "release gate: CI run validated for $CI_RUN_HEAD_SHA"
