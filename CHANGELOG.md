@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.7.1...v1.8.0) (2026-08-25)
+
+
+### Features
+
+* add remnawave_snippets data source ([#259](https://github.com/batonogov/terraform-provider-remnawave/issues/259)) ([548cf43](https://github.com/batonogov/terraform-provider-remnawave/commit/548cf43cbfc956f40a20b5212accaeb72a1da7a8))
+
 ## [1.7.1](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.7.0...v1.7.1) (2026-08-25)
 
 
