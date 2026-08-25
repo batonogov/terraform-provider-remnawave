@@ -388,8 +388,25 @@ approval before the GoReleaser job can access them.
 
 The release workflow is triggered by `workflow_run` and enforces successful
 lint, build, unit, documentation, release-gate, release-artifact,
-release-supply-chain, and compatibility-matrix acceptance jobs for the exact
-current `main` SHA. Failed, cancelled, skipped, missing, duplicate, or stale
-results block both Release Please and GoReleaser. Ordinary CI jobs have
-read-only permissions and cannot access release, attestation, or GPG
-credentials.
+release-supply-chain, and compatibility-matrix acceptance jobs. Failed,
+cancelled, skipped, missing, or duplicate results block both Release Please and
+GoReleaser. Ordinary CI jobs have read-only permissions and cannot access
+release, attestation, or GPG credentials.
+
+The gate applies that standard to **the revision being released**, not to
+whichever commit happens to be `main`'s tip. `release-please` tags the merge
+commit of its own release pull request, so the two diverge as soon as anything
+else merges — and an earlier equality check turned one flaky run into a
+permanently stranded release (1.7.1, which had to be re-cut by hand).
+`scripts/verify-release-revision.sh` instead requires the release target to be
+contained in `main` and to have its own completed, successful `CI` push build of
+`main`, whose jobs are then checked by the same `scripts/verify-ci-jobs.sh` the
+trigger-time check uses. Re-running a flaked job now recovers the release
+instead of stranding it, while a revision that genuinely never passed CI is
+still refused.
+
+Consequently everything GoReleaser builds, signs, verifies, and publishes is
+anchored to the release SHA. `validated_sha` survives only where it is genuinely
+the right revision: the trigger-time freshness checks, the `WORKFLOW_SHA`
+comparison that pins which workflow definition is running, and the provenance
+`--source-digest`, which must match the `github.sha` GitHub itself attests.

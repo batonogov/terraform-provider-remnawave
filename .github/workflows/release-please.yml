@@ -114,6 +114,42 @@ jobs:
           manifest-file: .release-please-manifest.json
           target-branch: main
 
+      # release-please tags the merge commit of its own release pull request,
+      # which is not necessarily main's tip. Requiring equality with the newest
+      # validated revision stranded 1.7.1 permanently after a single flaky run.
+      # Assert instead what the gate actually needs: that the revision being
+      # released passed a full CI build of main in its own right.
+      - name: Verify the release target passed CI
+        id: release-revision
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          git fetch --no-tags origin main
+          release_sha_on_main=false
+          if git merge-base --is-ancestor \
+            "$RELEASE_SHA" refs/remotes/origin/main; then
+            release_sha_on_main=true
+          fi
+          gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${RELEASE_SHA}&per_page=100" \
+            > "$RUNNER_TEMP/release-runs.json"
+          RELEASE_RUNS_FILE="$RUNNER_TEMP/release-runs.json" \
+            RELEASE_SHA_ON_MAIN="$release_sha_on_main" \
+            ./scripts/verify-release-revision.sh
+
+      - name: Verify the release target's CI jobs
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_RUN_ID: ${{ steps.release-revision.outputs.release_run_id }}
+        run: |
+          gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${RELEASE_RUN_ID}/jobs?per_page=100" \
+            > "$RUNNER_TEMP/release-jobs.json"
+          CI_JOBS_FILE="$RUNNER_TEMP/release-jobs.json" ./scripts/verify-ci-jobs.sh
+
       - name: Verify draft release identity and tag target
         if: steps.release.outputs.release_created == 'true'
         env:
@@ -122,9 +158,7 @@ jobs:
           RELEASE_SHA: ${{ steps.release.outputs.sha }}
           RELEASE_UPLOAD_URL: ${{ steps.release.outputs.upload_url }}
           TAG_NAME: ${{ steps.release.outputs.tag_name }}
-          VALIDATED_SHA: ${{ needs.verify-ci.outputs.validated_sha }}
         run: |
-          test "$RELEASE_SHA" = "$VALIDATED_SHA"
           [[ "$RELEASE_ID" =~ ^[1-9][0-9]*$ ]]
           expected_upload_url="https://uploads.github.com/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets{?name,label}"
           test "$RELEASE_UPLOAD_URL" = "$expected_upload_url"
@@ -134,7 +168,7 @@ jobs:
             --argjson release_id "$RELEASE_ID" \
             --arg upload_url "$RELEASE_UPLOAD_URL" \
             --arg tag_name "$TAG_NAME" \
-            --arg expected_sha "$VALIDATED_SHA" '
+            --arg expected_sha "$RELEASE_SHA" '
               .id == $release_id
               and .upload_url == $upload_url
               and .tag_name == $tag_name
@@ -175,6 +209,10 @@ jobs:
           SYFT_COMMAND: ${{ steps.syft.outputs.cmd }}
         run: echo "$(dirname "$SYFT_COMMAND")" >> "$GITHUB_PATH"
 
+      # Everything that is built, signed, and published is anchored to
+      # RELEASE_SHA, the revision the tag points at — release-please.job has
+      # already proven it passed a full CI build of main. VALIDATED_SHA now says
+      # only which revision supplied the workflow definition that is running.
       - name: Verify checkout, tag, release, and CI revisions
         env:
           RELEASE_SHA: ${{ needs.release-please.outputs.release_sha }}
@@ -185,16 +223,16 @@ jobs:
           git fetch --force --tags origin "refs/tags/$TAG_NAME:refs/tags/$TAG_NAME"
           checkout_sha=$(git rev-parse HEAD)
           tag_sha=$(git rev-list -n 1 "$TAG_NAME")
-          test "$checkout_sha" = "$VALIDATED_SHA"
-          test "$tag_sha" = "$VALIDATED_SHA"
-          test "$RELEASE_SHA" = "$VALIDATED_SHA"
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$checkout_sha" = "$RELEASE_SHA"
+          test "$tag_sha" = "$RELEASE_SHA"
           test "$WORKFLOW_SHA" = "$VALIDATED_SHA"
 
       - name: Verify clean detached release worktree
         env:
+          RELEASE_SHA: ${{ needs.release-please.outputs.release_sha }}
           TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
-          VALIDATED_SHA: ${{ needs.verify-ci.outputs.validated_sha }}
-        run: ./scripts/verify-release-worktree.sh "$VALIDATED_SHA" "$TAG_NAME"
+        run: ./scripts/verify-release-worktree.sh "$RELEASE_SHA" "$TAG_NAME"
 
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7
@@ -214,11 +252,11 @@ jobs:
 
       - name: Verify unpublished release artifacts
         env:
+          RELEASE_SHA: ${{ needs.release-please.outputs.release_sha }}
           TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
-          VALIDATED_SHA: ${{ needs.verify-ci.outputs.validated_sha }}
         run: |
           version=${TAG_NAME#v}
-          ./scripts/verify-release-artifacts.sh dist "$version" "$VALIDATED_SHA" "$TAG_NAME"
+          ./scripts/verify-release-artifacts.sh dist "$version" "$RELEASE_SHA" "$TAG_NAME"
           ./scripts/verify-release-supply-chain.sh \
             dist "$version" "$RUNNER_TEMP/preflight-archive-SHA256SUMS"
 
@@ -233,12 +271,12 @@ jobs:
 
       - name: Verify published artifacts match the preflight build
         env:
+          RELEASE_SHA: ${{ needs.release-please.outputs.release_sha }}
           TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
-          VALIDATED_SHA: ${{ needs.verify-ci.outputs.validated_sha }}
         run: |
           version=${TAG_NAME#v}
           checksum_file="dist/terraform-provider-remnawave_${version}_SHA256SUMS"
-          ./scripts/verify-release-artifacts.sh dist "$version" "$VALIDATED_SHA" "$TAG_NAME"
+          ./scripts/verify-release-artifacts.sh dist "$version" "$RELEASE_SHA" "$TAG_NAME"
           ./scripts/verify-release-supply-chain.sh \
             dist \
             "$version" \
@@ -277,13 +315,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_ID: ${{ needs.release-please.outputs.release_id }}
+          RELEASE_SHA: ${{ needs.release-please.outputs.release_sha }}
           RELEASE_UPLOAD_URL: ${{ needs.release-please.outputs.release_upload_url }}
           TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
-          VALIDATED_SHA: ${{ needs.verify-ci.outputs.validated_sha }}
         run: |
           ./scripts/publish-release-draft.sh \
             "$RELEASE_ID" \
             "$RELEASE_UPLOAD_URL" \
             "$TAG_NAME" \
-            "$VALIDATED_SHA" \
+            "$RELEASE_SHA" \
             dist
