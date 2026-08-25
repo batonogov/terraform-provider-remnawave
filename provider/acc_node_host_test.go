@@ -137,7 +137,7 @@ resource "remnawave_node" "test" {
 				ImportState:                          true,
 				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
-				ImportStateVerifyIgnore:              []string{"updated_at", "last_status_change"},
+				ImportStateVerifyIgnore:              []string{"updated_at", "last_status_change", "last_status_message"},
 				ImportStateIdFunc:                    resourceUUIDImportStateID("remnawave_node.test"),
 			},
 		},
