@@ -222,11 +222,15 @@ jq -e '.enabled == true and .sha_pinning_required == true' \
   fail "full-SHA action pinning is not enforced"
 
 api "repos/$repository/actions/permissions/workflow" >"$temporary_dir/workflow.json"
-jq -e '
-  .default_workflow_permissions == "read" and
-  .can_approve_pull_request_reviews == false
+# Compare against the committed policy rather than a second, hardcoded copy of
+# the expectation. release-please must be allowed to open its release pull
+# request, and a literal here would silently contradict the file the apply path
+# writes.
+jq -e --slurpfile expected "$settings_dir/workflow-permissions.json" '
+  .default_workflow_permissions == $expected[0].default_workflow_permissions and
+  .can_approve_pull_request_reviews == $expected[0].can_approve_pull_request_reviews
 ' "$temporary_dir/workflow.json" >/dev/null ||
-  fail "default workflow permissions are not read-only"
+  fail "workflow permissions do not match the committed policy"
 
 api "repos/$repository/environments/release" >"$temporary_dir/environment.json"
 jq -e '
