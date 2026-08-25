@@ -22,7 +22,7 @@ a modern proxy management panel built on top of Xray-core. This project is not
 affiliated with or endorsed by the Remnawave project. Manage VPN users, nodes,
 hosts, squads, billing, subscription pages, and more as infrastructure-as-code.
 
-**At a glance:** 28 resources · 27 data sources · 6 Remnawave versions tested
+**At a glance:** 28 resources · 28 data sources · 6 Remnawave versions tested
 in CI · signed checksums, SBOMs, and build provenance for every release
 
 [Get started in 5 minutes](examples/getting-started/) ·
@@ -288,7 +288,7 @@ These resources trigger one-shot operations on `terraform apply`. Use the
 
 ## Data Sources
 
-**27 data sources** for reading panel state:
+**28 data sources** for reading panel state:
 
 ### Inventory
 
@@ -304,6 +304,7 @@ These resources trigger one-shot operations on `terraform apply`. Use the
 | [`remnawave_passkeys`](docs/data-sources/passkeys.md) | List WebAuthn passkeys for the current admin |
 | [`remnawave_node_integrations`](docs/data-sources/node_integrations.md) | List Remnawave 3.3+ node integrations and their configuration |
 | [`remnawave_shared_lists`](docs/data-sources/shared_lists.md) | List Remnawave 3.3+ global shared-list previews |
+| [`remnawave_snippets`](docs/data-sources/snippets.md) | List Xray config snippets |
 
 ### System & Health
 

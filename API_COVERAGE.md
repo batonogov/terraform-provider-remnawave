@@ -19,9 +19,9 @@ version-specific contracts at runtime.
 ## Current provider surface
 
 - Resources: 28
-- Data sources: 27
+- Data sources: 28
 - Exported client operations: 120
-- Acceptance test entry points: 86
+- Acceptance test entry points: 87
 
 The historical backend command count and current client operation count above
 are intentionally different metrics. Backend commands include authentication,
@@ -45,7 +45,7 @@ Terraform state.
 | Node plugins | CRUD with the 2.x plugin configuration document, the 3.1+ pre-start stage, and version-aware 3.3+ global shared-list handling | Plugin list data source, clone/reorder/sync, executor, torrent reports and report truncation |
 | Node integrations | 3.3+ CRUD resource and list data source, including optional node restart on update; node assignment through `remnawave_node` | Covered for supported contracts |
 | Shared lists | 3.3+ global IP/CIDR and ASN list CRUD resource and preview-list data source | Explicit shared-list synchronization action |
-| Snippets | CRUD plus opt-in node synchronization after update/delete on 3.2.3+ | Covered for supported contracts |
+| Snippets | CRUD plus opt-in node synchronization after update/delete on 3.2.3+, list data source | Covered for supported contracts |
 | API tokens | Create, existence read through list, delete, expiry and scopes | Scopes discovery data source |
 | Panel settings | Singleton resource | Covered for supported contracts; requires administrator JWT |
 | Infrastructure billing | Provider, billing-node and billing-history resources; billing-node/history reads | Provider list data source |

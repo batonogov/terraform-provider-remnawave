@@ -264,6 +264,7 @@ func (p *RemnawaveProvider) DataSources(_ context.Context) []func() datasource.D
 		NewExternalSquadsDataSource,
 		NewNodeIntegrationsDataSource,
 		NewSharedListsDataSource,
+		NewSnippetsDataSource,
 	}
 }
 
