@@ -1,12 +1,5 @@
 # Changelog
 
-## [1.7.1](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.7.0...v1.7.1) (2026-08-24)
-
-
-### Bug Fixes
-
-* send explicit false/empty values on host and node updates ([#248](https://github.com/batonogov/terraform-provider-remnawave/issues/248)) ([8e82f79](https://github.com/batonogov/terraform-provider-remnawave/commit/8e82f79f23d467c053449d7055994745608ff9e5))
-
 ## [1.7.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.6.0...v1.7.0) (2026-08-21)
 
 
