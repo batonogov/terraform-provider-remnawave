@@ -76,6 +76,15 @@ case "$endpoint" in
   repos/owner/repository/immutable-releases)
     cat "$MOCK_FIXTURE_DIR/immutable-releases.json"
     ;;
+  repos/owner/repository/vulnerability-alerts)
+    # GitHub answers 204 when alerts are on and 404 when they are off, so the
+    # fixture drives the exit status rather than any output.
+    jq -e '.enabled == true' \
+      "$MOCK_FIXTURE_DIR/vulnerability-alerts.json" >/dev/null || exit 1
+    ;;
+  repos/owner/repository/automated-security-fixes)
+    cat "$MOCK_FIXTURE_DIR/automated-security-fixes.json"
+    ;;
   repos/owner/repository/actions/secrets)
     cat "$MOCK_FIXTURE_DIR/repository-secrets.json"
     ;;
