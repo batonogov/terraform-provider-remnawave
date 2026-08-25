@@ -147,7 +147,7 @@ Panel branding PATCH payloads must include both `title` and `logoUrl` keys when
 | `remnawave_user_action` | `resource_user_action.go` | `/api/users/:identifier/actions/{enable,disable,reset-traffic,revoke,extend}` |
 | `remnawave_passkey` | `resource_passkey.go` | `/api/passkeys` |
 
-### Data Sources (27)
+### Data Sources (28)
 
 Data sources live in `data_sources.go` (original) and `data_source_*.go` (newer).
 
@@ -180,6 +180,7 @@ Data sources live in `data_sources.go` (original) and `data_source_*.go` (newer)
 | `remnawave_external_squads` | `data_source_external_squads.go` | `/api/external-squads` |
 | `remnawave_node_integrations` | `data_source_node_integrations.go` | `/api/node-integrations` |
 | `remnawave_shared_lists` | `data_source_shared_lists.go` | `/api/node-plugins/shared-lists` |
+| `remnawave_snippets` | `data_source_snippets.go` | `/api/snippets` |
 
 ### Acceptance Tests
 

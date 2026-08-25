@@ -144,8 +144,8 @@ func TestProviderRegistersUniqueDataSources(t *testing.T) {
 
 	p := New("test")()
 	factories := p.DataSources(context.Background())
-	if len(factories) != 27 {
-		t.Fatalf("data sources = %d, want 27", len(factories))
+	if len(factories) != 28 {
+		t.Fatalf("data sources = %d, want 28", len(factories))
 	}
 
 	seen := make(map[string]struct{}, len(factories))

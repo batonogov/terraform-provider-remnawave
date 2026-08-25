@@ -8,10 +8,12 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"sync/atomic"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 func TestAccSnippetResource(t *testing.T) {
@@ -44,6 +46,60 @@ resource "remnawave_snippet" "test" {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("remnawave_snippet.test", "name", "test-snippet-2"),
 					resource.TestCheckResourceAttrSet("remnawave_snippet.test", "snippet"),
+				),
+			},
+		},
+	})
+}
+
+// testAccCheckListContainsAttr looks for wanted among the values of
+// "<prefix>.N.<field>". Acceptance tests share one panel within a matrix entry,
+// so the snippet list also holds fixtures other tests created; asserting a
+// fixed element index or count would make this fail on ordering rather than on
+// behaviour.
+func testAccCheckListContainsAttr(name, prefix, field, wanted string) resource.TestCheckFunc {
+	return func(state *terraform.State) error {
+		rs, ok := state.RootModule().Resources[name]
+		if !ok {
+			return fmt.Errorf("data source %s not found in state", name)
+		}
+		count, err := strconv.Atoi(rs.Primary.Attributes[prefix+".#"])
+		if err != nil {
+			return fmt.Errorf("%s has no %s.# count: %w", name, prefix, err)
+		}
+		for i := 0; i < count; i++ {
+			if rs.Primary.Attributes[fmt.Sprintf("%s.%d.%s", prefix, i, field)] == wanted {
+				return nil
+			}
+		}
+		return fmt.Errorf("%s lists %d entries, none with %s = %q", name, count, field, wanted)
+	}
+}
+
+func TestAccSnippetsDataSource(t *testing.T) {
+	testAccPreCheck(t)
+	endpoint, authBlock := testAccProviderBlock()
+	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: providerCfg + `
+resource "remnawave_snippet" "listed" {
+  name    = "terraform-listed-snippet"
+  snippet = jsonencode([{ "type" = "field", "domain" = ["geosite:category-ads"] }])
+}
+
+data "remnawave_snippets" "all" {
+  depends_on = [remnawave_snippet.listed]
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("data.remnawave_snippets.all", "total"),
+					resource.TestCheckResourceAttrSet("data.remnawave_snippets.all", "snippets.#"),
+					testAccCheckListContainsAttr(
+						"data.remnawave_snippets.all", "snippets", "name", "terraform-listed-snippet"),
 				),
 			},
 		},
