@@ -138,9 +138,15 @@ printf '\n' >>"$fixture_repo/main.go"
 )
 dirty_archive="${project_name}_${release_version}_linux_amd64.zip"
 cp "$build_dir/dirty-provider" "$build_dir/${project_name}_v${release_version}"
+# Rebuild the archive from scratch instead of zip -FS: the clean and dirty
+# binaries are byte-identical in size (vcs.modified false->true keeps the
+# length), and when both builds land in one 2-second DOS timestamp bucket
+# zip considers the stored entry up to date and silently keeps the clean
+# binary, making this negative test pass against a clean archive.
+rm "$dist_dir/$dirty_archive"
 (
   cd "$build_dir"
-  zip -q -j -FS "$dist_dir/$dirty_archive" "${project_name}_v${release_version}"
+  zip -q -j "$dist_dir/$dirty_archive" "${project_name}_v${release_version}"
 )
 rm "$build_dir/${project_name}_v${release_version}"
 write_checksums
