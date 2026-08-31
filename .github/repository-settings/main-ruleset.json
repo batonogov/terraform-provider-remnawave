@@ -83,6 +83,10 @@
             "integration_id": 15368
           },
           {
+            "context": "Acceptance Tests (3.4.2)",
+            "integration_id": 15368
+          },
+          {
             "context": "Acceptance Tests (3.3.2)",
             "integration_id": 15368
           },

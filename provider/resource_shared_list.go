@@ -19,6 +19,12 @@ import (
 
 type sharedListResource struct{ client *Client }
 
+// sharedListNamePattern mirrors the Remnawave 3.4 backend name grammar:
+// letters, numbers, underscores and dashes, optionally in slash-separated
+// segments. Pre-3.4 panels accept the same shape minus the slashes and
+// reject the rest server-side.
+var sharedListNamePattern = regexp.MustCompile(`^[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*$`)
+
 type sharedListResourceModel struct {
 	Name   types.String `tfsdk:"name"`
 	Config types.String `tfsdk:"config"`
@@ -36,10 +42,12 @@ func (r *sharedListResource) Schema(_ context.Context, _ resource.SchemaRequest,
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
 				Required:    true,
-				Description: "Shared-list name without the ext: prefix (2-255 letters, numbers, underscores, or dashes).",
+				Description: "Shared-list name without the ext: prefix (2-255 letters, numbers, underscores, dashes, and single slashes between segments; slashes require Remnawave 3.4+).",
 				Validators: []validator.String{
 					stringvalidator.LengthBetween(2, 255),
-					stringvalidator.RegexMatches(regexp.MustCompile(`^[A-Za-z0-9_-]+$`), "name may contain only letters, numbers, underscores, and dashes"),
+					// Matches the Remnawave 3.4 backend rule; older panels
+					// reject slash-separated names server-side.
+					stringvalidator.RegexMatches(sharedListNamePattern, "name may contain only letters, numbers, underscores, dashes, and slash-separated segments"),
 				},
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),

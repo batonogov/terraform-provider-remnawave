@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -844,6 +845,164 @@ func TestHostModelConversions(t *testing.T) {
 	}
 	if minimal.ExcludedInternalSquads.IsNull() || minimal.ExcludedInternalSquads.IsUnknown() || len(minimal.ExcludedInternalSquads.Elements()) != 0 {
 		t.Fatalf("nil excluded squads should become a known empty list, got %#v", minimal.ExcludedInternalSquads)
+	}
+}
+
+func TestValidateInternalSquads(t *testing.T) {
+	t.Parallel()
+
+	str := types.StringValue
+	list := testStringList
+
+	// plan values for attributes absent from the configuration
+	unknownList := types.ListUnknown(types.StringType)
+	unknownString := types.StringUnknown()
+
+	for _, tt := range []struct {
+		name     string
+		version  string
+		mode     types.String
+		squads   types.List
+		excluded types.List
+		wantErr  string
+	}{
+		{name: "nothing configured", version: "3.3", mode: types.StringNull(), squads: types.ListNull(types.StringType), excluded: types.ListNull(types.StringType)},
+		{name: "absent attributes plan as unknown", version: "3.4", mode: unknownString, squads: unknownList, excluded: unknownList},
+		{name: "exclude mode with squads", version: "3.4", mode: str("EXCLUDE"), squads: list("s1"), excluded: types.ListNull(types.StringType)},
+		{name: "squads without mode default to exclude", version: "3.4", mode: types.StringNull(), squads: list("s1"), excluded: types.ListNull(types.StringType)},
+		{name: "allow only with squads", version: "3.4", mode: str("ALLOW_ONLY"), squads: list("s1"), excluded: types.ListNull(types.StringType)},
+		{name: "empty exclude list is a valid way to exclude none", version: "3.4", mode: str("EXCLUDE"), squads: list(), excluded: types.ListNull(types.StringType)},
+		{
+			name:    "mode without squads would clear panel links",
+			version: "3.4", mode: str("EXCLUDE"), squads: unknownList, excluded: types.ListNull(types.StringType),
+			wantErr: "internal_squads_mode requires internal_squads",
+		},
+		{
+			name:    "allow only without squads",
+			version: "3.4", mode: str("ALLOW_ONLY"), squads: unknownList, excluded: types.ListNull(types.StringType),
+			wantErr: "internal_squads_mode requires internal_squads",
+		},
+		{
+			name:    "allow only with an empty list",
+			version: "3.4", mode: str("ALLOW_ONLY"), squads: list(), excluded: types.ListNull(types.StringType),
+			wantErr: "ALLOW_ONLY requires at least one squad UUID",
+		},
+		{
+			name:    "non-empty excluded list combined with the new attributes",
+			version: "3.4", mode: types.StringNull(), squads: list("s1"), excluded: list("s2"),
+			wantErr: "excluded_internal_squads cannot be combined",
+		},
+		{
+			name:    "explicitly empty excluded list still fights the read mirror",
+			version: "3.4", mode: types.StringNull(), squads: list("s1"), excluded: list(),
+			wantErr: "excluded_internal_squads cannot be combined",
+		},
+		{
+			name:    "new attributes on a pre-3.4 panel",
+			version: "3.3", mode: str("EXCLUDE"), squads: list("s1"), excluded: types.ListNull(types.StringType),
+			wantErr: "requires Remnawave 3.4 or later",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			r := &hostResource{client: &Client{serverVersion: tt.version}}
+			err := r.validateInternalSquads(context.Background(), tt.mode, tt.squads, tt.excluded)
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("validateInternalSquads() = %v, want nil", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("validateInternalSquads() = %v, want error containing %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestHostInternalSquadsConversions(t *testing.T) {
+	t.Parallel()
+
+	plan := &hostResourceModel{
+		Remark:             types.StringValue("host"),
+		Address:            types.StringValue("host.example.com"),
+		Port:               types.Int64Value(443),
+		InternalSquadsMode: types.StringValue("ALLOW_ONLY"),
+		InternalSquads:     testStringList("squad-1", "squad-2"),
+	}
+	host := planToHost(plan)
+	if host.InternalSquads == nil || host.InternalSquads.Mode != "ALLOW_ONLY" || !reflect.DeepEqual(host.InternalSquads.Squads, []string{"squad-1", "squad-2"}) {
+		t.Fatalf("planToHost() internal squads = %#v", host.InternalSquads)
+	}
+
+	state := hostResourceModel{}
+	hostToPlan(host, &state)
+	if state.InternalSquadsMode.ValueString() != "ALLOW_ONLY" {
+		t.Errorf("internal_squads_mode = %q", state.InternalSquadsMode.ValueString())
+	}
+	if got := state.InternalSquads.Elements(); len(got) != 2 || got[0].(types.String).ValueString() != "squad-1" {
+		t.Errorf("internal_squads = %#v", state.InternalSquads)
+	}
+	if len(state.ExcludedInternalSquads.Elements()) != 0 {
+		t.Errorf("ALLOW_ONLY should mirror an empty excluded list, got %#v", state.ExcludedInternalSquads)
+	}
+
+	hostToPlan(&Host{Remark: "exclude", Address: "host", Port: 443,
+		InternalSquads: &HostInternalSquads{Mode: "EXCLUDE", Squads: []string{"squad-1"}}}, &state)
+	if state.InternalSquadsMode.ValueString() != "EXCLUDE" {
+		t.Errorf("internal_squads_mode = %q", state.InternalSquadsMode.ValueString())
+	}
+	if got := state.ExcludedInternalSquads.Elements(); len(got) != 1 || got[0].(types.String).ValueString() != "squad-1" {
+		t.Errorf("EXCLUDE should mirror the squad list into excluded_internal_squads, got %#v", got)
+	}
+
+	defaultMode := &hostResourceModel{
+		Remark:             types.StringValue("host"),
+		Address:            types.StringValue("host.example.com"),
+		Port:               types.Int64Value(443),
+		InternalSquadsMode: types.StringNull(),
+		InternalSquads:     testStringList("squad-1"),
+	}
+	if host := planToHost(defaultMode); host.InternalSquads == nil || host.InternalSquads.Mode != "EXCLUDE" {
+		t.Errorf("omitted mode should default to EXCLUDE, got %#v", host.InternalSquads)
+	}
+
+	legacy := hostResourceModel{}
+	hostToPlan(&Host{Remark: "legacy", Address: "host", Port: 443, ExcludedInternalSquads: &[]string{"squad-1"}}, &legacy)
+	if !legacy.InternalSquadsMode.IsNull() || !legacy.InternalSquads.IsNull() {
+		t.Errorf("pre-3.4 hosts should leave the squad attributes null, got %q/%#v", legacy.InternalSquadsMode, legacy.InternalSquads)
+	}
+	if got := legacy.ExcludedInternalSquads.Elements(); len(got) != 1 {
+		t.Errorf("legacy excluded squads = %#v", got)
+	}
+
+	minimal := hostResourceModel{}
+	hostToPlan(&Host{Remark: "minimal", Address: "host", Port: 443}, &minimal)
+	if !minimal.InternalSquadsMode.IsNull() || !minimal.InternalSquads.IsNull() {
+		t.Errorf("host without squads should leave the squad attributes null, got %q/%#v", minimal.InternalSquadsMode, minimal.InternalSquads)
+	}
+	if minimal.ExcludedInternalSquads.IsNull() || len(minimal.ExcludedInternalSquads.Elements()) != 0 {
+		t.Errorf("nil excluded squads should become a known empty list, got %#v", minimal.ExcludedInternalSquads)
+	}
+}
+
+func TestHostInternalSquadsJSON(t *testing.T) {
+	t.Parallel()
+
+	var host Host
+	if err := json.Unmarshal([]byte(`{"internalSquads":{"mode":"ALLOW_ONLY","squads":[]}}`), &host); err != nil {
+		t.Fatal(err)
+	}
+	if host.InternalSquads == nil || host.InternalSquads.Mode != "ALLOW_ONLY" || host.InternalSquads.Squads == nil || len(host.InternalSquads.Squads) != 0 {
+		t.Fatalf("decoded internalSquads = %#v", host.InternalSquads)
+	}
+
+	encoded, err := json.Marshal(&HostInternalSquads{Mode: "EXCLUDE", Squads: []string{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(encoded) != `{"mode":"EXCLUDE","squads":[]}` {
+		t.Errorf("empty squads must serialize as [], got %s", encoded)
 	}
 }
 

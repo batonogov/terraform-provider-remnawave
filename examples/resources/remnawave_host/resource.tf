@@ -11,4 +11,10 @@ resource "remnawave_host" "vless" {
     mihomo  = [{ op = "set", to = "tfo", value = true }]
     singbox = [{ op = "set", to = "tcp_fast_open", value = true }]
   })
+
+  # Remnawave 3.4+: control internal squad visibility explicitly.
+  # mode = "EXCLUDE" hides the host from the listed squads,
+  # mode = "ALLOW_ONLY" shows it only in the listed squads.
+  # internal_squads_mode = "EXCLUDE"
+  # internal_squads      = [remnawave_internal_squad.free.uuid]
 }

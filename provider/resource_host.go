@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -54,6 +55,8 @@ type hostResourceModel struct {
 	MihomoIPVersion              types.String `tfsdk:"mihomo_ip_version"`
 	XrayJSONTemplateUUID         types.String `tfsdk:"xray_json_template_uuid"`
 	ExcludedInternalSquads       types.List   `tfsdk:"excluded_internal_squads"`
+	InternalSquadsMode           types.String `tfsdk:"internal_squads_mode"`
+	InternalSquads               types.List   `tfsdk:"internal_squads"`
 	ExcludeFromSubscriptionTypes types.Set    `tfsdk:"exclude_from_subscription_types"`
 	Path                         types.String `tfsdk:"path"`
 }
@@ -208,6 +211,26 @@ func (r *hostResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Computed:    true,
 				ElementType: types.StringType,
 				Description: "Internal squad UUIDs from which this host is excluded.",
+				DeprecationMessage: "Remnawave 3.4 replaced excluded_internal_squads with internal_squads_mode + " +
+					"internal_squads; the provider still translates this list to mode = \"EXCLUDE\" " +
+					"on 3.4+ panels. Migrate to internal_squads_mode and internal_squads.",
+			},
+			"internal_squads_mode": schema.StringAttribute{
+				Optional: true,
+				Computed: true,
+				Description: "Internal squad selection mode (Remnawave 3.4+): EXCLUDE hides the host from the " +
+					"squads listed in internal_squads; ALLOW_ONLY shows the host only in those squads. " +
+					"Defaults to EXCLUDE when internal_squads is configured without an explicit mode.",
+				Validators: []validator.String{
+					stringvalidator.OneOf("EXCLUDE", "ALLOW_ONLY"),
+				},
+			},
+			"internal_squads": schema.ListAttribute{
+				Optional:    true,
+				Computed:    true,
+				ElementType: types.StringType,
+				Description: "Internal squad UUIDs the internal_squads_mode applies to (Remnawave 3.4+). " +
+					"An empty list means \"exclude none\" and is not allowed with ALLOW_ONLY.",
 			},
 			"exclude_from_subscription_types": schema.SetAttribute{
 				Optional:    true,
@@ -243,6 +266,10 @@ func (r *hostResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 	if err := r.validateMapperVersion(ctx, plan.Mapper); err != nil {
 		resp.Diagnostics.AddError("Unsupported host mapper", err.Error())
+		return
+	}
+	if err := r.validateInternalSquads(ctx, plan.InternalSquadsMode, plan.InternalSquads, plan.ExcludedInternalSquads); err != nil {
+		resp.Diagnostics.AddError("Invalid host internal squads", err.Error())
 		return
 	}
 
@@ -294,6 +321,10 @@ func (r *hostResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		resp.Diagnostics.AddError("Unsupported host mapper", err.Error())
 		return
 	}
+	if err := r.validateInternalSquads(ctx, plan.InternalSquadsMode, plan.InternalSquads, plan.ExcludedInternalSquads); err != nil {
+		resp.Diagnostics.AddError("Invalid host internal squads", err.Error())
+		return
+	}
 
 	host := planToHost(&plan)
 	host.UUID = plan.UUID.ValueString()
@@ -331,6 +362,34 @@ func (r *hostResource) validateMapperVersion(ctx context.Context, mapper types.S
 		return nil
 	}
 	return requireBackend3_3(ctx, r.client, "host mappers")
+}
+
+// validateInternalSquads guards the 3.4+ host squad attributes: they require
+// a 3.4+ panel, the mode cannot be set without the squad list (a {mode,
+// squads: []} update would silently clear every panel-side squad link), they
+// cannot be combined with the deprecated excluded_internal_squads attribute —
+// not even with an explicitly empty list, which would otherwise fight the
+// read-side mirror forever — and ALLOW_ONLY needs at least one squad, the
+// same rule the backend enforces.
+func (r *hostResource) validateInternalSquads(ctx context.Context, mode types.String, squads types.List, excluded types.List) error {
+	modeConfigured := !mode.IsNull() && !mode.IsUnknown()
+	squadsConfigured := !squads.IsNull() && !squads.IsUnknown()
+	if !modeConfigured && !squadsConfigured {
+		return nil
+	}
+	if modeConfigured && !squadsConfigured {
+		return errors.New("internal_squads_mode requires internal_squads to be set alongside it; an omitted mode defaults to EXCLUDE")
+	}
+	if !excluded.IsNull() && !excluded.IsUnknown() {
+		return errors.New("excluded_internal_squads cannot be combined with internal_squads_mode/internal_squads; configure only one set")
+	}
+	if err := requireBackend3_4(ctx, r.client, "host internal squads"); err != nil {
+		return err
+	}
+	if mode.ValueString() == "ALLOW_ONLY" && len(squads.Elements()) == 0 {
+		return errors.New("internal_squads_mode ALLOW_ONLY requires at least one squad UUID in internal_squads")
+	}
+	return nil
 }
 
 // ─── Conversions ───
@@ -436,6 +495,22 @@ func planToHost(p *hostResourceModel) *Host {
 			squads = append(squads, v.(types.String).ValueString())
 		}
 		h.ExcludedInternalSquads = &squads
+	}
+	// Remnawave 3.4+ squad visibility. An omitted mode defaults to EXCLUDE,
+	// matching the backend column default. The squad list gates the whole
+	// block: sending {mode, squads: []} on update would clear every
+	// panel-side squad link, so a mode without a configured list must not
+	// serialize (validateInternalSquads rejects it; this is the backstop).
+	if !p.InternalSquads.IsNull() && !p.InternalSquads.IsUnknown() {
+		mode := "EXCLUDE"
+		if !p.InternalSquadsMode.IsNull() && !p.InternalSquadsMode.IsUnknown() {
+			mode = p.InternalSquadsMode.ValueString()
+		}
+		squads := []string{}
+		for _, v := range p.InternalSquads.Elements() {
+			squads = append(squads, v.(types.String).ValueString())
+		}
+		h.InternalSquads = &HostInternalSquads{Mode: mode, Squads: squads}
 	}
 	if !p.ExcludeFromSubscriptionTypes.IsNull() && !p.ExcludeFromSubscriptionTypes.IsUnknown() {
 		excludeTypes := []string{}
@@ -548,15 +623,42 @@ func hostToPlan(h *Host, p *hostResourceModel) {
 	} else {
 		p.XrayJSONTemplateUUID = types.StringNull()
 	}
-	if h.ExcludedInternalSquads != nil {
+	switch {
+	case h.InternalSquads != nil:
+		// Remnawave 3.4+ always returns the internalSquads object. Fill the
+		// flat attributes, and keep the deprecated excluded_internal_squads
+		// view in sync: EXCLUDE mirrors the squad list (pre-3.4
+		// configurations stay drift-free), ALLOW_ONLY has no legacy
+		// representation and reads back as an empty list.
+		squads := h.InternalSquads.Squads
+		if squads == nil {
+			squads = []string{}
+		}
+		elems := make([]attr.Value, 0, len(squads))
+		for _, s := range squads {
+			elems = append(elems, types.StringValue(s))
+		}
+		squadsList, _ := types.ListValue(types.StringType, elems)
+		p.InternalSquadsMode = types.StringValue(h.InternalSquads.Mode)
+		p.InternalSquads = squadsList
+		if h.InternalSquads.Mode == "ALLOW_ONLY" {
+			p.ExcludedInternalSquads = types.ListValueMust(types.StringType, []attr.Value{})
+		} else {
+			p.ExcludedInternalSquads = squadsList
+		}
+	case h.ExcludedInternalSquads != nil:
 		elems := make([]attr.Value, 0, len(*h.ExcludedInternalSquads))
 		for _, s := range *h.ExcludedInternalSquads {
 			elems = append(elems, types.StringValue(s))
 		}
 		squadsList, _ := types.ListValue(types.StringType, elems)
 		p.ExcludedInternalSquads = squadsList
-	} else {
+		p.InternalSquadsMode = types.StringNull()
+		p.InternalSquads = types.ListNull(types.StringType)
+	default:
 		p.ExcludedInternalSquads = types.ListValueMust(types.StringType, []attr.Value{})
+		p.InternalSquadsMode = types.StringNull()
+		p.InternalSquads = types.ListNull(types.StringType)
 	}
 	excludeFromSubscriptionTypes := []string{}
 	if h.ExcludeFromSubscriptionTypes != nil {

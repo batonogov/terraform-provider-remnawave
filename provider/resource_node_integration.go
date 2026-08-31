@@ -203,6 +203,17 @@ func requireBackend3_3(ctx context.Context, client *Client, feature string) erro
 	return nil
 }
 
+func requireBackend3_4(ctx context.Context, client *Client, feature string) error {
+	supported, err := client.isVersionAtLeast3_4(ctx)
+	if err != nil {
+		return fmt.Errorf("detect backend version: %w", err)
+	}
+	if !supported {
+		return fmt.Errorf("%s requires Remnawave 3.4 or later", feature)
+	}
+	return nil
+}
+
 func nodeIntegrationFromModel(model *nodeIntegrationResourceModel) (*NodeIntegration, error) {
 	var config map[string]any
 	if err := json.Unmarshal([]byte(model.Config.ValueString()), &config); err != nil {

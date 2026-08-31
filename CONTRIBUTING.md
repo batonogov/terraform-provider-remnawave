@@ -27,6 +27,7 @@ task test:acc
 
 # Test a different explicitly pinned backend build
 REMNAWAVE_VERSION=3.3.2 REMNAWAVE_DIGEST=sha256:<digest> task test:acc
+# (defaults: REMNAWAVE_VERSION=3.4.2 with the digest from compat-versions.json)
 ```
 
 ## PR Workflow
