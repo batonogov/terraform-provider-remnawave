@@ -12,9 +12,15 @@ import (
 // the backend and returns a status-only diagnostic. The compose fixture
 // intentionally has no connected Xray node, so a successful connection drop
 // is impossible: up to Remnawave 3.3 the panel answers 404, while 3.4+
-// returns 500 with errorCode A219 ("Connected nodes not found").
+// returns 500 with errorCode A219 ("Connected nodes not found"). Gating on
+// the detected version keeps every matrix entry asserting one exact status.
 func TestAccDropConnectionsResource_ByUserUUID(t *testing.T) {
 	testAccPreCheck(t)
+
+	status := "404"
+	if isBackendAtLeast3_4() {
+		status = "500" // errorCode A219, see above
+	}
 
 	endpoint, authBlock := testAccProviderBlock()
 	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
@@ -36,7 +42,7 @@ resource "remnawave_drop_connections" "test" {
   triggers   = { init = "1" }
 }
 `,
-				ExpectError: regexp.MustCompile(`request failed: status (404|500)`),
+				ExpectError: regexp.MustCompile(`request failed: status ` + status),
 			},
 		},
 	})

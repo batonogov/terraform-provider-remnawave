@@ -90,7 +90,12 @@ the first version-dependent operation. Version-specific behaviour:
   nested-object form was rejected during development: a non-null
   Optional+Computed single-nested object in state breaks Terraform's no-op
   planning (a perpetual "1 to change" plan), while flat string/list
-  attributes plan cleanly. Shared-list client routes and the relaxed name
+  attributes plan cleanly. Validation rejects `internal_squads_mode`
+  without `internal_squads` (the update would serialize `squads: []` and
+  clear every panel-side squad link), an explicitly empty
+  `excluded_internal_squads = []` combined with the new attributes (it
+  fights the read mirror forever), and `ALLOW_ONLY` without a squad.
+  Shared-list client routes and the relaxed name
   regex follow the backend version.
   Dropping connections without any connected node also changed shape: the
   panel used to answer 404 and now returns 500 with errorCode A219

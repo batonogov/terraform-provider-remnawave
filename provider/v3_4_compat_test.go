@@ -35,6 +35,31 @@ func sharedListHandler(t *testing.T, method string, check func(*http.Request)) h
 	}
 }
 
+// TestSharedListNamePattern pins the relaxed name grammar: slash-separated
+// segments are valid since Remnawave 3.4, while leading/trailing/doubled
+// slashes and other characters stay rejected.
+func TestSharedListNamePattern(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name  string
+		valid bool
+	}{
+		{name: "private_ranges", valid: true},
+		{name: "terraform/private_ranges", valid: true},
+		{name: "a/b/c-d_e", valid: true},
+		{name: "/leading", valid: false},
+		{name: "trailing/", valid: false},
+		{name: "double//slash", valid: false},
+		{name: "with space", valid: false},
+		{name: "with:colon", valid: false},
+	} {
+		if got := sharedListNamePattern.MatchString(tt.name); got != tt.valid {
+			t.Errorf("pattern.MatchString(%q) = %v, want %v", tt.name, got, tt.valid)
+		}
+	}
+}
+
 // TestClientV3_4SharedListRoutes pins the Remnawave 3.4 shared-list
 // identifier contract: GET moved the name into a query parameter and DELETE
 // moved it into a JSON body, because names may now contain "/".

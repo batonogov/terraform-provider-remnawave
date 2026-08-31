@@ -952,12 +952,6 @@ func (c *Client) ResetNodeTraffic(ctx context.Context, uuid string) (*Node, erro
 
 // ─── Host API ───
 
-// hostRequest adapts a Host request body for the target server version. On
-// 2.7.x it returns a JSON object (not *Host) so it can put an explicit
-// null in place of the "tag" field when the caller clears tags: the 2.7.x
-// DTO regex-validates "tag" ("uppercase letters, numbers, underscores and
-// colons"), which rejects an explicit empty string with a 400, but accepts
-// null as "clear this field". *Host's plain omitempty can't express that —
 // adaptHostSquadsRequest translates the host squad fields for the target
 // backend generation. Remnawave 3.4 replaced the excludedInternalSquads
 // request array with the internalSquads {mode, squads} object; 3.3.x and
@@ -989,10 +983,17 @@ func (c *Client) adaptHostSquadsRequest(ctx context.Context, host *Host) (*Host,
 	}
 }
 
-// a nil *string is omitted from the wire entirely (leaves the old value
-// untouched), and a non-nil pointer to "" fails the regex — so the 2.7.x
+// hostRequest adapts a Host request body for the target server version. On
+// 2.7.x it returns a JSON object (not *Host) so it can put an explicit
+// null in place of the "tag" field when the caller clears tags: the 2.7.x
+// DTO regex-validates "tag" ("uppercase letters, numbers, underscores and
+// colons"), which rejects an explicit empty string with a 400, but accepts
+// null as "clear this field" — a nil *string is omitted from the wire
+// entirely (leaves the old value untouched), and a non-nil pointer to ""
+// fails the regex. *Host's plain omitempty can't express that, so the 2.7.x
 // path builds the request from host's own marshaled JSON instead of
-// reusing the *Host struct's tag field semantics.
+// reusing the *Host struct's tag field semantics. Squad fields for every
+// generation are normalized first by adaptHostSquadsRequest.
 func (c *Client) hostRequest(ctx context.Context, host *Host) (any, error) {
 	host, err := c.adaptHostSquadsRequest(ctx, host)
 	if err != nil {

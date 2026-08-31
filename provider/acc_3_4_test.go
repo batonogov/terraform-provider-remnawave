@@ -2,13 +2,14 @@ package provider
 
 import (
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
 // TestAccHostInternalSquads exercises the Remnawave 3.4 host
-// internalSquads {mode, squads} contract: the dedicated block in both modes,
+// internalSquads {mode, squads} contract: the flat attributes in both modes,
 // the deprecated excluded_internal_squads translation, and the mirror view
 // the provider keeps for pre-3.4 configurations.
 func TestAccHostInternalSquads(t *testing.T) {
@@ -50,8 +51,9 @@ resource "remnawave_host" "test" {
 					resource.TestCheckResourceAttrSet("remnawave_host.test", "uuid"),
 					resource.TestCheckResourceAttr("remnawave_host.test", "internal_squads_mode", "EXCLUDE"),
 					resource.TestCheckResourceAttr("remnawave_host.test", "internal_squads.#", "1"),
-					resource.TestCheckResourceAttrSet("remnawave_host.test", "internal_squads.0"),
+					resource.TestCheckResourceAttrPair("remnawave_host.test", "internal_squads.0", "remnawave_internal_squad.test", "uuid"),
 					resource.TestCheckResourceAttr("remnawave_host.test", "excluded_internal_squads.#", "1"),
+					resource.TestCheckResourceAttrPair("remnawave_host.test", "excluded_internal_squads.0", "remnawave_internal_squad.test", "uuid"),
 				),
 			},
 			{
@@ -81,6 +83,37 @@ resource "remnawave_host" "test" {
 				ImportStateVerify:                    true,
 				ImportStateVerifyIdentifierAttribute: "uuid",
 				ImportStateIdFunc:                    resourceUUIDImportStateID("remnawave_host.test"),
+			},
+		},
+	})
+}
+
+// TestAccHostInternalSquads_Pre3_4Rejected pins the version gate on panels
+// older than 3.4: the squad attributes must fail with the provider's
+// version message, not with an opaque backend error.
+func TestAccHostInternalSquads_Pre3_4Rejected(t *testing.T) {
+	testAccPreCheck(t)
+	if isBackendAtLeast3_4() {
+		t.Skip("rejection path only observable on panels older than 3.4")
+	}
+	endpoint, authBlock := testAccProviderBlock()
+	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: providerCfg + testAccProfileConfig("host-squads-reject-profile", "VLESS_TCP_HOST_SQUADS_REJECT") + `
+resource "remnawave_host" "test" {
+  remark                      = "terraform-host-squads-reject"
+  address                     = "host.example.com"
+  port                        = 443
+  internal_squads             = []
+  config_profile_uuid         = remnawave_config_profile.profile.uuid
+  config_profile_inbound_uuid = remnawave_config_profile.profile.inbounds[0].uuid
+}
+`,
+				ExpectError: regexp.MustCompile(`requires Remnawave 3.4 or later`),
 			},
 		},
 	})

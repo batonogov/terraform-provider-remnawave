@@ -53,6 +53,15 @@ Provider mapping:
   "(known after apply)". Flat string/list attributes with the same data plan
   cleanly; verified by apply + `terraform plan`/-refresh=false round trips
   against a live 3.4.2 panel.
+- Validation closes three traps found in review:
+  `internal_squads_mode` without `internal_squads` is rejected — the update
+  would serialize `{mode, squads: []}` and the backend treats that as "clear
+  every squad link", silently destroying panel-side data; an explicitly empty
+  `excluded_internal_squads = []` combined with the new attributes is
+  rejected too — an empty configured list would fight the read-side mirror
+  forever (config `[]` vs mirrored `[uuid...]` on every plan); and
+  `ALLOW_ONLY` without a squad is rejected at plan time with the provider's
+  message instead of an opaque backend 400.
 - The deprecated `excluded_internal_squads` attribute keeps working: on 3.4+
   the client translates it to `internalSquads {mode: "EXCLUDE", squads: ...}`
   (`adaptHostSquadsRequest`) and never sends the removed key. Reads mirror
@@ -121,9 +130,15 @@ to `status (404|500)`.
   env-driven length/pattern configuration. No REST contract.
 - **`isDisabled` in host updates became optional** (commit `e39f9773`). The
   provider always sends an explicit boolean, which remains valid.
-- **Base64 share-link mapper coverage**, **default SingBox template**,
-  **OAuth2 state / passkey challenge keying**, and **error-handling/openapi
-  refactors** are internal or subscription-generation changes.
+- **Base64 share-link mapper coverage** (commit `06c44e63`): the host-mapper
+  grammar gains `$link.address`/`$link.port`/`$link.password`/
+  `$link.remark`/`$link.method` targets that rewrite the generated share link
+  itself rather than its query string. Additive and opaque to the provider —
+  `mapper` is an unvalidated JSON string, and the mapper acceptance test
+  passes unchanged on 3.4.2.
+- **default SingBox template**, **OAuth2 state / passkey challenge keying**,
+  and **error-handling/openapi refactors** are internal or
+  subscription-generation changes.
 - 3.4.1/3.4.2 patches: version bump only, then a concurrent HWID registration
   duplicate-key fix and an OpenAPI nullable-fields rendering fix.
 
@@ -152,13 +167,16 @@ against the previous default, proving both sides of every 3.4 gate (host squad
 translation, shared-list routes, slashed names):
 
 ```text
-3.4.2  PASS  ok  github.com/batonogov/terraform-provider-remnawave/provider  64.767s  (88 passed, 1 skipped)
-3.3.2  PASS  ok  github.com/batonogov/terraform-provider-remnawave/provider  60.716s  (86 passed, 3 skipped)
+3.4.2  PASS  ok  github.com/batonogov/terraform-provider-remnawave/provider  63.348s  (88 passed, 1 skipped)
+3.3.2  PASS  ok  github.com/batonogov/terraform-provider-remnawave/provider  62.276s  (87 passed, 3 skipped)
 ```
 
 The only skip on 3.4.2 is `TestAccPasskeyResource_ImportSkip` (needs a
-WebAuthn fixture). On 3.3.2 the two new 3.4-only tests skip through their
-`isBackendAtLeast3_4` guards, as designed.
+WebAuthn fixture) — `TestAccHostInternalSquads_Pre3_4Rejected` also skips
+there, because its rejection path only exists on older panels. On 3.3.2 that
+test **passes** (the provider's "requires Remnawave 3.4 or later" error), the
+two 3.4-only tests skip through their `isBackendAtLeast3_4` guards, and the
+drop-connections test asserts the exact legacy 404.
 
 New acceptance coverage: `TestAccHostInternalSquads` (EXCLUDE → ALLOW_ONLY →
 deprecated-attribute translation → import) and `TestAccSharedListSlashedName`

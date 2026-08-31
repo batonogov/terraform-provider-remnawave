@@ -364,23 +364,29 @@ func (r *hostResource) validateMapperVersion(ctx context.Context, mapper types.S
 	return requireBackend3_3(ctx, r.client, "host mappers")
 }
 
-// validateInternalSquads guards the 3.4+ host squad attributes: they require a
-// 3.4+ panel, they cannot be combined with the deprecated
-// excluded_internal_squads list, and ALLOW_ONLY needs at least one squad —
-// the same rule the backend enforces.
+// validateInternalSquads guards the 3.4+ host squad attributes: they require
+// a 3.4+ panel, the mode cannot be set without the squad list (a {mode,
+// squads: []} update would silently clear every panel-side squad link), they
+// cannot be combined with the deprecated excluded_internal_squads attribute —
+// not even with an explicitly empty list, which would otherwise fight the
+// read-side mirror forever — and ALLOW_ONLY needs at least one squad, the
+// same rule the backend enforces.
 func (r *hostResource) validateInternalSquads(ctx context.Context, mode types.String, squads types.List, excluded types.List) error {
 	modeConfigured := !mode.IsNull() && !mode.IsUnknown()
 	squadsConfigured := !squads.IsNull() && !squads.IsUnknown()
 	if !modeConfigured && !squadsConfigured {
 		return nil
 	}
-	if !excluded.IsNull() && !excluded.IsUnknown() && len(excluded.Elements()) > 0 {
+	if modeConfigured && !squadsConfigured {
+		return errors.New("internal_squads_mode requires internal_squads to be set alongside it; an omitted mode defaults to EXCLUDE")
+	}
+	if !excluded.IsNull() && !excluded.IsUnknown() {
 		return errors.New("excluded_internal_squads cannot be combined with internal_squads_mode/internal_squads; configure only one set")
 	}
 	if err := requireBackend3_4(ctx, r.client, "host internal squads"); err != nil {
 		return err
 	}
-	if mode.ValueString() == "ALLOW_ONLY" && squadsConfigured && len(squads.Elements()) == 0 {
+	if mode.ValueString() == "ALLOW_ONLY" && len(squads.Elements()) == 0 {
 		return errors.New("internal_squads_mode ALLOW_ONLY requires at least one squad UUID in internal_squads")
 	}
 	return nil
@@ -491,21 +497,18 @@ func planToHost(p *hostResourceModel) *Host {
 		h.ExcludedInternalSquads = &squads
 	}
 	// Remnawave 3.4+ squad visibility. An omitted mode defaults to EXCLUDE,
-	// matching the backend column default, so internal_squads can be set on
-	// its own. Nothing configured sends nothing and the backend keeps its
-	// stored value.
-	squadsModeConfigured := !p.InternalSquadsMode.IsNull() && !p.InternalSquadsMode.IsUnknown()
-	squadsConfigured := !p.InternalSquads.IsNull() && !p.InternalSquads.IsUnknown()
-	if squadsModeConfigured || squadsConfigured {
+	// matching the backend column default. The squad list gates the whole
+	// block: sending {mode, squads: []} on update would clear every
+	// panel-side squad link, so a mode without a configured list must not
+	// serialize (validateInternalSquads rejects it; this is the backstop).
+	if !p.InternalSquads.IsNull() && !p.InternalSquads.IsUnknown() {
 		mode := "EXCLUDE"
-		if squadsModeConfigured {
+		if !p.InternalSquadsMode.IsNull() && !p.InternalSquadsMode.IsUnknown() {
 			mode = p.InternalSquadsMode.ValueString()
 		}
 		squads := []string{}
-		if squadsConfigured {
-			for _, v := range p.InternalSquads.Elements() {
-				squads = append(squads, v.(types.String).ValueString())
-			}
+		for _, v := range p.InternalSquads.Elements() {
+			squads = append(squads, v.(types.String).ValueString())
 		}
 		h.InternalSquads = &HostInternalSquads{Mode: mode, Squads: squads}
 	}
