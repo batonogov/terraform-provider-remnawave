@@ -26,6 +26,12 @@ resource "remnawave_host" "vless" {
     mihomo  = [{ op = "set", to = "tfo", value = true }]
     singbox = [{ op = "set", to = "tcp_fast_open", value = true }]
   })
+
+  # Remnawave 3.4+: control internal squad visibility explicitly.
+  # mode = "EXCLUDE" hides the host from the listed squads,
+  # mode = "ALLOW_ONLY" shows it only in the listed squads.
+  # internal_squads_mode = "EXCLUDE"
+  # internal_squads      = [remnawave_internal_squad.free.uuid]
 }
 ```
 
@@ -44,10 +50,12 @@ resource "remnawave_host" "vless" {
 
 - `alpn` (String) ALPN value (h3, h2, http/1.1, or combinations).
 - `exclude_from_subscription_types` (Set of String) Subscription template types from which this host is excluded.
-- `excluded_internal_squads` (List of String) Internal squad UUIDs from which this host is excluded.
+- `excluded_internal_squads` (List of String, Deprecated) Internal squad UUIDs from which this host is excluded.
 - `final_mask` (String) Final mask configuration as JSON.
 - `fingerprint` (String) TLS fingerprint (e.g. chrome, firefox).
 - `host_header` (String) Host header for HTTP/WebSocket.
+- `internal_squads` (List of String) Internal squad UUIDs the internal_squads_mode applies to (Remnawave 3.4+). An empty list means "exclude none" and is not allowed with ALLOW_ONLY.
+- `internal_squads_mode` (String) Internal squad selection mode (Remnawave 3.4+): EXCLUDE hides the host from the squads listed in internal_squads; ALLOW_ONLY shows the host only in those squads. Defaults to EXCLUDE when internal_squads is configured without an explicit mode.
 - `is_disabled` (Boolean) Whether the host is disabled.
 - `is_hidden` (Boolean) Hide host from subscription.
 - `keep_sni_blank` (Boolean) Keep SNI blank instead of deriving it.

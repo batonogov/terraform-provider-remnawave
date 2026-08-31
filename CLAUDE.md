@@ -12,9 +12,10 @@ Registry: `batonogov/remnawave`. All provider code lives in `provider/`.
 The Remnawave backend (`github.com/remnawave/backend`) is a NestJS TypeScript
 application with a clean REST API. The panel uses PostgreSQL + Redis (Valkey).
 
-**Compatibility:** Remnawave v2.7.x, v2.8.x, v3.0.x, v3.1.x, v3.2.x, and v3.3.x.
-Docker Compose and acceptance tests default to the `remnawave/backend:3.3.2`
-image pinned by digest; CI runs matrix entries against `remnawave/backend:3.3.1`,
+**Compatibility:** Remnawave v2.7.x, v2.8.x, v3.0.x, v3.1.x, v3.2.x, v3.3.x,
+and v3.4.x. Docker Compose and acceptance tests default to the
+`remnawave/backend:3.4.2` image pinned by digest; CI runs matrix entries
+against `remnawave/backend:3.3.2`, `remnawave/backend:3.3.1`,
 `remnawave/backend:3.2.3`, `remnawave/backend:3.1.0`, `remnawave/backend:3.0.0`,
 `remnawave/backend:2.8.1`, and `remnawave/backend:2.7.4`. Remnawave 3.3.1 stays in
 the matrix even though 3.3.2 supersedes it, because 3.3.1 is the only version
@@ -73,12 +74,45 @@ the first version-dependent operation. Version-specific behaviour:
   patches also fix node-plugin reordering, which previously wrote `viewPosition`
   to the `externalSquads` table, and change an internal Telegram notification
   URL.
+- **3.4.x**: Host squad exclusions change shape: the flat
+  `excludedInternalSquads` request/response array is replaced by
+  `internalSquads {mode: "EXCLUDE"|"ALLOW_ONLY", squads: []}` (always present
+  in responses, defaulting to `{mode: "EXCLUDE", squads: []}`). Shared-list
+  identifiers move off the path: `GET /api/node-plugins/shared-lists/:name`
+  becomes `GET .../shared-lists/by-name?name=`, and
+  `DELETE .../shared-lists/:name` becomes `DELETE .../shared-lists` with a
+  `{"name"}` JSON body. Snippet and shared-list names may now contain `/`
+  between segments. The provider maps the new host object to the flat
+  `internal_squads_mode` + `internal_squads` attributes (3.4+ only) and keeps
+  the deprecated `excluded_internal_squads` attribute working by translating
+  it to `{mode: "EXCLUDE", squads: ...}`; reads mirror `EXCLUDE`-mode squads
+  back into the old attribute so pre-3.4 configurations do not drift. The
+  nested-object form was rejected during development: a non-null
+  Optional+Computed single-nested object in state breaks Terraform's no-op
+  planning (a perpetual "1 to change" plan), while flat string/list
+  attributes plan cleanly. Shared-list client routes and the relaxed name
+  regex follow the backend version.
+  Dropping connections without any connected node also changed shape: the
+  panel used to answer 404 and now returns 500 with errorCode A219
+  ("Connected nodes not found"), so the drop-connections acceptance test
+  accepts either status. 3.4 also adds entity `tags` for config profiles,
+  subpage configs, node
+  plugins, subscription templates, and internal/external squads (managed
+  through dedicated `GET/PATCH <controller>/tags` endpoints), a node SSH
+  terminal module (websocket), customizable short-UUID generation (env
+  only), and an optional `isDisabled` in host updates (the provider always
+  sends it). None of those are provider surfaces yet; tags are planned as a
+  follow-up. Versions 3.4.1 and 3.4.2 are contract-compatible patches
+  (3.4.2 fixes concurrent HWID device registration and OpenAPI nullable
+  fields).
 
 Existing configurations require no changes — the provider transparently
 adapts. The optional node `ips` attribute requires Remnawave 3.2.2 or later;
 host `mapper`, node `integration_uuids`, node integrations, and global shared
 lists require Remnawave 3.3 or later; `torrentBlocker.rulePlacement` in
-`plugin_config` requires Remnawave 3.3.1 or later.
+`plugin_config` requires Remnawave 3.3.1 or later; host
+`internal_squads_mode`/`internal_squads` and
+slash-containing snippet/shared-list names require Remnawave 3.4 or later.
 
 ## Commands
 
@@ -242,7 +276,7 @@ removes untracked duplicate/generated files such as `docs/* 2.md`; preview with
 | Build | `go build ./...` |
 | Unit Tests | `go test ./provider -skip TestAcc`, race detector, **30% coverage floor** |
 | Documentation | `terraform fmt -check` on examples; `tfplugindocs generate/validate`; fails if `docs/` drifts |
-| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against 3.3.2 (default), 3.3.1, 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 |
+| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against 3.4.2 (default), 3.3.2, 3.3.1, 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 |
 
 All GitHub Actions across the repo **must be pinned by commit SHA**
 (see `release-please.yml`); Dependabot keeps them current. Do not switch

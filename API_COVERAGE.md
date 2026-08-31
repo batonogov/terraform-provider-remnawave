@@ -13,15 +13,15 @@ unsafe and misleading provider design.
 - Contract inventory: 184 `*.command.ts` files under `libs/contract/commands`
 
 This backend inventory is a historical contract snapshot. The provider now
-supports Remnawave 2.7.x, 2.8.x, 3.0.x, 3.1.x, 3.2.x, and 3.3.x and adapts
-version-specific contracts at runtime.
+supports Remnawave 2.7.x, 2.8.x, 3.0.x, 3.1.x, 3.2.x, 3.3.x, and 3.4.x and
+adapts version-specific contracts at runtime.
 
 ## Current provider surface
 
 - Resources: 28
 - Data sources: 28
 - Exported client operations: 120
-- Acceptance test entry points: 87
+- Acceptance test entry points: 89
 
 The historical backend command count and current client operation count above
 are intentionally different metrics. Backend commands include authentication,
@@ -66,7 +66,7 @@ The following checks are required for supported functionality:
    envelope handling.
 2. Every registered resource and data source that can be exercised
    non-interactively has real-panel acceptance coverage against the pinned
-   Remnawave 3.3.2, 3.3.1, 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 images. The import-only
+   Remnawave 3.4.2, 3.3.2, 3.3.1, 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 images. The import-only
    passkey
    resource is the explicit exception because creating its fixture requires a
    WebAuthn ceremony.

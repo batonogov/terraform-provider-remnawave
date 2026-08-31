@@ -1,6 +1,16 @@
 {
   "versions": [
     {
+      "version": "v3.4.2",
+      "supported": true,
+      "digest": "sha256:cef199b732c365ef01c3a907f56cc019733b8b1041d4b6161f5f7904e515a9ee",
+      "token_payload": {
+        "name": "acceptance-tests",
+        "expiresInDays": 1,
+        "scopes": ["*"]
+      }
+    },
+    {
       "version": "v3.3.2",
       "supported": true,
       "digest": "sha256:add561a4eff6616a0f01d1165e6d48cb7a710d574b4a4c0cae3fbc0cd4c34023",
@@ -69,6 +79,6 @@
       }
     }
   ],
-  "default_version": "v3.3.2",
-  "minor_lines": ["3.3.x", "3.2.x", "3.1.x", "3.0.x", "2.8.x", "2.7.x"]
+  "default_version": "v3.4.2",
+  "minor_lines": ["3.4.x", "3.3.x", "3.2.x", "3.1.x", "3.0.x", "2.8.x", "2.7.x"]
 }

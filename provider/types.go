@@ -154,48 +154,56 @@ func (i NodeConfigProfileInbound) MarshalJSON() ([]byte, error) {
 // Host maps to the Remnawave Hosts model.
 // API: /api/hosts (POST create, PATCH update, DELETE /:uuid, GET /:uuid)
 type Host struct {
-	UUID                         string          `json:"uuid,omitempty"`
-	Remark                       string          `json:"remark"`
-	Address                      string          `json:"address"`
-	Port                         int             `json:"port"`
-	Path                         *string         `json:"path,omitempty"`
-	SNI                          *string         `json:"sni,omitempty"`
-	HostHeader                   *string         `json:"host,omitempty"`
-	ALPN                         *string         `json:"alpn,omitempty"`
-	Fingerprint                  *string         `json:"fingerprint,omitempty"`
-	IsDisabled                   *bool           `json:"isDisabled,omitempty"`
-	SecurityLayer                string          `json:"securityLayer,omitempty"`
-	XHTTPExtraParams             json.RawMessage `json:"xhttpExtraParams,omitempty"`
-	MuxParams                    json.RawMessage `json:"muxParams,omitempty"`
-	SockoptParams                json.RawMessage `json:"sockoptParams,omitempty"`
-	FinalMask                    json.RawMessage `json:"finalMask,omitempty"`
-	ServerDescription            *string         `json:"serverDescription,omitempty"`
-	Tag                          *string         `json:"tag,omitempty"`
-	Tags                         *[]string       `json:"tags,omitempty"`
-	IsHidden                     *bool           `json:"isHidden,omitempty"`
-	OverrideSniFromAddress       *bool           `json:"overrideSniFromAddress,omitempty"`
-	KeepSniBlank                 *bool           `json:"keepSniBlank,omitempty"`
-	PinnedPeerCertSha256         *string         `json:"pinnedPeerCertSha256,omitempty"`
-	VerifyPeerCertByName         *string         `json:"verifyPeerCertByName,omitempty"`
-	VlessRouteID                 *int            `json:"vlessRouteId,omitempty"`
-	ShuffleHost                  *bool           `json:"shuffleHost,omitempty"`
-	MihomoX25519                 *bool           `json:"mihomoX25519,omitempty"`
-	MihomoIPVersion              *string         `json:"mihomoIpVersion,omitempty"`
-	Inbound                      *HostInbound    `json:"inbound,omitempty"`
-	Nodes                        *[]string       `json:"nodes,omitempty"`
-	XrayJsonTemplateUUID         *string         `json:"xrayJsonTemplateUuid,omitempty"`
-	ExcludedInternalSquads       *[]string       `json:"excludedInternalSquads,omitempty"`
-	ExcludeFromSubscriptionTypes *[]string       `json:"excludeFromSubscriptionTypes,omitempty"`
-	Mapper                       json.RawMessage `json:"mapper,omitempty"` // v3.3+
-	ViewPosition                 int             `json:"viewPosition,omitempty"`
-	CreatedAt                    string          `json:"createdAt,omitempty"`
-	UpdatedAt                    string          `json:"updatedAt,omitempty"`
+	UUID                         string              `json:"uuid,omitempty"`
+	Remark                       string              `json:"remark"`
+	Address                      string              `json:"address"`
+	Port                         int                 `json:"port"`
+	Path                         *string             `json:"path,omitempty"`
+	SNI                          *string             `json:"sni,omitempty"`
+	HostHeader                   *string             `json:"host,omitempty"`
+	ALPN                         *string             `json:"alpn,omitempty"`
+	Fingerprint                  *string             `json:"fingerprint,omitempty"`
+	IsDisabled                   *bool               `json:"isDisabled,omitempty"`
+	SecurityLayer                string              `json:"securityLayer,omitempty"`
+	XHTTPExtraParams             json.RawMessage     `json:"xhttpExtraParams,omitempty"`
+	MuxParams                    json.RawMessage     `json:"muxParams,omitempty"`
+	SockoptParams                json.RawMessage     `json:"sockoptParams,omitempty"`
+	FinalMask                    json.RawMessage     `json:"finalMask,omitempty"`
+	ServerDescription            *string             `json:"serverDescription,omitempty"`
+	Tag                          *string             `json:"tag,omitempty"`
+	Tags                         *[]string           `json:"tags,omitempty"`
+	IsHidden                     *bool               `json:"isHidden,omitempty"`
+	OverrideSniFromAddress       *bool               `json:"overrideSniFromAddress,omitempty"`
+	KeepSniBlank                 *bool               `json:"keepSniBlank,omitempty"`
+	PinnedPeerCertSha256         *string             `json:"pinnedPeerCertSha256,omitempty"`
+	VerifyPeerCertByName         *string             `json:"verifyPeerCertByName,omitempty"`
+	VlessRouteID                 *int                `json:"vlessRouteId,omitempty"`
+	ShuffleHost                  *bool               `json:"shuffleHost,omitempty"`
+	MihomoX25519                 *bool               `json:"mihomoX25519,omitempty"`
+	MihomoIPVersion              *string             `json:"mihomoIpVersion,omitempty"`
+	Inbound                      *HostInbound        `json:"inbound,omitempty"`
+	Nodes                        *[]string           `json:"nodes,omitempty"`
+	XrayJsonTemplateUUID         *string             `json:"xrayJsonTemplateUuid,omitempty"`
+	ExcludedInternalSquads       *[]string           `json:"excludedInternalSquads,omitempty"` // pre-3.4 only; 3.4 replaced it with InternalSquads
+	InternalSquads               *HostInternalSquads `json:"internalSquads,omitempty"`         // 3.4+
+	ExcludeFromSubscriptionTypes *[]string           `json:"excludeFromSubscriptionTypes,omitempty"`
+	Mapper                       json.RawMessage     `json:"mapper,omitempty"` // v3.3+
+	ViewPosition                 int                 `json:"viewPosition,omitempty"`
+	CreatedAt                    string              `json:"createdAt,omitempty"`
+	UpdatedAt                    string              `json:"updatedAt,omitempty"`
 }
 
 // HostInbound links a host to a config profile inbound.
 type HostInbound struct {
 	ConfigProfileUUID        string `json:"configProfileUuid"`
 	ConfigProfileInboundUUID string `json:"configProfileInboundUuid"`
+}
+
+// HostInternalSquads maps to the Remnawave 3.4+ host internalSquads object,
+// which replaces the flat excludedInternalSquads array.
+type HostInternalSquads struct {
+	Mode   string   `json:"mode"`   // "EXCLUDE" | "ALLOW_ONLY"
+	Squads []string `json:"squads"` // no omitempty: an empty list must serialize as []
 }
 
 // ConfigProfile maps to the Remnawave ConfigProfile model.

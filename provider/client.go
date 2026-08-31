@@ -667,6 +667,12 @@ func (c *Client) isVersionAtLeast3_3(ctx context.Context) (bool, error) {
 	return c.isVersionAtLeast(ctx, 3, 3)
 }
 
+// isVersionAtLeast3_4 returns true when host internalSquads and the
+// query-string shared-list name routes are available.
+func (c *Client) isVersionAtLeast3_4(ctx context.Context) (bool, error) {
+	return c.isVersionAtLeast(ctx, 3, 4)
+}
+
 func (c *Client) isVersionAtLeast(ctx context.Context, requiredMajor, requiredMinor int) (bool, error) {
 	if err := c.detectVersion(ctx); err != nil {
 		return false, err
@@ -952,11 +958,46 @@ func (c *Client) ResetNodeTraffic(ctx context.Context, uuid string) (*Node, erro
 // DTO regex-validates "tag" ("uppercase letters, numbers, underscores and
 // colons"), which rejects an explicit empty string with a 400, but accepts
 // null as "clear this field". *Host's plain omitempty can't express that —
+// adaptHostSquadsRequest translates the host squad fields for the target
+// backend generation. Remnawave 3.4 replaced the excludedInternalSquads
+// request array with the internalSquads {mode, squads} object; 3.3.x and
+// older accept only the legacy array. A nil *Host field is omitted from the
+// wire entirely by json omitempty, so the switch below picks exactly one
+// representation to send.
+func (c *Client) adaptHostSquadsRequest(ctx context.Context, host *Host) (*Host, error) {
+	is3_4, err := c.isVersionAtLeast3_4(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("detect host squad contract: %w", err)
+	}
+	switch {
+	case !is3_4 && host.InternalSquads != nil:
+		return nil, errors.New("host internal_squads requires Remnawave 3.4 or later")
+	case !is3_4:
+		return host, nil // legacy array passes through unchanged
+	case host.InternalSquads != nil:
+		adapted := *host
+		adapted.ExcludedInternalSquads = nil // removed from the 3.4 DTO
+		return &adapted, nil
+	case host.ExcludedInternalSquads != nil:
+		adapted := *host
+		squads := append([]string(nil), *host.ExcludedInternalSquads...)
+		adapted.InternalSquads = &HostInternalSquads{Mode: "EXCLUDE", Squads: squads}
+		adapted.ExcludedInternalSquads = nil // removed from the 3.4 DTO
+		return &adapted, nil
+	default:
+		return host, nil // internalSquads omitted -> backend default (EXCLUDE, [])
+	}
+}
+
 // a nil *string is omitted from the wire entirely (leaves the old value
 // untouched), and a non-nil pointer to "" fails the regex — so the 2.7.x
 // path builds the request from host's own marshaled JSON instead of
 // reusing the *Host struct's tag field semantics.
 func (c *Client) hostRequest(ctx context.Context, host *Host) (any, error) {
+	host, err := c.adaptHostSquadsRequest(ctx, host)
+	if err != nil {
+		return nil, err
+	}
 	if !c.isVersion2_7(ctx) {
 		return host, nil
 	}
@@ -1570,8 +1611,20 @@ func (c *Client) GetAllSharedLists(ctx context.Context) (*sharedListsListRespons
 }
 
 func (c *Client) GetSharedListByName(ctx context.Context, name string) (*SharedList, error) {
+	is3_4, err := c.isVersionAtLeast3_4(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("detect shared list contract: %w", err)
+	}
+	// Remnawave 3.4 moved the name from a path segment to the dedicated
+	// by-name route with a query parameter, because shared-list names may now
+	// contain "/". url.Values.Encode keeps the slash percent-encoded so it
+	// survives as a single value.
+	path := fmt.Sprintf("/api/node-plugins/shared-lists/%s", name)
+	if is3_4 {
+		path = "/api/node-plugins/shared-lists/by-name?" + url.Values{"name": {name}}.Encode()
+	}
 	var out SharedList
-	if err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/node-plugins/shared-lists/%s", name), nil, &out); err != nil {
+	if err := c.doRequest(ctx, http.MethodGet, path, nil, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -1586,7 +1639,16 @@ func (c *Client) UpdateSharedList(ctx context.Context, list *SharedList) (*Share
 }
 
 func (c *Client) DeleteSharedList(ctx context.Context, name string) error {
-	return c.doRequest(ctx, http.MethodDelete, fmt.Sprintf("/api/node-plugins/shared-lists/%s", name), nil, nil)
+	is3_4, err := c.isVersionAtLeast3_4(ctx)
+	if err != nil {
+		return fmt.Errorf("detect shared list contract: %w", err)
+	}
+	if is3_4 {
+		return c.doRequest(ctx, http.MethodDelete, "/api/node-plugins/shared-lists",
+			map[string]string{"name": name}, nil)
+	}
+	return c.doRequest(ctx, http.MethodDelete,
+		fmt.Sprintf("/api/node-plugins/shared-lists/%s", name), nil, nil)
 }
 
 // ─── API Token API ───
