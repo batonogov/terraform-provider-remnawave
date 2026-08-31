@@ -154,9 +154,13 @@ ruby -rjson -ryaml -e '
     configured_targets == expected_targets
 ' "$repository_dir/.goreleaser.yml" "$repository_dir/release-targets.json"
 
-grep -Fq 'anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610' \
+# Assert the release actions stay pinned by a full commit SHA (never a
+# floating tag) without freezing the exact revision: Dependabot bumps these
+# pins, and repository-wide SHA pinning is separately enforced and audited
+# by scripts/configure-repository-security.sh.
+grep -Eq 'anchore/sbom-action/download-syft@[0-9a-f]{40}' \
   "$repository_dir/.github/workflows/release-please.yml"
-grep -Fq 'actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6' \
+grep -Eq 'actions/attest@[0-9a-f]{40}' \
   "$repository_dir/.github/workflows/release-please.yml"
 grep -Fq 'id-token: write' "$repository_dir/.github/workflows/release-please.yml"
 grep -Fq 'attestations: write' "$repository_dir/.github/workflows/release-please.yml"
