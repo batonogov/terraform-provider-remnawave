@@ -66,7 +66,7 @@ The following checks are required for supported functionality:
    envelope handling.
 2. Every registered resource and data source that can be exercised
    non-interactively has real-panel acceptance coverage against the pinned
-   Remnawave 3.4.2, 3.3.2, 3.3.1, 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 images. The import-only
+   Remnawave 3.4.3, 3.3.2, 3.3.1, 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 images. The import-only
    passkey
    resource is the explicit exception because creating its fixture requires a
    WebAuthn ceremony.
