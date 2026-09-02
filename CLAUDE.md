@@ -14,7 +14,7 @@ application with a clean REST API. The panel uses PostgreSQL + Redis (Valkey).
 
 **Compatibility:** Remnawave v2.7.x, v2.8.x, v3.0.x, v3.1.x, v3.2.x, v3.3.x,
 and v3.4.x. Docker Compose and acceptance tests default to the
-`remnawave/backend:3.4.2` image pinned by digest; CI runs matrix entries
+`remnawave/backend:3.4.3` image pinned by digest; CI runs matrix entries
 against `remnawave/backend:3.3.2`, `remnawave/backend:3.3.1`,
 `remnawave/backend:3.2.3`, `remnawave/backend:3.1.0`, `remnawave/backend:3.0.0`,
 `remnawave/backend:2.8.1`, and `remnawave/backend:2.7.4`. Remnawave 3.3.1 stays in
@@ -107,9 +107,11 @@ the first version-dependent operation. Version-specific behaviour:
   terminal module (websocket), customizable short-UUID generation (env
   only), and an optional `isDisabled` in host updates (the provider always
   sends it). None of those are provider surfaces yet; tags are planned as a
-  follow-up. Versions 3.4.1 and 3.4.2 are contract-compatible patches
+  follow-up. Versions 3.4.1, 3.4.2, and 3.4.3 are contract-compatible patches
   (3.4.2 fixes concurrent HWID device registration and OpenAPI nullable
-  fields).
+  fields; 3.4.3 fixes a backend-tools auth bypass via a mixed-case request
+  path by mounting the tools auth middleware on the mounted route and changes
+  no REST route, DTO, or response model).
 
 Existing configurations require no changes — the provider transparently
 adapts. The optional node `ips` attribute requires Remnawave 3.2.2 or later;
@@ -281,7 +283,7 @@ removes untracked duplicate/generated files such as `docs/* 2.md`; preview with
 | Build | `go build ./...` |
 | Unit Tests | `go test ./provider -skip TestAcc`, race detector, **30% coverage floor** |
 | Documentation | `terraform fmt -check` on examples; `tfplugindocs generate/validate`; fails if `docs/` drifts |
-| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against 3.4.2 (default), 3.3.2, 3.3.1, 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 |
+| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against 3.4.3 (default), 3.3.2, 3.3.1, 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 |
 
 All GitHub Actions across the repo **must be pinned by commit SHA**
 (see `release-please.yml`); Dependabot keeps them current. Do not switch
