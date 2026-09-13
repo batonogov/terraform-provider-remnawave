@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.10.0...v1.11.0) (2026-09-13)
+
+
+### Features
+
+* support Remnawave 3.4.4 ([#269](https://github.com/batonogov/terraform-provider-remnawave/issues/269)) ([c3dc850](https://github.com/batonogov/terraform-provider-remnawave/commit/c3dc8502b97ccf6d7b0ddc309a980e2da94ef255))
+
 ## [1.10.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.9.0...v1.10.0) (2026-09-02)
 
 
