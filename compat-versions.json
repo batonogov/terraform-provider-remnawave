@@ -1,9 +1,9 @@
 {
   "versions": [
     {
-      "version": "v3.4.3",
+      "version": "v3.4.4",
       "supported": true,
-      "digest": "sha256:4ea85b2fc16bd3e5d367b61afc07ec219133eaa12dd7b5e898adc33c84515422",
+      "digest": "sha256:63ef481550bbf49dabfa514c95d94109619cc85607730b308f7ad0b9b5599f06",
       "token_payload": {
         "name": "acceptance-tests",
         "expiresInDays": 1,
@@ -79,6 +79,6 @@
       }
     }
   ],
-  "default_version": "v3.4.3",
+  "default_version": "v3.4.4",
   "minor_lines": ["3.4.x", "3.3.x", "3.2.x", "3.1.x", "3.0.x", "2.8.x", "2.7.x"]
 }
