@@ -319,6 +319,7 @@ func TestVersionDetection3_4(t *testing.T) {
 		{version: "3.4.0", want: true},
 		{version: "v3.4.2", want: true},
 		{version: "v3.4.3", want: true},
+		{version: "v3.4.4", want: true},
 	} {
 		t.Run(tt.version, func(t *testing.T) {
 			t.Parallel()
