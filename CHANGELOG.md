@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.12.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.11.0...v1.12.0) (2026-10-06)
+
+
+### Features
+
+* support postStart in remnawave_node_plugin plugin_config ([#276](https://github.com/batonogov/terraform-provider-remnawave/issues/276)) ([d98cff6](https://github.com/batonogov/terraform-provider-remnawave/commit/d98cff6af643e6d5cdefeba7ac1911a47229d9d8))
+* support Remnawave 3.4.5 ([#273](https://github.com/batonogov/terraform-provider-remnawave/issues/273)) ([4ae8771](https://github.com/batonogov/terraform-provider-remnawave/commit/4ae8771daa02ca38ed50d93c75eba4e2fe7271a8))
+
 ## [1.11.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.10.0...v1.11.0) (2026-09-13)
 
 
