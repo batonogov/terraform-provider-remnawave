@@ -33,7 +33,7 @@ func (r *nodePluginResource) Schema(_ context.Context, _ resource.SchemaRequest,
 		Attributes: map[string]schema.Attribute{
 			"uuid":          schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 			"name":          schema.StringAttribute{Required: true, Description: "Plugin name (2-30 chars)."},
-			"plugin_config": schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{nodePluginJSONPlanModifier{}}, Description: "Plugin config as JSON. Supported keys are sharedLists, torrentBlocker, ingressFilter, egressFilter, connectionDrop, preStart (Remnawave 3.1+), and postStart (Remnawave 3.4.5+). On Remnawave 3.3+, sharedLists is read as an effective compatibility view and omitted from plugin writes; manage global list contents with remnawave_shared_list. The torrentBlocker object accepts rulePlacement (0-1000) on Remnawave 3.3.1+ to position the injected routing rule; Remnawave 3.3.1 returns a default of 0 for that key, which the provider drops unless the configuration sets it. The postStart object accepts enabled and an optional webhook ({enabled, url}) fired after Xray-core starts or restarts; Remnawave 3.4.5 returns a default of false for postStart.enabled when the configuration omits it, which the provider drops unless the configuration sets it."},
+			"plugin_config": schema.StringAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.String{nodePluginJSONPlanModifier{}}, Description: "Plugin config as JSON. Supported keys are sharedLists, torrentBlocker, ingressFilter, egressFilter, connectionDrop, preStart (Remnawave 3.1+), and postStart (Remnawave 3.4.5+). On Remnawave 3.3+, sharedLists is read as an effective compatibility view and omitted from plugin writes; manage global list contents with remnawave_shared_list. The torrentBlocker object accepts rulePlacement (0-1000) on Remnawave 3.3.1+ to position the injected routing rule; Remnawave 3.3.1 returns a default of 0 for that key, which the provider drops unless the configuration sets it. The postStart object accepts enabled and an optional webhook ({enabled, url}, where url must be a valid http(s) URL) fired after Xray-core starts or restarts; Remnawave 3.4.5 returns a default of false for postStart.enabled when the configuration omits it, which the provider drops unless the configuration sets it."},
 		},
 	}
 }
@@ -168,6 +168,11 @@ func (r *nodePluginResource) pluginConfigForState(ctx context.Context, remote an
 	}
 	normalized["sharedLists"] = []any{}
 	if previous.IsNull() || previous.IsUnknown() || previous.ValueString() == "" {
+		// No prior configuration to align against (import, first read): keep
+		// the backend response verbatim, including materialized defaults such
+		// as postStart.enabled. Dropping them here would also drop a genuine
+		// enabled=true set outside Terraform; the one-time diff a webhook-only
+		// configuration shows instead is resolved by the aligned Update write.
 		return normalized, nil
 	}
 	_, previousConfig, err := canonicalNodePluginJSON(previous.ValueString())

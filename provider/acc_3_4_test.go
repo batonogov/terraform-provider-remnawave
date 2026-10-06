@@ -3,9 +3,11 @@ package provider
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 // TestAccHostInternalSquads exercises the Remnawave 3.4 host
@@ -199,7 +201,7 @@ func TestAccNodePluginPostStart(t *testing.T) {
 			{
 				Config: providerCfg + `
 resource "remnawave_node_plugin" "post_start" {
-  name = "post-start-plugin"
+  name = "test-plugin-post-start"
   plugin_config = jsonencode({
     sharedLists = []
     postStart = {
@@ -213,14 +215,15 @@ resource "remnawave_node_plugin" "post_start" {
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("remnawave_node_plugin.post_start", "uuid"),
-					resource.TestCheckResourceAttr("remnawave_node_plugin.post_start", "name", "post-start-plugin"),
+					resource.TestCheckResourceAttr("remnawave_node_plugin.post_start", "name", "test-plugin-post-start"),
 					resource.TestCheckResourceAttrSet("remnawave_node_plugin.post_start", "plugin_config"),
+					testAccCheckNodePluginConfigOmitsPostStartEnabled("remnawave_node_plugin.post_start"),
 				),
 			},
 			{
 				Config: providerCfg + `
 resource "remnawave_node_plugin" "post_start" {
-  name = "post-start-plugin"
+  name = "test-plugin-post-start"
   plugin_config = jsonencode({
     sharedLists = []
     postStart = {
@@ -240,4 +243,21 @@ resource "remnawave_node_plugin" "post_start" {
 			},
 		},
 	})
+}
+
+// testAccCheckNodePluginConfigOmitsPostStartEnabled proves the state does not
+// keep the postStart.enabled default Remnawave 3.4.5 materializes when the
+// configuration omits it. In canonical JSON enabled would sort before
+// webhook, so the presence of "postStart":{"enabled" is decisive.
+func testAccCheckNodePluginConfigOmitsPostStartEnabled(name string) resource.TestCheckFunc {
+	return func(state *terraform.State) error {
+		rs, ok := state.RootModule().Resources[name]
+		if !ok {
+			return fmt.Errorf("resource %s not found in state", name)
+		}
+		if strings.Contains(rs.Primary.Attributes["plugin_config"], `"postStart":{"enabled"`) {
+			return fmt.Errorf("plugin_config kept a backend-injected postStart.enabled: %s", rs.Primary.Attributes["plugin_config"])
+		}
+		return nil
+	}
 }

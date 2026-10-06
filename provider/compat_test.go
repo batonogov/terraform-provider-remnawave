@@ -244,6 +244,7 @@ func TestVersionDetection3_4_5(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
+		{version: "2.7.4", want: false},
 		{version: "3.3.2", want: false},
 		{version: "3.4.4", want: false},
 		{version: "3.4.5", want: true},

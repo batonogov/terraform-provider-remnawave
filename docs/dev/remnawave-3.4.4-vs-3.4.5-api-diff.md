@@ -13,7 +13,8 @@ Remnawave 3.4.5 is a contract-compatible patch: no REST route, request DTO,
 or response model changed — `libs/contract` is untouched. The Terraform
 provider needs only a compatibility-matrix bump; exposing the new
 `postStart` plugin section in `remnawave_node_plugin` is a follow-up (see
-Additions).
+Additions). Update: implemented in
+[#276](https://github.com/batonogov/terraform-provider-remnawave/pull/276).
 
 ## Additions
 

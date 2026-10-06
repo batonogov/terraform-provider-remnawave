@@ -262,6 +262,61 @@ func TestAlignNodePluginPostStart(t *testing.T) {
 	if _, exists := source["postStart"].(map[string]any)["enabled"]; !exists {
 		t.Error("alignNodePluginPostStart() mutated the backend response")
 	}
+
+	// A nil configured map drops the injected default (Update without
+	// plugin_config).
+	got = alignNodePluginPostStart(nil, postStart(map[string]any{"enabled": false}))
+	if _, exists := got.(map[string]any)["postStart"].(map[string]any)["enabled"]; exists {
+		t.Errorf("alignNodePluginPostStart(nil, ...) kept the injected default: %#v", got)
+	}
+
+	// A remote postStart without enabled passes through unchanged.
+	withoutEnabled := postStart(nil)
+	if got := alignNodePluginPostStart(nil, withoutEnabled); !reflect.DeepEqual(got, withoutEnabled) {
+		t.Errorf("alignNodePluginPostStart() = %#v, want %#v", got, withoutEnabled)
+	}
+
+	// A non-map remote passes through unchanged.
+	if got := alignNodePluginPostStart(nil, "not-a-map"); got != "not-a-map" {
+		t.Errorf("alignNodePluginPostStart() = %#v, want passthrough", got)
+	}
+}
+
+func TestAlignNodePluginDefaults(t *testing.T) {
+	t.Parallel()
+
+	// Both injected defaults are dropped when the configuration sets neither.
+	remote := map[string]any{
+		"torrentBlocker": map[string]any{"enabled": true, "rulePlacement": float64(0)},
+		"postStart":      map[string]any{"enabled": false, "webhook": map[string]any{"enabled": true, "url": "https://example.com/hook"}},
+	}
+	configured := map[string]any{
+		"torrentBlocker": map[string]any{"enabled": true},
+		"postStart":      map[string]any{"webhook": map[string]any{"enabled": true, "url": "https://example.com/hook"}},
+	}
+	got, ok := alignNodePluginDefaults(configured, remote).(map[string]any)
+	if !ok {
+		t.Fatalf("alignNodePluginDefaults() = %#v, want a map", got)
+	}
+	if _, exists := got["torrentBlocker"].(map[string]any)["rulePlacement"]; exists {
+		t.Errorf("alignNodePluginDefaults() kept rulePlacement: %#v", got)
+	}
+	if _, exists := got["postStart"].(map[string]any)["enabled"]; exists {
+		t.Errorf("alignNodePluginDefaults() kept postStart.enabled: %#v", got)
+	}
+
+	// Configured values survive the composition.
+	configured["torrentBlocker"].(map[string]any)["rulePlacement"] = float64(5)
+	configured["postStart"].(map[string]any)["enabled"] = true
+	remote["torrentBlocker"].(map[string]any)["rulePlacement"] = float64(5)
+	remote["postStart"].(map[string]any)["enabled"] = true
+	got = alignNodePluginDefaults(configured, remote).(map[string]any)
+	if placement := got["torrentBlocker"].(map[string]any)["rulePlacement"]; placement != float64(5) {
+		t.Errorf("alignNodePluginDefaults() dropped configured rulePlacement: %#v", got)
+	}
+	if enabled := got["postStart"].(map[string]any)["enabled"]; enabled != true {
+		t.Errorf("alignNodePluginDefaults() dropped configured postStart.enabled: %#v", got)
+	}
 }
 
 func TestAlignNodePluginRulePlacement(t *testing.T) {
