@@ -125,8 +125,8 @@ the first version-dependent operation. Version-specific behaviour:
   candidate like tags. 3.4.5 is another contract-compatible patch: a
   `SERVICE_SNI_VERIFICATION` env toggle (default `true`) for the panel's
   mTLS connections to nodes, a `postStart` section in the node-plugin
-  config schema (webhook fired after Xray-core starts — node-side
-  configuration, not a REST surface), a grpc transport fix that emits
+  config schema (webhook fired after Xray-core starts — the
+  `plugin_config` whitelist rejects it until whitelisted, a follow-up), a grpc transport fix that emits
   `multiMode` instead of `mode` in xray-json subscriptions, and exact-match
   `id` filter handling in the users and torrent-blocker list queries (UI
   table filtering the provider does not use). No REST route, DTO, or
