@@ -673,6 +673,12 @@ func (c *Client) isVersionAtLeast3_4(ctx context.Context) (bool, error) {
 	return c.isVersionAtLeast(ctx, 3, 4)
 }
 
+// isVersionAtLeast3_4_5 returns true when the node-plugin schema accepts
+// postStart.
+func (c *Client) isVersionAtLeast3_4_5(ctx context.Context) (bool, error) {
+	return c.isVersionAtLeastPatch(ctx, 3, 4, 5)
+}
+
 func (c *Client) isVersionAtLeast(ctx context.Context, requiredMajor, requiredMinor int) (bool, error) {
 	if err := c.detectVersion(ctx); err != nil {
 		return false, err

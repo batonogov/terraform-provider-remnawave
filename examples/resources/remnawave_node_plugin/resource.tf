@@ -31,3 +31,19 @@ resource "remnawave_node_plugin" "torrent_blocker" {
     }
   })
 }
+
+# Fires a webhook every time Xray-core starts or restarts.
+# Requires Remnawave 3.4.5 or later.
+resource "remnawave_node_plugin" "post_start" {
+  name = "Post-Start Webhook"
+
+  plugin_config = jsonencode({
+    postStart = {
+      enabled = true
+      webhook = {
+        enabled = true
+        url     = "https://example.com/xray-core-started"
+      }
+    }
+  })
+}

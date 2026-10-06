@@ -222,6 +222,7 @@ func canonicalNodePluginJSON(value string) (string, map[string]any, error) {
 	allowedKeys := map[string]struct{}{
 		"sharedLists": {}, "torrentBlocker": {}, "ingressFilter": {},
 		"egressFilter": {}, "connectionDrop": {}, "preStart": {},
+		"postStart": {},
 	}
 	for key := range decoded {
 		if _, ok := allowedKeys[key]; !ok {

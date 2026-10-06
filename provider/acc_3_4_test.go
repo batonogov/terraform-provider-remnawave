@@ -3,9 +3,11 @@ package provider
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 // TestAccHostInternalSquads exercises the Remnawave 3.4 host
@@ -179,4 +181,83 @@ resource "remnawave_shared_list" "test" {
 			},
 		},
 	})
+}
+
+// TestAccNodePluginPostStart exercises the Remnawave 3.4.5 postStart plugin
+// contract: a webhook-only section (the backend stores its schema default
+// enabled=false, which the provider must drop to keep the plan stable) and an
+// explicit enabled flag.
+func TestAccNodePluginPostStart(t *testing.T) {
+	testAccPreCheck(t)
+	if !isBackendAtLeast3_4_5() {
+		t.Skip("postStart node plugin configuration requires Remnawave 3.4.5+")
+	}
+	endpoint, authBlock := testAccProviderBlock()
+	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: providerCfg + `
+resource "remnawave_node_plugin" "post_start" {
+  name = "test-plugin-post-start"
+  plugin_config = jsonencode({
+    sharedLists = []
+    postStart = {
+      webhook = {
+        enabled = true
+        url     = "https://example.com/core-started"
+      }
+    }
+  })
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("remnawave_node_plugin.post_start", "uuid"),
+					resource.TestCheckResourceAttr("remnawave_node_plugin.post_start", "name", "test-plugin-post-start"),
+					resource.TestCheckResourceAttrSet("remnawave_node_plugin.post_start", "plugin_config"),
+					testAccCheckNodePluginConfigOmitsPostStartEnabled("remnawave_node_plugin.post_start"),
+				),
+			},
+			{
+				Config: providerCfg + `
+resource "remnawave_node_plugin" "post_start" {
+  name = "test-plugin-post-start"
+  plugin_config = jsonencode({
+    sharedLists = []
+    postStart = {
+      enabled = true
+      webhook = {
+        enabled = true
+        url     = "https://example.com/core-started-v2"
+      }
+    }
+  })
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("remnawave_node_plugin.post_start", "uuid"),
+					resource.TestCheckResourceAttrSet("remnawave_node_plugin.post_start", "plugin_config"),
+				),
+			},
+		},
+	})
+}
+
+// testAccCheckNodePluginConfigOmitsPostStartEnabled proves the state does not
+// keep the postStart.enabled default Remnawave 3.4.5 materializes when the
+// configuration omits it. In canonical JSON enabled would sort before
+// webhook, so the presence of "postStart":{"enabled" is decisive.
+func testAccCheckNodePluginConfigOmitsPostStartEnabled(name string) resource.TestCheckFunc {
+	return func(state *terraform.State) error {
+		rs, ok := state.RootModule().Resources[name]
+		if !ok {
+			return fmt.Errorf("resource %s not found in state", name)
+		}
+		if strings.Contains(rs.Primary.Attributes["plugin_config"], `"postStart":{"enabled"`) {
+			return fmt.Errorf("plugin_config kept a backend-injected postStart.enabled: %s", rs.Primary.Attributes["plugin_config"])
+		}
+		return nil
+	}
 }

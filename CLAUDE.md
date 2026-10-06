@@ -125,8 +125,10 @@ the first version-dependent operation. Version-specific behaviour:
   candidate like tags. 3.4.5 is another contract-compatible patch: a
   `SERVICE_SNI_VERIFICATION` env toggle (default `true`) for the panel's
   mTLS connections to nodes, a `postStart` section in the node-plugin
-  config schema (webhook fired after Xray-core starts — the
-  `plugin_config` whitelist rejects it until whitelisted, a follow-up), a grpc transport fix that emits
+  config schema (webhook fired after Xray-core starts — supported in
+  `plugin_config` on 3.4.5+, with the materialized `postStart.enabled`
+  default dropped unless configured, like `rulePlacement`), a grpc
+  transport fix that emits
   `multiMode` instead of `mode` in xray-json subscriptions, and exact-match
   `id` filter handling in the users and torrent-blocker list queries (UI
   table filtering the provider does not use). No REST route, DTO, or
@@ -136,7 +138,8 @@ Existing configurations require no changes — the provider transparently
 adapts. The optional node `ips` attribute requires Remnawave 3.2.2 or later;
 host `mapper`, node `integration_uuids`, node integrations, and global shared
 lists require Remnawave 3.3 or later; `torrentBlocker.rulePlacement` in
-`plugin_config` requires Remnawave 3.3.1 or later; host
+`plugin_config` requires Remnawave 3.3.1 or later; `postStart` in
+`plugin_config` requires Remnawave 3.4.5 or later; host
 `internal_squads_mode`/`internal_squads` and
 slash-containing snippet/shared-list names require Remnawave 3.4 or later.
 
