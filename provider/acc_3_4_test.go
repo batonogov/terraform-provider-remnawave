@@ -180,3 +180,64 @@ resource "remnawave_shared_list" "test" {
 		},
 	})
 }
+
+// TestAccNodePluginPostStart exercises the Remnawave 3.4.5 postStart plugin
+// contract: a webhook-only section (the backend stores its schema default
+// enabled=false, which the provider must drop to keep the plan stable) and an
+// explicit enabled flag.
+func TestAccNodePluginPostStart(t *testing.T) {
+	testAccPreCheck(t)
+	if !isBackendAtLeast3_4_5() {
+		t.Skip("postStart node plugin configuration requires Remnawave 3.4.5+")
+	}
+	endpoint, authBlock := testAccProviderBlock()
+	providerCfg := fmt.Sprintf(testAccProviderConfig, endpoint, authBlock)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: providerCfg + `
+resource "remnawave_node_plugin" "post_start" {
+  name = "post-start-plugin"
+  plugin_config = jsonencode({
+    sharedLists = []
+    postStart = {
+      webhook = {
+        enabled = true
+        url     = "https://example.com/core-started"
+      }
+    }
+  })
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("remnawave_node_plugin.post_start", "uuid"),
+					resource.TestCheckResourceAttr("remnawave_node_plugin.post_start", "name", "post-start-plugin"),
+					resource.TestCheckResourceAttrSet("remnawave_node_plugin.post_start", "plugin_config"),
+				),
+			},
+			{
+				Config: providerCfg + `
+resource "remnawave_node_plugin" "post_start" {
+  name = "post-start-plugin"
+  plugin_config = jsonencode({
+    sharedLists = []
+    postStart = {
+      enabled = true
+      webhook = {
+        enabled = true
+        url     = "https://example.com/core-started-v2"
+      }
+    }
+  })
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("remnawave_node_plugin.post_start", "uuid"),
+					resource.TestCheckResourceAttrSet("remnawave_node_plugin.post_start", "plugin_config"),
+				),
+			},
+		},
+	})
+}

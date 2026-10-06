@@ -21,7 +21,7 @@ adapts version-specific contracts at runtime.
 - Resources: 28
 - Data sources: 28
 - Exported client operations: 120
-- Acceptance test entry points: 90
+- Acceptance test entry points: 91
 
 The historical backend command count and current client operation count above
 are intentionally different metrics. Backend commands include authentication,
@@ -42,7 +42,7 @@ Terraform state.
 | Subscription settings | Version-adaptive singleton resource including remarks, response headers/rules and HWID settings | Covered for supported contracts |
 | Subscription templates | CRUD including type and template body | List data source and reorder |
 | Subscription page configs | CRUD | List data source, clone and reorder |
-| Node plugins | CRUD with the 2.x plugin configuration document, the 3.1+ pre-start stage, and version-aware 3.3+ global shared-list handling | Plugin list data source, clone/reorder/sync, executor, torrent reports and report truncation |
+| Node plugins | CRUD with the 2.x plugin configuration document, the 3.1+ pre-start stage, the 3.4.5+ post-start stage, and version-aware 3.3+ global shared-list handling | Plugin list data source, clone/reorder/sync, executor, torrent reports and report truncation |
 | Node integrations | 3.3+ CRUD resource and list data source, including optional node restart on update; node assignment through `remnawave_node` | Covered for supported contracts |
 | Shared lists | 3.3+ global IP/CIDR and ASN list CRUD resource and preview-list data source | Explicit shared-list synchronization action |
 | Snippets | CRUD plus opt-in node synchronization after update/delete on 3.2.3+, list data source | Covered for supported contracts |
