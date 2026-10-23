@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.13.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.12.0...v1.13.0) (2026-10-23)
+
+
+### Features
+
+* support Remnawave 3.4.7 ([#282](https://github.com/batonogov/terraform-provider-remnawave/issues/282)) ([63b8e6f](https://github.com/batonogov/terraform-provider-remnawave/commit/63b8e6fb811e520c247ef036e387153ac6cecab3))
+
+
+### Bug Fixes
+
+* **deps:** update Go and networking security dependencies ([#280](https://github.com/batonogov/terraform-provider-remnawave/issues/280)) ([4dd72be](https://github.com/batonogov/terraform-provider-remnawave/commit/4dd72be97020889a927f1e61275ff12efb98aea7))
+
 ## [1.12.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.11.0...v1.12.0) (2026-10-06)
 
 
