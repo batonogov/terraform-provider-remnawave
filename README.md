@@ -466,7 +466,7 @@ task test:vuln
 task test:acc
 ```
 
-See [`Taskfile.yml`](Taskfile.yml) and [`CLAUDE.md`](CLAUDE.md) for the full
+See [`Taskfile.yml`](Taskfile.yml) and [`AGENTS.md`](AGENTS.md) for the full
 list of commands and development conventions.
 
 ### Acceptance Tests
