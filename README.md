@@ -439,7 +439,7 @@ that validate the archive, SBOM, source commit, and workflow identity.
 
 | Tool | Version |
 | --- | --- |
-| [Go](https://go.dev/dl/) | 1.26.6+ (see [`go.mod`](go.mod)) |
+| [Go](https://go.dev/dl/) | 1.26.10+ (see [`go.mod`](go.mod)) |
 | [Terraform CLI](https://developer.hashicorp.com/terraform/install) | 1.12+ |
 | [Task](https://taskfile.dev) | Latest (optional, for `task` commands) |
 | [Docker](https://www.docker.com/) | Required for acceptance tests |
