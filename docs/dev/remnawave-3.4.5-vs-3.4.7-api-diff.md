@@ -68,15 +68,17 @@ test and the import-only WebAuthn passkey test without an external fixture).
 Local unit tests with the race detector passed with 42.5% statement coverage
 (above the 30% CI floor). Build, vet, lint, repository-security policy tests,
 and release CI verification tests also passed. Terraform example validation,
-documentation generation/validation, and inventory checks passed; the final
-clean-documentation check is run after committing this report.
+documentation generation/validation, inventory checks, and the final
+clean-documentation check (`task docs:check`) passed.
 
-Two independent agent reviews checked upstream compatibility and the final
-matrix/digest/ruleset/documentation diff; neither found a required change.
+Two rounds of independent agent reviews checked upstream compatibility and
+the final matrix/digest/ruleset/documentation diff. No functional findings
+remained; the second round clarified the completed documentation checks.
 
 ## Required checks
 
 The checked-in main ruleset requires `Acceptance Tests (3.4.7)` in place of
 `Acceptance Tests (3.4.5)`, matching the matrix derived from
-`compat-versions.json`. The live ruleset must also require the new context
-before merge; changing the JSON alone does not update GitHub settings.
+`compat-versions.json`. The live GitHub main ruleset was also updated to
+require `Acceptance Tests (3.4.7)`, preserving its other protection settings.
+Changing the checked-in JSON alone does not update GitHub settings.
