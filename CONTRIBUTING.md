@@ -3,7 +3,7 @@
 ## Development Setup
 
 ```bash
-# Install Go 1.26.6+, Terraform 1.12+, Task, and Docker
+# Install Go 1.26.10+, Terraform 1.12+, Task, and Docker
 
 # Clone
 git clone https://github.com/batonogov/terraform-provider-remnawave.git
