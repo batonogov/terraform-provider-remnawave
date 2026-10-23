@@ -14,7 +14,7 @@ application with a clean REST API. The panel uses PostgreSQL + Redis (Valkey).
 
 **Compatibility:** Remnawave v2.7.x, v2.8.x, v3.0.x, v3.1.x, v3.2.x, v3.3.x,
 and v3.4.x. Docker Compose and acceptance tests default to the
-`remnawave/backend:3.4.5` image pinned by digest; CI runs matrix entries
+`remnawave/backend:3.4.7` image pinned by digest; CI runs matrix entries
 against `remnawave/backend:3.3.2`, `remnawave/backend:3.3.1`,
 `remnawave/backend:3.2.3`, `remnawave/backend:3.1.0`, `remnawave/backend:3.0.0`,
 `remnawave/backend:2.8.1`, and `remnawave/backend:2.7.4`. Remnawave 3.3.1 stays in
@@ -132,7 +132,12 @@ the first version-dependent operation. Version-specific behaviour:
   `multiMode` instead of `mode` in xray-json subscriptions, and exact-match
   `id` filter handling in the users and torrent-blocker list queries (UI
   table filtering the provider does not use). No REST route, DTO, or
-  response model changed.
+  response model changed. 3.4.6 updates the Node.js base image for security
+  fixes and refactors bulk user deletion by status without changing its
+  contract. 3.4.7 fixes X25519 public-key derivation used for REALITY and
+  VLESS encryption in subscription generation. Neither patch changes REST
+  routes, DTOs, response models, or plugin schemas; no provider adaptation
+  is required.
 
 Existing configurations require no changes — the provider transparently
 adapts. The optional node `ips` attribute requires Remnawave 3.2.2 or later;
@@ -305,7 +310,7 @@ removes untracked duplicate/generated files such as `docs/* 2.md`; preview with
 | Build | `go build ./...` |
 | Unit Tests | `go test ./provider -skip TestAcc`, race detector, **30% coverage floor** |
 | Documentation | `terraform fmt -check` on examples; `tfplugindocs generate/validate`; fails if `docs/` drifts |
-| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against 3.4.5 (default), 3.3.2, 3.3.1, 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 |
+| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against 3.4.7 (default), 3.3.2, 3.3.1, 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 |
 
 All GitHub Actions across the repo **must be pinned by commit SHA**
 (see `release-please.yml`); Dependabot keeps them current. Do not switch
