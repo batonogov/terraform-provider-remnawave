@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.1](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.13.0...v1.13.1) (2026-10-28)
+
+
+### Bug Fixes
+
+* send subscription template name only on rename ([#284](https://github.com/batonogov/terraform-provider-remnawave/issues/284)) ([aaf124b](https://github.com/batonogov/terraform-provider-remnawave/commit/aaf124bbaa3c62536c86ad65be1db3f679a5b3c1)), closes [#283](https://github.com/batonogov/terraform-provider-remnawave/issues/283)
+
 ## [1.13.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.12.0...v1.13.0) (2026-10-23)
 
 
