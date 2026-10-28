@@ -318,7 +318,7 @@ type ExternalSquad struct {
 // SubscriptionTemplate maps to the Remnawave SubscriptionTemplate model.
 type SubscriptionTemplate struct {
 	UUID                string `json:"uuid,omitempty"`
-	Name                string `json:"name"`
+	Name                string `json:"name,omitempty"`
 	TemplateType        string `json:"templateType,omitempty"`
 	TemplateJSON        any    `json:"templateJson,omitempty"`
 	EncodedTemplateYaml string `json:"encodedTemplateYaml,omitempty"`
