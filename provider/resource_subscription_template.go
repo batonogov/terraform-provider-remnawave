@@ -134,12 +134,19 @@ func (r *subscriptionTemplateResource) Read(ctx context.Context, req resource.Re
 }
 
 func (r *subscriptionTemplateResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan subscriptionTemplateModel
+	var plan, state subscriptionTemplateModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	tmpl := &SubscriptionTemplate{UUID: plan.UUID.ValueString(), Name: plan.Name.ValueString()}
+	tmpl := &SubscriptionTemplate{UUID: plan.UUID.ValueString()}
+	// Send name only on a rename: the backend rejects the reserved name
+	// "Default" with RESERVED_TEMPLATE_NAME even when it is not changing, which
+	// made the built-in Default templates impossible to update.
+	if !plan.Name.Equal(state.Name) {
+		tmpl.Name = plan.Name.ValueString()
+	}
 	if !plan.TemplateJSON.IsNull() {
 		var cfg any
 		if err := json.Unmarshal([]byte(plan.TemplateJSON.ValueString()), &cfg); err != nil {
