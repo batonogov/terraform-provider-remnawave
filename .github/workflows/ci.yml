@@ -81,7 +81,7 @@ jobs:
           go-version-file: go.mod
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
-          terraform_version: 1.15.5
+          terraform_version: 1.17.1
           terraform_wrapper: false
       - name: Check example formatting
         run: |
@@ -162,6 +162,8 @@ jobs:
           matrix=$(jq -cer '
             def valid_version:
               type == "string" and test("^v[0-9]+\\.[0-9]+\\.[0-9]+$");
+            def valid_terraform_version:
+              type == "string" and test("^[0-9]+\\.[0-9]+\\.\\*$");
             def valid_digest:
               type == "string" and test("^sha256:[0-9a-f]{64}$");
 
@@ -179,21 +181,43 @@ jobs:
                 and ([.versions[]
                   | select(.version == $config.default_version and .supported)
                 ] | length == 1)
+                and (.default_terraform_version | valid_terraform_version)
+                and (.terraform_versions
+                  | (type == "array" and length > 0)
+                    and all(.[]; valid_terraform_version)
+                    and (length == (unique | length)))
+                and ([.terraform_versions[]
+                  | select(. == $config.default_terraform_version)
+                ] | length == 1)
                 and (.minor_lines
                   | (type == "array" and length > 0)
                     and all(.[]; type == "string" and test("^[0-9]+\\.[0-9]+\\.x$")))
               then {
-                "include": [.versions[]
-                  | select(.supported)
-                  | {
-                      label: (.version | ltrimstr("v")),
-                      version: (.version | ltrimstr("v")),
-                      digest: .digest,
-                      token_payload: .token_payload
-                    }
-                ]
+                "include": (
+                  [.versions[]
+                    | select(.supported)
+                    | {
+                        label: (.version | ltrimstr("v")),
+                        version: (.version | ltrimstr("v")),
+                        digest: .digest,
+                        token_payload: .token_payload,
+                        terraform_version: $config.default_terraform_version
+                      }
+                  ] + [.terraform_versions[]
+                    | select(. != $config.default_terraform_version) as $terraform_version
+                    | $config.versions[]
+                    | select(.version == $config.default_version and .supported)
+                    | {
+                        label: "\(.version | ltrimstr("v")) / Terraform \($terraform_version)",
+                        version: (.version | ltrimstr("v")),
+                        digest: .digest,
+                        token_payload: .token_payload,
+                        terraform_version: $terraform_version
+                      }
+                  ]
+                )
               }
-              else error("invalid compat-versions.json structure or default_version")
+              else error("invalid compat-versions.json structure or default versions")
               end
           ' compat-versions.json)
           printf 'matrix=%s\n' "$matrix" >> "$GITHUB_OUTPUT"
@@ -223,7 +247,7 @@ jobs:
       # started accepting re-runs — could strand a release outright.
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
-          terraform_version: 1.15.5
+          terraform_version: ${{ matrix.terraform_version }}
           terraform_wrapper: false
       - name: Pin the Terraform CLI for the test harness
         run: |

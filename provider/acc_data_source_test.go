@@ -49,7 +49,7 @@ resource "remnawave_node" "test" {
   port                    = 2224
   country_code            = "NL"
 %s  config_profile_uuid     = remnawave_config_profile.profile.uuid
-  config_profile_inbounds = [remnawave_config_profile.profile.inbounds[0].uuid]
+  config_profile_inbounds = [join("", remnawave_config_profile.profile.inbounds[*].uuid)]
 }
 
 data "remnawave_nodes" "all" {

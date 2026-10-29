@@ -510,7 +510,9 @@ Contributions are welcome! Please:
 4. Run `gofmt`, `golangci-lint`, and the relevant test suite before submitting
    a pull request.
 5. Ensure CI is green — acceptance tests run against Remnawave v3.4.7,
-   v3.3.2, v3.3.1, v3.2.3, v3.1.0, v3.0.0, v2.8.1, and v2.7.4.
+   v3.3.2, v3.3.1, v3.2.3, v3.1.0, v3.0.0, v2.8.1, and v2.7.4 on the latest
+   Terraform 1.17 patch. Remnawave v3.4.7 also runs on the latest patch of
+   every Terraform minor from 1.0 through 1.17.
 
 Releases are machine-gated: the release workflow runs only after successful CI
 for the exact current `main` commit, then verifies the CI jobs, tag target, and

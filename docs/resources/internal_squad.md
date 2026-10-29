@@ -15,7 +15,7 @@ Manages a Remnawave internal squad (group with inbound access control).
 ```terraform
 resource "remnawave_internal_squad" "premium" {
   name     = "Premium"
-  inbounds = [remnawave_config_profile.default.inbounds[0].uuid]
+  inbounds = [join("", remnawave_config_profile.default.inbounds[*].uuid)]
 }
 ```
 

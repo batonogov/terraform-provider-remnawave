@@ -50,6 +50,15 @@ while IFS= read -r label; do
   required_jobs+=("Acceptance Tests ($label)")
 done < <(jq -r '.versions[] | select(.supported) | .version | ltrimstr("v")' "$compat_versions")
 
+while IFS= read -r required_job; do
+  required_jobs+=("$required_job")
+done < <(jq -r '
+  . as $config
+  | .terraform_versions[]
+  | select(. != $config.default_terraform_version)
+  | "Acceptance Tests (\($config.default_version | ltrimstr("v")) / Terraform \(.))"
+' "$compat_versions")
+
 for required_job in "${required_jobs[@]}"; do
   matches=$(jq --arg name "$required_job" '
     [.jobs[] | select(.name == $name and .status == "completed" and .conclusion == "success")]

@@ -53,7 +53,7 @@ resource "remnawave_node" "test" {
   consumption_multiplier      = 1.2
   tags                        = ["ERR_NODE"]
   config_profile_uuid         = remnawave_config_profile.profile.uuid
-  config_profile_inbounds     = [remnawave_config_profile.profile.inbounds[0].uuid]
+  config_profile_inbounds     = [join("", remnawave_config_profile.profile.inbounds[*].uuid)]
 }
 `,
 			ExpectError: regexp.MustCompile(`(?i).*(port|range|valid|invalid|must be|between|error).*`),

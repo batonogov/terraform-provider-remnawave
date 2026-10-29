@@ -197,7 +197,7 @@ resource "remnawave_node" "sync" {
   port                    = 2232
   country_code            = "NL"
   config_profile_uuid     = remnawave_config_profile.sync.uuid
-  config_profile_inbounds = [remnawave_config_profile.sync.inbounds[0].uuid]
+  config_profile_inbounds = [join("", remnawave_config_profile.sync.inbounds[*].uuid)]
 }
 `, domains)
 }

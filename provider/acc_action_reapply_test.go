@@ -133,7 +133,7 @@ resource "remnawave_node" "test" {
   address                 = "127.0.0.31"
   port                    = 2231
   config_profile_uuid     = remnawave_config_profile.profile.uuid
-  config_profile_inbounds = [remnawave_config_profile.profile.inbounds[0].uuid]
+  config_profile_inbounds = [join("", remnawave_config_profile.profile.inbounds[*].uuid)]
 }
 `
 
@@ -208,7 +208,7 @@ resource "remnawave_node" "test" {
   address                 = "127.0.0.32"
   port                    = 2232
   config_profile_uuid     = remnawave_config_profile.profile.uuid
-  config_profile_inbounds = [remnawave_config_profile.profile.inbounds[0].uuid]
+  config_profile_inbounds = [join("", remnawave_config_profile.profile.inbounds[*].uuid)]
 }
 `
 

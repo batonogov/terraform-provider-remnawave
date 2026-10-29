@@ -152,7 +152,7 @@ resource "remnawave_node" "test" {
   notify_percent             = 80
   consumption_multiplier     = 1.0
   config_profile_uuid        = remnawave_config_profile.profile.uuid
-  config_profile_inbounds    = [remnawave_config_profile.profile.inbounds[0].uuid]
+  config_profile_inbounds    = [join("", remnawave_config_profile.profile.inbounds[*].uuid)]
 }
 `
 
@@ -215,7 +215,7 @@ resource "remnawave_host" "test" {
   xray_json_template_uuid       = remnawave_subscription_template.host.uuid
   exclude_from_subscription_types = ["MIHOMO", "SINGBOX"]
   config_profile_uuid           = remnawave_config_profile.profile.uuid
-  config_profile_inbound_uuid   = remnawave_config_profile.profile.inbounds[0].uuid
+  config_profile_inbound_uuid   = join("", remnawave_config_profile.profile.inbounds[*].uuid)
 }
 
 resource "remnawave_subscription_template" "host" {

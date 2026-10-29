@@ -27,7 +27,7 @@ resource "remnawave_host" "tagged" {
   address                     = "127.0.0.4"
   port                        = 443
   config_profile_uuid         = remnawave_config_profile.profile.uuid
-  config_profile_inbound_uuid = remnawave_config_profile.profile.inbounds[0].uuid
+  config_profile_inbound_uuid = join("", remnawave_config_profile.profile.inbounds[*].uuid)
   tags                        = ["TEST_TAG_DS"]
 }
 

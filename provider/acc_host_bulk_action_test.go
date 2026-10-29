@@ -24,7 +24,7 @@ resource "remnawave_host" "test" {
   address                     = "127.0.0.3"
   port                        = 443
   config_profile_uuid         = remnawave_config_profile.profile.uuid
-  config_profile_inbound_uuid = remnawave_config_profile.profile.inbounds[0].uuid
+  config_profile_inbound_uuid = join("", remnawave_config_profile.profile.inbounds[*].uuid)
 }
 
 resource "remnawave_host_bulk_action" "enable" {
