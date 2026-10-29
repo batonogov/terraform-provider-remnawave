@@ -8,8 +8,9 @@ trap 'rm -rf "$temporary_dir"' EXIT
 
 tested_sha=1111111111111111111111111111111111111111
 
-jq -n --argjson versions "$(jq '[.versions[] | select(.supported) | .version | ltrimstr("v")]' "$repository_dir/compat-versions.json")" '
-  {
+jq -n --slurpfile compat "$repository_dir/compat-versions.json" '
+  $compat[0] as $config
+  | {
     jobs: (
       [
         "Lint",
@@ -22,7 +23,12 @@ jq -n --argjson versions "$(jq '[.versions[] | select(.supported) | .version | l
         "Release Supply Chain Tests",
         "Repository Policy Tests",
         "Vulnerability Scan"
-      ] + [$versions[] | "Acceptance Tests (\(.))"]
+      ]
+      + [$config.versions[] | select(.supported)
+        | "Acceptance Tests (\(.version | ltrimstr("v")))"]
+      + [$config.terraform_versions[]
+        | select(. != $config.default_terraform_version)
+        | "Acceptance Tests (\($config.default_version | ltrimstr("v")) / Terraform \(.))"]
       | map({name: ., status: "completed", conclusion: "success"})
     )
   }
@@ -65,6 +71,11 @@ expect_failure "skipped job" CI_JOBS_FILE="$temporary_dir/skipped.json"
 jq 'del(.jobs[] | select(.name == "Lint"))' \
   "$temporary_dir/success.json" >"$temporary_dir/missing.json"
 expect_failure "missing job" CI_JOBS_FILE="$temporary_dir/missing.json"
+
+jq 'del(.jobs[] | select(.name | contains(" / Terraform ")))' \
+  "$temporary_dir/success.json" >"$temporary_dir/missing-terraform.json"
+expect_failure "missing Terraform compatibility job" \
+  CI_JOBS_FILE="$temporary_dir/missing-terraform.json"
 
 expect_failure "cancelled workflow" CI_RUN_CONCLUSION=cancelled
 expect_failure "wrong event" CI_RUN_EVENT=pull_request

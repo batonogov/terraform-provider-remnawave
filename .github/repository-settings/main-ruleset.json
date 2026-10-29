@@ -87,6 +87,74 @@
             "integration_id": 15368
           },
           {
+            "context": "Acceptance Tests (3.4.7 / Terraform 1.0.*)",
+            "integration_id": 15368
+          },
+          {
+            "context": "Acceptance Tests (3.4.7 / Terraform 1.1.*)",
+            "integration_id": 15368
+          },
+          {
+            "context": "Acceptance Tests (3.4.7 / Terraform 1.2.*)",
+            "integration_id": 15368
+          },
+          {
+            "context": "Acceptance Tests (3.4.7 / Terraform 1.3.*)",
+            "integration_id": 15368
+          },
+          {
+            "context": "Acceptance Tests (3.4.7 / Terraform 1.4.*)",
+            "integration_id": 15368
+          },
+          {
+            "context": "Acceptance Tests (3.4.7 / Terraform 1.5.*)",
+            "integration_id": 15368
+          },
+          {
+            "context": "Acceptance Tests (3.4.7 / Terraform 1.6.*)",
+            "integration_id": 15368
+          },
+          {
+            "context": "Acceptance Tests (3.4.7 / Terraform 1.7.*)",
+            "integration_id": 15368
+          },
+          {
+            "context": "Acceptance Tests (3.4.7 / Terraform 1.8.*)",
+            "integration_id": 15368
+          },
+          {
+            "context": "Acceptance Tests (3.4.7 / Terraform 1.9.*)",
+            "integration_id": 15368
+          },
+          {
+            "context": "Acceptance Tests (3.4.7 / Terraform 1.10.*)",
+            "integration_id": 15368
+          },
+          {
+            "context": "Acceptance Tests (3.4.7 / Terraform 1.11.*)",
+            "integration_id": 15368
+          },
+          {
+            "context": "Acceptance Tests (3.4.7 / Terraform 1.12.*)",
+            "integration_id": 15368
+          },
+          {
+            "context": "Acceptance Tests (3.4.7 / Terraform 1.13.*)",
+            "integration_id": 15368
+          },
+          {
+            "context": "Acceptance Tests (3.4.7 / Terraform 1.14.*)",
+            "integration_id": 15368
+          },
+          {
+            "context": "Acceptance Tests (3.4.7 / Terraform 1.15.*)",
+            "integration_id": 15368
+          },
+          {
+            "context": "Acceptance Tests (3.4.7 / Terraform 1.16.*)",
+            "integration_id": 15368
+          },
+          {
             "context": "Acceptance Tests (3.3.2)",
             "integration_id": 15368
           },

@@ -37,7 +37,7 @@ resource "remnawave_host" "test" {
   sni                         = "host.example.com"
   security_layer              = "TLS"
   config_profile_uuid         = remnawave_config_profile.profile.uuid
-  config_profile_inbound_uuid = remnawave_config_profile.profile.inbounds[0].uuid
+  config_profile_inbound_uuid = join("", remnawave_config_profile.profile.inbounds[*].uuid)
 %s
 }
 `
@@ -112,7 +112,7 @@ resource "remnawave_host" "test" {
   port                        = 443
   internal_squads             = []
   config_profile_uuid         = remnawave_config_profile.profile.uuid
-  config_profile_inbound_uuid = remnawave_config_profile.profile.inbounds[0].uuid
+  config_profile_inbound_uuid = join("", remnawave_config_profile.profile.inbounds[*].uuid)
 }
 `,
 				ExpectError: regexp.MustCompile(`requires Remnawave 3.4 or later`),

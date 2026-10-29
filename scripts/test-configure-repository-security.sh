@@ -132,11 +132,17 @@ fi
 # gate derives its acceptance matrix from compat-versions.json, while the
 # ruleset is static JSON, so a newly supported version silently becomes
 # non-blocking: a pull request could merge with that version red, land it on
-# main, and stall the release the gate then refuses to pass.
+# main, and stall the release the gate then refuses to pass. A stale required
+# context is equally blocking: CI no longer creates a job that can satisfy it.
 missing_contexts=$(
   jq -r --slurpfile compat "$repository_dir/compat-versions.json" '
-    [$compat[0].versions[] | select(.supported)
-      | "Acceptance Tests (\(.version | ltrimstr("v")))"] as $expected
+    ([$compat[0].versions[] | select(.supported)
+      | "Acceptance Tests (\(.version | ltrimstr("v")))"]
+      + [$compat[0] as $config
+        | $config.terraform_versions[]
+        | select(. != $config.default_terraform_version)
+        | "Acceptance Tests (\($config.default_version | ltrimstr("v")) / Terraform \(.))"])
+      as $expected
     | [.rules[] | select(.type == "required_status_checks")
       | .parameters.required_status_checks[].context] as $declared
     | $expected - $declared
@@ -146,6 +152,28 @@ missing_contexts=$(
 if [ -n "$missing_contexts" ]; then
   echo "main ruleset does not require every supported acceptance job:" >&2
   printf '%s\n' "$missing_contexts" | sed 's/^/  /' >&2
+  exit 1
+fi
+
+stale_contexts=$(
+  jq -r --slurpfile compat "$repository_dir/compat-versions.json" '
+    ([$compat[0].versions[] | select(.supported)
+      | "Acceptance Tests (\(.version | ltrimstr("v")))"]
+      + [$compat[0] as $config
+        | $config.terraform_versions[]
+        | select(. != $config.default_terraform_version)
+        | "Acceptance Tests (\($config.default_version | ltrimstr("v")) / Terraform \(.))"])
+      as $expected
+    | [.rules[] | select(.type == "required_status_checks")
+      | .parameters.required_status_checks[].context
+      | select(startswith("Acceptance Tests ("))] as $declared
+    | $declared - $expected
+    | .[]
+  ' "$repository_dir/.github/repository-settings/main-ruleset.json"
+)
+if [ -n "$stale_contexts" ]; then
+  echo "main ruleset requires stale acceptance jobs:" >&2
+  printf '%s\n' "$stale_contexts" | sed 's/^/  /' >&2
   exit 1
 fi
 

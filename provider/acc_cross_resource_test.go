@@ -27,7 +27,7 @@ resource "remnawave_node" "stack" {
   address                 = "10.0.0.1"
   port                    = 443
   config_profile_uuid     = remnawave_config_profile.profile.uuid
-  config_profile_inbounds = [remnawave_config_profile.profile.inbounds[0].uuid]
+  config_profile_inbounds = [join("", remnawave_config_profile.profile.inbounds[*].uuid)]
 }
 resource "remnawave_host" "stack" {
   remark                      = "stack-host"
@@ -35,7 +35,7 @@ resource "remnawave_host" "stack" {
   port                        = 443
   security_layer              = "TLS"
   config_profile_uuid         = remnawave_config_profile.profile.uuid
-  config_profile_inbound_uuid = remnawave_config_profile.profile.inbounds[0].uuid
+  config_profile_inbound_uuid = join("", remnawave_config_profile.profile.inbounds[*].uuid)
   xray_json_template_uuid     = remnawave_subscription_template.stack.uuid
 }
 `,
@@ -73,7 +73,7 @@ resource "remnawave_node" "chain" {
   address                 = "10.30.40.50"
   port                    = 6666
   config_profile_uuid     = remnawave_config_profile.profile.uuid
-  config_profile_inbounds = [remnawave_config_profile.profile.inbounds[0].uuid]
+  config_profile_inbounds = [join("", remnawave_config_profile.profile.inbounds[*].uuid)]
 }
 resource "remnawave_billing_node" "chain" {
   provider_uuid   = remnawave_infra_provider.chain.uuid
@@ -115,7 +115,7 @@ resource "remnawave_node" "chain" {
   address                 = "127.0.0.20"
   port                    = 2224
   config_profile_uuid     = remnawave_config_profile.profile.uuid
-  config_profile_inbounds = [remnawave_config_profile.profile.inbounds[0].uuid]
+  config_profile_inbounds = [join("", remnawave_config_profile.profile.inbounds[*].uuid)]
 }
 resource "remnawave_node_metadata" "chain" {
   node_uuid = remnawave_node.chain.uuid

@@ -111,7 +111,7 @@ resource "remnawave_node" "test" {
   consumption_multiplier      = 1.2
   tags                        = ["ACC_NODE"]
 %s%s  config_profile_uuid         = remnawave_config_profile.profile.uuid
-  config_profile_inbounds     = [remnawave_config_profile.profile.inbounds[0].uuid]
+  config_profile_inbounds     = [join("", remnawave_config_profile.profile.inbounds[*].uuid)]
 }
 `, nodeIPFields, nodeIntegrationFields),
 				Check: resource.ComposeAggregateTestCheckFunc(checks...),
@@ -127,7 +127,7 @@ resource "remnawave_node" "test" {
   consumption_multiplier      = 2.0
   tags                        = ["ACC_NODE", "UPDATED"]
 %s%s  config_profile_uuid         = remnawave_config_profile.profile.uuid
-  config_profile_inbounds     = [remnawave_config_profile.profile.inbounds[0].uuid]
+  config_profile_inbounds     = [join("", remnawave_config_profile.profile.inbounds[*].uuid)]
 }
 `, nodeIPUpdateFields, nodeIntegrationFields),
 				Check: resource.ComposeAggregateTestCheckFunc(updateChecks...),
@@ -179,7 +179,7 @@ resource "remnawave_node" "test" {
   address                      = "127.0.0.11"
   port                         = 2223
 %s  config_profile_uuid          = remnawave_config_profile.profile.uuid
-  config_profile_inbounds      = [remnawave_config_profile.profile.inbounds[0].uuid]
+  config_profile_inbounds      = [join("", remnawave_config_profile.profile.inbounds[*].uuid)]
 }
 `, v28Fields),
 				Check: resource.ComposeAggregateTestCheckFunc(checks...),
@@ -255,7 +255,7 @@ resource "remnawave_host" "test" {
   exclude_from_subscription_types = ["MIHOMO", "SINGBOX"]
 %s
   config_profile_uuid         = remnawave_config_profile.profile.uuid
-  config_profile_inbound_uuid = remnawave_config_profile.profile.inbounds[0].uuid
+  config_profile_inbound_uuid = join("", remnawave_config_profile.profile.inbounds[*].uuid)
 }
 
 resource "remnawave_subscription_template" "host" {
@@ -282,7 +282,7 @@ resource "remnawave_host" "test" {
   exclude_from_subscription_types = ["CLASH"]
 %s
   config_profile_uuid         = remnawave_config_profile.profile.uuid
-  config_profile_inbound_uuid = remnawave_config_profile.profile.inbounds[0].uuid
+  config_profile_inbound_uuid = join("", remnawave_config_profile.profile.inbounds[*].uuid)
 }
 
 resource "remnawave_subscription_template" "host" {
@@ -318,7 +318,7 @@ resource "remnawave_host" "test" {
   exclude_from_subscription_types = []
 %s
   config_profile_uuid         = remnawave_config_profile.profile.uuid
-  config_profile_inbound_uuid = remnawave_config_profile.profile.inbounds[0].uuid
+  config_profile_inbound_uuid = join("", remnawave_config_profile.profile.inbounds[*].uuid)
 }
 
 resource "remnawave_subscription_template" "host" {

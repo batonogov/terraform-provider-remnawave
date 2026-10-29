@@ -310,7 +310,7 @@ removes untracked duplicate/generated files such as `docs/* 2.md`; preview with
 | Build | `go build ./...` |
 | Unit Tests | `go test ./provider -skip TestAcc`, race detector, **30% coverage floor** |
 | Documentation | `terraform fmt -check` on examples; `tfplugindocs generate/validate`; fails if `docs/` drifts |
-| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against 3.4.7 (default), 3.3.2, 3.3.1, 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 |
+| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against 3.4.7 (default), 3.3.2, 3.3.1, 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 on the latest Terraform 1.17 patch, plus 3.4.7 on the latest patch of every Terraform minor from 1.0 through 1.17 |
 
 All GitHub Actions across the repo **must be pinned by commit SHA**
 (see `release-please.yml`); Dependabot keeps them current. Do not switch
@@ -457,10 +457,12 @@ approval before the GoReleaser job can access them.
   GitHub/Sigstore SLSA provenance bundle, verified against the tag commit and
   release workflow before the draft is published. Keep `id-token: write` and
   `attestations: write` scoped to the protected release job.
-- `compat-versions.json` records the supported Remnawave backend versions. Keep
-  it in sync with the **Compatibility** note in `## Project` when bumping the
-  target line. CI acceptance tests use it as the source of truth for the
-  version matrix.
+- `compat-versions.json` records the supported Remnawave backend versions and
+  the Terraform CLI acceptance matrix. Keep the backend versions in sync with
+  the **Compatibility** note in `## Project` when bumping the target line. CI
+  acceptance tests use the file as the source of truth for the version matrix:
+  every backend runs on `default_terraform_version`, while every other entry in
+  `terraform_versions` runs against `default_version`.
 
 ### Pre-release gate
 

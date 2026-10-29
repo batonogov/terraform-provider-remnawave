@@ -3,7 +3,7 @@ resource "remnawave_host" "vless" {
   address                     = "vpn.example.com"
   port                        = 443
   config_profile_uuid         = remnawave_config_profile.default.uuid
-  config_profile_inbound_uuid = remnawave_config_profile.default.inbounds[0].uuid
+  config_profile_inbound_uuid = join("", remnawave_config_profile.default.inbounds[*].uuid)
   tags                        = ["EU", "PREMIUM"]
 
   # Remnawave 3.3+: rewrite generated client configuration per output format.
