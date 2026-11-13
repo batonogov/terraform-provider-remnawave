@@ -69,8 +69,10 @@ Local unit tests with the race detector pass with 43.0% statement coverage
 Build, vet, lint, repository-security policy tests, release-gate tests, and
 `task docs:check` pass.
 
-The real-panel suite is run with `task test:acc` against the pinned image;
-the full backend/Terraform matrix remains enforced by CI.
+The complete real-panel suite passed with `task test:acc` against the pinned
+3.4.10 image: 89 tests passed and 2 expected tests skipped (pre-3.4 host-squads
+rejection and the interactive WebAuthn passkey import placeholder). The full
+backend/Terraform matrix remains enforced by CI.
 
 ## Required checks
 

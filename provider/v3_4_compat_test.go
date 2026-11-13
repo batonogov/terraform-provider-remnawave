@@ -267,6 +267,9 @@ func TestClientHostIncludeInSrrRulesCompatibility(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			if created.UUID != "h1" || created.Remark != "r" || created.Address != "a" || created.Port != 443 {
+				t.Fatalf("known host fields were not decoded: %#v", created)
+			}
 			read, err := client.GetHostByUUID(ctx, created.UUID)
 			if err != nil {
 				t.Fatal(err)
