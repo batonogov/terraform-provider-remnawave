@@ -1,9 +1,9 @@
 {
   "versions": [
     {
-      "version": "v3.4.7",
+      "version": "v3.4.10",
       "supported": true,
-      "digest": "sha256:5c26c0314be896dfac82020b693c50a73d2f18ef593da2ef97244330ac032bcf",
+      "digest": "sha256:19efa7828b3a2e2c2f8f8503c175d84c9391358a6b1a5fd3b8112b8064ca6038",
       "token_payload": {
         "name": "acceptance-tests",
         "expiresInDays": 1,
@@ -79,7 +79,7 @@
       }
     }
   ],
-  "default_version": "v3.4.7",
+  "default_version": "v3.4.10",
   "default_terraform_version": "1.17.*",
   "terraform_versions": [
     "1.0.*",
