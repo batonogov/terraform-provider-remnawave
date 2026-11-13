@@ -35,7 +35,7 @@ Terraform state.
 | --- | --- | --- |
 | Users | CRUD resource, list data source, subscription lookup, connection keys, metadata, HWID, single-user actions and bulk actions | Selectors, tags, accessible nodes, stream and detailed per-user history |
 | Nodes | Full create/update payload including 3.3+ integration assignments, computed runtime/system/version state, list/metrics data sources, metadata, single-node actions and bulk actions | Tags and reorder operations; 3.3+ geocheck jobs |
-| Hosts | Full create/update payload including transport JSON, TLS verification, Mihomo, template and exclusion fields, and 3.3+ host mappers; list/tags data sources and bulk actions | Reorder operations |
+| Hosts | Create/update payload including transport JSON, TLS verification, Mihomo, template and exclusion fields, and 3.3+ host mappers; list/tags data sources and bulk actions | Reorder, 3.4.4+ clone, and 3.4.9+ `includeInSrrRules` |
 | Config profiles | CRUD, computed inbounds/nodes, list data source | Computed-config and standalone inbound queries, reorder |
 | Internal squads | CRUD, list data source and computed accessible nodes | Reorder and bulk membership operations |
 | External squads | CRUD and list data source including templates, subscription/HWID settings, remarks, versioned headers, host overrides and subpage | Reorder and bulk membership operations |
@@ -66,7 +66,7 @@ The following checks are required for supported functionality:
    envelope handling.
 2. Every registered resource and data source that can be exercised
    non-interactively has real-panel acceptance coverage against the pinned
-   Remnawave 3.4.7, 3.3.2, 3.3.1, 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 images. The import-only
+   Remnawave 3.4.10, 3.3.2, 3.3.1, 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 images. The import-only
    passkey
    resource is the explicit exception because creating its fixture requires a
    WebAuthn ceremony.

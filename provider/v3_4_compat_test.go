@@ -219,3 +219,70 @@ func TestClientV3_4HostSquadsAdaptation(t *testing.T) {
 		}
 	})
 }
+
+// includeInSrrRules is additive in 3.4.9. Until it is a managed attribute,
+// decoding it must not fail and writes must omit it, not clear panel settings.
+func TestClientHostIncludeInSrrRulesCompatibility(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name    string
+		version string
+		field   string
+	}{
+		{"legacy", "3.4.7", ""},
+		{"empty", "3.4.9", `,"includeInSrrRules":[]`},
+		{"configured", "3.4.9", `,"includeInSrrRules":["mobile","RAW"]`},
+		{"latest", "3.4.10", `,"includeInSrrRules":["mobile","RAW"]`},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			hostJSON := `{"uuid":"h1","remark":"r","address":"a","port":443` + tt.field + `}`
+			client := newContractClientAtVersion(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch r.Method {
+				case http.MethodPost, http.MethodPatch:
+					if r.URL.Path != "/api/hosts" {
+						t.Errorf("write path = %s", r.URL.Path)
+					}
+					body := decodeRequestObject(t, r)
+					if _, ok := body["includeInSrrRules"]; ok {
+						t.Error("write included unmanaged includeInSrrRules")
+					}
+				case http.MethodGet:
+					if r.URL.Path == "/api/hosts" {
+						_, _ = io.WriteString(w, `{"response":[`+hostJSON+`]}`)
+						return
+					}
+					if r.URL.Path != "/api/hosts/h1" {
+						t.Errorf("read path = %s", r.URL.Path)
+					}
+				default:
+					t.Errorf("unexpected method = %s", r.Method)
+				}
+				_, _ = io.WriteString(w, `{"response":`+hostJSON+`}`)
+			}, tt.version)
+
+			ctx := context.Background()
+			created, err := client.CreateHost(ctx, &Host{Remark: "r", Address: "a", Port: 443})
+			if err != nil {
+				t.Fatal(err)
+			}
+			read, err := client.GetHostByUUID(ctx, created.UUID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			updated, err := client.UpdateHost(ctx, read)
+			if err != nil {
+				t.Fatal(err)
+			}
+			hosts, err := client.GetAllHosts(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(created, read) || !reflect.DeepEqual(read, updated) ||
+				len(hosts) != 1 || !reflect.DeepEqual(hosts[0], *read) {
+				t.Fatalf("host fields changed across create/read/update/list: %#v, %#v, %#v, %#v", created, read, updated, hosts)
+			}
+		})
+	}
+}
