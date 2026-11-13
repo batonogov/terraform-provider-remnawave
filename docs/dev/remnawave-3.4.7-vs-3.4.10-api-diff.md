@@ -84,6 +84,11 @@ The complete real-panel suite passed with `task test:acc` against the pinned
 rejection and the interactive WebAuthn passkey import placeholder). The full
 backend/Terraform matrix remains enforced by CI.
 
+The initial PR CI run passed all 25 acceptance jobs but found
+`GO-2026-6859` in the Go 1.26.10 standard library. The minimum Go version
+is raised to 1.26.11, which contains the fix; CI and release builds derive
+their toolchain version from `go.mod`. No vulnerability checks are disabled.
+
 Independent reviews covered upstream API/behavior changes and CI/matrix,
 release-gate, digest, and required-check alignment. Neither found a code
 defect; review clarified the certificate upgrade warning and the live-ruleset
