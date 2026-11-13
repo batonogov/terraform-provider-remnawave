@@ -19,6 +19,16 @@ Feature minimums remain unchanged; `postStart` still requires 3.4.5+.
   resolved real path so symlinks cannot escape that directory. Existing
   panel/node certificate configurations referencing files elsewhere need
   operator attention; the provider does not read those files itself.
+  Node-integration `config.certs` entries whose files cannot be read are
+  silently dropped during certificate resolution
+  ([`resolvePemCerts`](https://github.com/remnawave/backend/blob/3.4.10/src/common/utils/certs/resolve-pem-certs.util.ts)).
+  Config-profile TLS `certificateFile`/`keyFile` references remain unresolved
+  on read failure
+  ([`XRayConfig.resolveCertificate`](https://github.com/remnawave/backend/blob/3.4.10/src/common/helpers/xray-config/xray-config.validator.ts));
+  nodes may then fail if those files are unavailable locally. This can affect runtime
+  behavior even when Terraform CRUD succeeds without drift. Move
+  panel-resolved certificate files and update their configured paths before
+  upgrading; do not rely on a successful apply to validate certificate access.
 - Updates dependencies. No REST routes or DTOs change.
 
 ## Remnawave 3.4.9
@@ -74,12 +84,22 @@ The complete real-panel suite passed with `task test:acc` against the pinned
 rejection and the interactive WebAuthn passkey import placeholder). The full
 backend/Terraform matrix remains enforced by CI.
 
+Independent reviews covered upstream API/behavior changes and CI/matrix,
+release-gate, digest, and required-check alignment. Neither found a code
+defect; review clarified the certificate upgrade warning and the live-ruleset
+migration below. Server-side preservation of omitted `includeInSrrRules`
+was verified in upstream update handling; the mock regression test proves
+client omission and decoding, not server-side persistence.
+
 ## Required checks
 
 The checked-in main ruleset replaces the primary backend checks with
 `Acceptance Tests (3.4.10)` and its Terraform-minor variants, matching the
 matrix derived from `compat-versions.json`.
 
-Changing this JSON does not update GitHub's live ruleset. Before merging,
-replace the corresponding 3.4.7 checks in the live main ruleset while
-preserving all other protection settings.
+Changing this JSON does not update GitHub's live ruleset. At review time,
+the live main ruleset still requires `Acceptance Tests (3.4.7)` and lacks
+the 17 Terraform-minor contexts. Before merging, replace that primary check
+with `Acceptance Tests (3.4.10)` and add its 17 Terraform-minor variants to
+match the checked-in policy (25 acceptance contexts total), preserving all
+other protection settings. No live settings were changed by this PR.
