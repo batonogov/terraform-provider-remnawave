@@ -26,3 +26,8 @@ Verified against [Docker Hub tag metadata](https://hub.docker.com/v2/repositorie
 and Docker Registry v2: the registry's `Docker-Content-Digest` and the SHA-256
 computed over the raw index bytes both match the new pin. The index contains
 the previous amd64 digest and the published arm64 digest.
+
+The full production-mode acceptance suite passes against this index on native
+`linux/arm64`: 82 tests pass and 10 expected tests skip for unavailable
+version-specific features and the interactive passkey fixture. The real
+production proxy-header rejection checks also pass.
