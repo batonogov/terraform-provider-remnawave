@@ -175,6 +175,97 @@ func TestStaticTokenRequest(t *testing.T) {
 	}
 }
 
+// Remnawave 3.4.11 disables JSON inflation on both login and protected routes.
+// Exercise both request builders with a compressible body large enough to catch
+// a future size-triggered compression optimization.
+func TestJSONRequestsRemainUncompressed(t *testing.T) {
+	t.Parallel()
+
+	for _, auth := range []string{"api_token", "username_password"} {
+		for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete} {
+			t.Run(auth+"/"+method, func(t *testing.T) {
+				t.Parallel()
+
+				payload := map[string]string{"config": strings.Repeat("compressible JSON payload ", 8192)}
+				wantBody, err := json.Marshal(payload)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var requests atomic.Int32
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					requests.Add(1)
+					if got := r.Header.Get("Content-Encoding"); got != "" {
+						t.Errorf("Content-Encoding = %q, want no request compression", got)
+					}
+					if got := r.Header.Get("Content-Type"); got != "application/json" {
+						t.Errorf("Content-Type = %q, want application/json", got)
+					}
+					expected := wantBody
+					if r.URL.Path == "/api/auth/login" {
+						expected = []byte(`{"password":"secret","username":"admin"}`)
+						if r.Method != http.MethodPost {
+							t.Errorf("login method = %q, want POST", r.Method)
+						}
+						if got := r.Header.Get("Authorization"); got != "" {
+							t.Errorf("login Authorization = %q, want empty", got)
+						}
+					} else {
+						if r.Method != method || r.URL.Path != "/api/test" {
+							t.Errorf("request = %s %s, want %s /api/test", r.Method, r.URL.Path, method)
+						}
+						if got := r.Header.Get("Authorization"); got != "Bearer test-token" {
+							t.Errorf("Authorization = %q, want Bearer test-token", got)
+						}
+						wantClientType := ""
+						if auth == "username_password" {
+							wantClientType = "browser"
+						}
+						if got := r.Header.Get("X-Remnawave-Client-Type"); got != wantClientType {
+							t.Errorf("X-Remnawave-Client-Type = %q, want %q", got, wantClientType)
+						}
+					}
+					body, err := io.ReadAll(r.Body)
+					if err != nil {
+						t.Errorf("read body: %v", err)
+					}
+					if string(body) != string(expected) {
+						t.Errorf("body does not match plain JSON (got %d bytes, want %d)", len(body), len(expected))
+					}
+					if r.ContentLength != int64(len(expected)) {
+						t.Errorf("Content-Length = %d, want %d", r.ContentLength, len(expected))
+					}
+					w.Header().Set("Content-Type", "application/json")
+					if r.URL.Path == "/api/auth/login" {
+						_, _ = io.WriteString(w, `{"response":{"accessToken":"test-token"}}`)
+					} else {
+						_, _ = io.WriteString(w, `{"response":{}}`)
+					}
+				}))
+				t.Cleanup(server.Close)
+
+				config := ClientConfig{Endpoint: server.URL, APIToken: "test-token"}
+				wantRequests := int32(1)
+				if auth == "username_password" {
+					config.APIToken = ""
+					config.Username = "admin"
+					config.Password = "secret"
+					wantRequests = 2 // login (doRaw), then protected write (doRequest)
+				}
+				client, err := NewClient(config)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := client.doRequest(context.Background(), method, "/api/test", payload, nil); err != nil {
+					t.Fatalf("doRequest() error = %v", err)
+				}
+				if got := requests.Load(); got != wantRequests {
+					t.Errorf("requests = %d, want %d", got, wantRequests)
+				}
+			})
+		}
+	}
+}
+
 func TestUsernamePasswordAuthenticationIsCached(t *testing.T) {
 	t.Parallel()
 
