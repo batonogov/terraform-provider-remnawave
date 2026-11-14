@@ -105,6 +105,11 @@ tasks:
         REMNAWAVE_PROXY_HEADERS=true
         go test ./provider -run TestAcc -count=1 -timeout 600s -v
 
+  test:acc:production:
+    desc: Run acceptance tests with production proxy checks enabled
+    cmds:
+      - REMNAWAVE_NODE_ENV=production task test:acc
+
   pre-commit:
     desc: Run all pre-commit checks
     cmds:
