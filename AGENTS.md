@@ -14,12 +14,13 @@ application with a clean REST API. The panel uses PostgreSQL + Redis (Valkey).
 
 **Compatibility:** Remnawave v2.7.x, v2.8.x, v3.0.x, v3.1.x, v3.2.x, v3.3.x,
 and v3.4.x. Docker Compose and acceptance tests default to the
-`remnawave/backend:3.4.10` image pinned by digest; CI runs matrix entries
-against `remnawave/backend:3.3.2`, `remnawave/backend:3.3.1`,
+`remnawave/backend:3.4.11` image pinned by digest; CI runs matrix entries
+against `remnawave/backend:3.3.2`,
 `remnawave/backend:3.2.3`, `remnawave/backend:3.1.0`, `remnawave/backend:3.0.0`,
-`remnawave/backend:2.8.1`, and `remnawave/backend:2.7.4`. Remnawave 3.3.1 stays in
-the matrix even though 3.3.2 supersedes it, because 3.3.1 is the only version
-that injects a `torrentBlocker.rulePlacement` default. All compose images
+`remnawave/backend:2.8.1`, and `remnawave/backend:2.7.4`. Test only the latest
+patch of each supported minor line; keep historical patch behavior such as
+3.3.1's injected `torrentBlocker.rulePlacement` default covered by unit tests.
+All compose images
 are pinned by `sha256` digest for reproducibility. To run an explicit
 compatibility check against a different build, override both the tag and its
 digest, e.g. `REMNAWAVE_VERSION=3.3.2 REMNAWAVE_DIGEST=sha256:<digest>`.
@@ -145,6 +146,12 @@ the first version-dependent operation. Version-specific behaviour:
   rule name (raw subscriptions use `RAW`). The provider does not expose
   `includeInSrrRules` yet and ignores this additive response field; no existing
   provider surface requires adaptation. Node-plugin schemas are unchanged.
+  3.4.11 fixes pre-authentication request-body DoS by authenticating protected
+  requests before JSON parsing, limits auth bodies to 64 KiB, rejects bodies on
+  public subscription routes, and disables compressed JSON bodies. Existing
+  provider requests use uncompressed JSON and the same Bearer/browser-header
+  auth contract, so no runtime adaptation is required. REST routes, DTOs,
+  response models, and node-plugin schemas are unchanged.
 
 Existing configurations require no changes — the provider transparently
 adapts. The optional node `ips` attribute requires Remnawave 3.2.2 or later;
@@ -317,7 +324,7 @@ removes untracked duplicate/generated files such as `docs/* 2.md`; preview with
 | Build | `go build ./...` |
 | Unit Tests | `go test ./provider -skip TestAcc`, race detector, **30% coverage floor** |
 | Documentation | `terraform fmt -check` on examples; `tfplugindocs generate/validate`; fails if `docs/` drifts |
-| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against 3.4.10 (default), 3.3.2, 3.3.1, 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 on the latest Terraform 1.17 patch, plus 3.4.10 on the latest patch of every Terraform minor from 1.0 through 1.17 |
+| Acceptance Tests | Full `docker compose` panel lifecycle + `TestAcc*` — **matrix** against 3.4.11 (default), 3.3.2, 3.2.3, 3.1.0, 3.0.0, 2.8.1, and 2.7.4 on the latest Terraform 1.17 patch, plus 3.4.11 on the latest patch of every Terraform minor from 1.0 through 1.17 |
 
 All GitHub Actions across the repo **must be pinned by commit SHA**
 (see `release-please.yml`); Dependabot keeps them current. Do not switch

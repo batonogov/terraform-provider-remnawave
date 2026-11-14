@@ -65,14 +65,14 @@ also invited to [share what they manage](https://github.com/batonogov/terraform-
 ## Compatibility
 
 The provider supports Remnawave panel **v2.7.x, v2.8.x, v3.0.x, v3.1.x, v3.2.x, v3.3.x, and v3.4.x**.
-The acceptance test suite runs against all eight versions in CI on every push
+The acceptance test suite runs against the latest patch of each of these seven
+minor lines in CI on every push
 to `main` and every pull request — [see the full CI matrix](https://github.com/batonogov/terraform-provider-remnawave/actions/workflows/ci.yml).
 
 | Remnawave version | Status |
 | --- | --- |
-| v3.4.10 | ✅ Tested (primary) |
+| v3.4.11 | ✅ Tested (primary) |
 | v3.3.2 | ✅ Tested (matrix) |
-| v3.3.1 | ✅ Tested (matrix) |
 | v3.2.3 | ✅ Tested (matrix) |
 | v3.1.0 | ✅ Tested (matrix) |
 | v3.0.0 | ✅ Tested (matrix) |
@@ -483,7 +483,7 @@ Acceptance tests run against a real Remnawave panel via Docker Compose
 task test:acc
 
 # Override the Remnawave version under test
-REMNAWAVE_VERSION=3.4.10 REMNAWAVE_DIGEST=sha256:<digest> task test:acc
+REMNAWAVE_VERSION=3.4.11 REMNAWAVE_DIGEST=sha256:<digest> task test:acc
 ```
 
 All compose images are pinned by `sha256` digest for reproducibility.
@@ -509,9 +509,9 @@ Contributions are welcome! Please:
 3. Add or update tests for any changed behavior.
 4. Run `gofmt`, `golangci-lint`, and the relevant test suite before submitting
    a pull request.
-5. Ensure CI is green — acceptance tests run against Remnawave v3.4.10,
-   v3.3.2, v3.3.1, v3.2.3, v3.1.0, v3.0.0, v2.8.1, and v2.7.4 on the latest
-   Terraform 1.17 patch. Remnawave v3.4.10 also runs on the latest patch of
+5. Ensure CI is green — acceptance tests run against Remnawave v3.4.11,
+   v3.3.2, v3.2.3, v3.1.0, v3.0.0, v2.8.1, and v2.7.4 on the latest
+   Terraform 1.17 patch. Remnawave v3.4.11 also runs on the latest patch of
    every Terraform minor from 1.0 through 1.17.
 
 Releases are machine-gated: the release workflow runs only after successful CI
