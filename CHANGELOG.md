@@ -6,7 +6,6 @@
 ### Features
 
 * support Remnawave 3.4.11 with latest-patch test matrix ([c518f13](https://github.com/batonogov/terraform-provider-remnawave/commit/c518f13183867c447164b9bec4a2ca02837f5e07))
-* support Remnawave 3.4.11 with latest-patch test matrix ([9f470fb](https://github.com/batonogov/terraform-provider-remnawave/commit/9f470fb8ac4876288bdf22524185a19c0f678201))
 
 ## [1.14.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.13.1...v1.14.0) (2026-11-13)
 
