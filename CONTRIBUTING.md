@@ -25,6 +25,9 @@ task docs:check
 # Run acceptance tests; the task manages the complete Docker lifecycle
 task test:acc
 
+# Enable production proxy middleware (the mode used by CI)
+task test:acc:production
+
 # Test a different explicitly pinned backend build
 REMNAWAVE_VERSION=3.3.2 REMNAWAVE_DIGEST=sha256:<digest> task test:acc
 # (defaults: REMNAWAVE_VERSION=3.4.11 with the digest from compat-versions.json)

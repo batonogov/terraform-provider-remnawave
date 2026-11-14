@@ -464,6 +464,9 @@ task test:vuln
 
 # Acceptance tests (starts Remnawave panel via Docker Compose)
 task test:acc
+
+# Run with production proxy checks enabled (as in CI)
+task test:acc:production
 ```
 
 See [`Taskfile.yml`](Taskfile.yml) and [`AGENTS.md`](AGENTS.md) for the full
