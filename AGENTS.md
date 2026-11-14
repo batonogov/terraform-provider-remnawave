@@ -173,6 +173,7 @@ slash-containing snippet/shared-list names require Remnawave 3.4 or later.
 | `task test:unit` | Unit tests (no Docker/Terraform needed) |
 | `task test:coverage` | Unit tests with race detection and coverage |
 | `task test:acc` | Acceptance tests (Docker lifecycle included) |
+| `task test:acc:production` | Acceptance tests with production proxy middleware (CI mode) |
 | `task docs` | Format examples and regenerate Registry docs |
 | `task docs:check` | Validate examples/docs and detect generated drift |
 
@@ -273,6 +274,11 @@ Acceptance tests run against a real Remnawave panel via Docker Compose
 - Valkey (Redis) 9
 
 Run the complete Docker lifecycle and suite with `task test:acc`.
+Use `task test:acc:production` to enable the panel's real production proxy
+checks. CI sets `REMNAWAVE_NODE_ENV=production` for every acceptance matrix
+entry; Compose retains development mode by default for local exploration.
+`TestAccProductionProxyCheck` verifies valid proxy headers, socket rejection
+when headers are absent/insecure, and (3.4.11+) proxy checks before JSON parsing.
 
 ## Conventions
 
