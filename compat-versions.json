@@ -43,7 +43,7 @@
     {
       "version": "v3.0.0",
       "supported": true,
-      "digest": "sha256:4db37ad505101672fdba8ba39f4744817b7cf3d0c7de2e5cd6c145af2117b69c",
+      "digest": "sha256:ac871579de421c0a36b5903bc789214c4b24d68f100d4fb3cdb4689a97821356",
       "token_payload": {
         "name": "acceptance-tests",
         "expiresInDays": 1,
