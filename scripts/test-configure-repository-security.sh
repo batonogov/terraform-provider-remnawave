@@ -128,6 +128,19 @@ if run_policy --check-solo >/dev/null 2>&1; then
   exit 1
 fi
 
+# Keep exactly one acceptance target per supported minor line. Historical
+# patch-specific behavior belongs in unit tests, not extra Docker matrix jobs.
+if ! jq -e '
+  [.versions[] | select(.supported) | .version
+    | ltrimstr("v") | split(".") | .[0:2] | join(".") + ".x"]
+    as $lines
+  | ($lines | sort) == (.minor_lines | sort)
+    and ($lines | length) == ($lines | unique | length)
+' "$repository_dir/compat-versions.json" >/dev/null; then
+  echo "acceptance matrix must contain exactly one patch per supported minor line" >&2
+  exit 1
+fi
+
 # The branch ruleset and the release gate must demand the same CI jobs. The
 # gate derives its acceptance matrix from compat-versions.json, while the
 # ruleset is static JSON, so a newly supported version silently becomes
