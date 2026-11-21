@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
@@ -81,6 +82,13 @@ resource "remnawave_user" "test" {
   tag            = "ACC_TEST"
 }
 `,
+				// Editing mutable fields must not replace the user: replacement
+				// issues a new subscription URL and drops traffic statistics.
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("remnawave_user.test", plancheck.ResourceActionUpdate),
+					},
+				},
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("remnawave_user.test", "expire_at", "2028-06-15T00:00:00.000Z"),
 					resource.TestCheckResourceAttr("remnawave_user.test", "traffic_limit_bytes", "5368709120"),
