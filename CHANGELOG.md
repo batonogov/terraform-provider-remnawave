@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.1](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.15.0...v1.15.1) (2026-11-21)
+
+
+### Bug Fixes
+
+* **user:** update users in place instead of replacing them ([#296](https://github.com/batonogov/terraform-provider-remnawave/issues/296)) ([58c50b7](https://github.com/batonogov/terraform-provider-remnawave/commit/58c50b74e9d5a112cb30fbd0b350d373877557b8)), closes [#295](https://github.com/batonogov/terraform-provider-remnawave/issues/295)
+
 ## [1.15.0](https://github.com/batonogov/terraform-provider-remnawave/compare/v1.14.0...v1.15.0) (2026-11-14)
 
 
